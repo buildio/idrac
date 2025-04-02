@@ -11,8 +11,11 @@ module IDRAC
   class Client
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, :auto_delete_sessions, :session, :web
     attr_accessor :direct_mode
+    
+    include PowerMethods
+    include SessionMethods
 
-    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: true, direct_mode: false, auto_delete_sessions: true)
+    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true)
       @host = host
       @username = username
       @password = password
@@ -182,6 +185,16 @@ module IDRAC
     def base_url
       protocol = use_ssl ? 'https' : 'http'
       "#{protocol}://#{host}:#{port}"
+    end
+
+    def redfish_version
+      response = authenticated_request(:get, "/redfish/v1")
+      if response.status == 200
+        data = JSON.parse(response.body)
+        data["RedfishVersion"]
+      else
+        raise Error, "Failed to get Redfish version: #{response.status} - #{response.body}"
+      end
     end
   end
 end
