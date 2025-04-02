@@ -1,0 +1,105 @@
+PATH
+  remote: .
+  specs:
+    idrac (0.1.40)
+      base64 (~> 0.1, >= 0.1.0)
+      colorize (~> 1.1)
+      faraday (>= 2.7.0, < 2.8.0)
+      faraday-multipart (>= 1.0.0, < 1.1.0)
+      httparty (>= 0.21.0, < 0.22.0)
+      nokogiri (>= 1.15.0, < 1.19.0)
+      thor (>= 1.2.0, < 1.4.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    addressable (2.8.7)
+      public_suffix (>= 2.0.2, < 7.0)
+    base64 (0.2.0)
+    bigdecimal (3.1.8)
+    colorize (1.1.0)
+    crack (1.0.0)
+      bigdecimal
+      rexml
+    date (3.4.1)
+    debug (1.8.0)
+      irb (>= 1.5.0)
+      reline (>= 0.3.1)
+    diff-lcs (1.6.0)
+    faraday (2.7.12)
+      base64
+      faraday-net_http (>= 2.0, < 3.1)
+      ruby2_keywords (>= 0.0.4)
+    faraday-multipart (1.0.4)
+      multipart-post (~> 2)
+    faraday-net_http (3.0.2)
+    hashdiff (1.1.2)
+    httparty (0.21.0)
+      mini_mime (>= 1.0.0)
+      multi_xml (>= 0.5.2)
+    io-console (0.8.0)
+    irb (1.15.1)
+      pp (>= 0.6.0)
+      rdoc (>= 4.0.0)
+      reline (>= 0.4.2)
+    mini_mime (1.1.5)
+    mini_portile2 (2.8.7)
+    multi_xml (0.7.1)
+      bigdecimal (~> 3.1)
+    multipart-post (2.4.1)
+    nokogiri (1.15.7)
+      mini_portile2 (~> 2.8.2)
+      racc (~> 1.4)
+    pp (0.6.2)
+      prettyprint
+    prettyprint (0.2.0)
+    psych (5.2.3)
+      date
+      stringio
+    public_suffix (6.0.1)
+    racc (1.8.1)
+    rake (13.0.6)
+    rdoc (6.12.0)
+      psych (>= 4.0.0)
+    reline (0.6.0)
+      io-console (~> 0.5)
+    rexml (3.4.1)
+    rspec (3.12.0)
+      rspec-core (~> 3.12.0)
+      rspec-expectations (~> 3.12.0)
+      rspec-mocks (~> 3.12.0)
+    rspec-core (3.12.3)
+      rspec-support (~> 3.12.0)
+    rspec-expectations (3.12.4)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.12.0)
+    rspec-mocks (3.12.7)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.12.0)
+    rspec-support (3.12.2)
+    ruby2_keywords (0.0.5)
+    stringio (3.1.5)
+    thor (1.2.2)
+    webmock (3.25.0)
+      addressable (>= 2.8.0)
+      crack (>= 0.3.2)
+      hashdiff (>= 0.4.0, < 2.0.0)
+
+PLATFORMS
+  arm64-darwin-21
+  ruby
+
+DEPENDENCIES
+  bundler (~> 2.4, >= 2.4.0)
+  colorize (~> 1.1)
+  debug (~> 1.8)
+  idrac!
+  rake (~> 13.0)
+  rspec (~> 3.12)
+  webmock
+
+RUBY VERSION
+   ruby 3.3.5p100
+
+BUNDLED WITH
+   2.5.4

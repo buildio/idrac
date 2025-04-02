@@ -1,0 +1,438 @@
+#!/usr/bin/env ruby
+
+# Attempt to load bundler/setup, but don't fail if it's not available
+begin
+  require "bundler/setup"
+rescue LoadError
+  # Continue without bundler
+end
+
+# Load required gems directly
+require "thor"
+require "idrac"
+require "colorize"
+require "json"
+
+module IDRAC
+  class CLI < Thor
+    # Make host not required for all commands
+    class_option :host, type: :string, required: false, desc: "iDRAC host address"
+    class_option :username, type: :string, required: false, default: "root", desc: "iDRAC username"
+    class_option :password, type: :string, required: false, default: "calvin", desc: "iDRAC password"
+    class_option :port, type: :numeric, default: 443, desc: "iDRAC port"
+    class_option :no_ssl, type: :boolean, default: false, desc: "Disable SSL"
+    class_option :verify_ssl, type: :boolean, default: false, desc: "Enable SSL verification (not recommended for iDRAC's self-signed certificates)"
+    class_option :auto_delete_sessions, type: :boolean, default: true, desc: "Automatically delete sessions when maximum sessions are reached"
+
+    desc "firmware:update PATH", "Update firmware using the specified file"
+    method_option :wait, type: :boolean, default: true, desc: "Wait for the update to complete"
+    method_option :timeout, type: :numeric, default: 3600, desc: "Timeout in seconds when waiting"
+    def firmware_update(path)
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      firmware = IDRAC::Firmware.new(client)
+      
+      begin
+        job_id = firmware.update(path, wait: options[:wait], timeout: options[:timeout])
+        puts "Firmware update initiated with job ID: #{job_id}"
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}"
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    desc "firmware:catalog [DIRECTORY]", "Download Dell firmware catalog"
+    def firmware_catalog(directory = nil)
+      # This command doesn't require a host
+      catalog = IDRAC::FirmwareCatalog.new
+      
+      begin
+        puts "Downloading Dell catalog...".light_cyan
+        catalog_path = catalog.download(directory)
+        puts "Catalog downloaded to: #{catalog_path}".green
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}".red.bold
+        exit 1
+      end
+    end
+    
+    desc "firmware:status", "Show current firmware status and available updates"
+    method_option :catalog, type: :string, desc: "Path to existing catalog file"
+    def firmware_status
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      firmware = IDRAC::Firmware.new(client)
+      
+      begin
+        # Get system inventory - the Firmware class will print its own message
+        inventory = firmware.get_system_inventory
+        
+        puts "System Information:".green.bold
+        puts "  Model: #{inventory[:system][:model]}".light_cyan
+        puts "  Manufacturer: #{inventory[:system][:manufacturer]}".light_cyan
+        puts "  Service Tag: #{inventory[:system][:service_tag]}".light_cyan
+        puts "  BIOS Version: #{inventory[:system][:bios_version]}".light_cyan
+        
+        puts "\nInstalled Firmware:".green.bold
+        inventory[:firmware].each do |fw|
+          puts "  #{fw[:name]}: #{fw[:version]} (#{fw[:updateable] ? 'Updateable'.light_green : 'Not Updateable'.light_red})".light_cyan
+        end
+        
+        # Default catalog location is now ~/.idrac/Catalog.xml
+        default_catalog = File.expand_path("~/.idrac/Catalog.xml")
+        
+        # Check for updates if catalog is available
+        if options[:catalog] || File.exist?(default_catalog)
+          catalog_path = options[:catalog] || default_catalog
+          
+          # Check for updates using the firmware class
+          updates = firmware.check_updates(catalog_path)
+          
+          if updates.empty?
+            puts "\nNo updates available.".yellow
+          end
+        else
+          puts "\nTo check for updates, download the catalog first with 'idrac firmware:catalog'".yellow
+        end
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}".red.bold
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    desc "firmware:interactive", "Interactive firmware update"
+    method_option :catalog, type: :string, desc: "Path to existing catalog file"
+    def firmware_interactive
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      firmware = IDRAC::Firmware.new(client)
+      
+      begin
+        catalog_path = options[:catalog]
+        
+        # Default catalog location is now ~/.idrac/Catalog.xml
+        default_catalog = File.expand_path("~/.idrac/Catalog.xml")
+        
+        # If no catalog specified, check if one exists in the default location
+        if catalog_path.nil? && File.exist?(default_catalog)
+          catalog_path = default_catalog
+        end
+        
+        # If still no catalog, download it
+        if catalog_path.nil?
+          puts "No catalog found. Downloading...".yellow
+          catalog = IDRAC::FirmwareCatalog.new
+          catalog_path = catalog.download
+        end
+        
+        puts "Starting interactive firmware update. Please note:".green.bold
+        puts "- The iDRAC can only process one firmware update at a time".light_cyan
+        puts "- Updates may take several minutes to complete".light_cyan
+        puts "- For BIOS updates, a server reboot will be required to apply the update".light_cyan
+        puts "- If you encounter errors, check the iDRAC web interface for active jobs".light_cyan
+        puts ""
+        
+        begin
+          firmware.interactive_update(catalog_path)
+        rescue ArgumentError => e
+          puts "Error: #{e.message}".red.bold
+          puts "This could be due to an issue with the interactive update process.".yellow
+          puts "If you're seeing a 'job ID not found' error, it might be because:".yellow
+          puts "1. The firmware update job wasn't created properly".light_yellow
+          puts "2. There's already an update in progress".light_yellow
+          puts "3. The iDRAC needs time to process the previous request".light_yellow
+          puts "\nTry again in a few minutes or check the iDRAC web interface for active jobs.".light_cyan
+        rescue IDRAC::Error => e
+          if e.message.include?("already in progress")
+            puts "Error: #{e.message}".red.bold
+            puts "\nTroubleshooting steps:".yellow.bold
+            puts "1. Check the iDRAC web interface under Maintenance > System Update for active jobs".light_yellow
+            puts "2. Wait for any existing updates to complete (can take 15-30 minutes)".light_yellow
+            puts "3. If no updates appear to be in progress, you may need to restart the iDRAC".light_yellow
+            puts "   (iDRAC web interface > Settings > iDRAC Settings > Reset iDRAC)".light_yellow
+          else
+            puts "Error: #{e.message}".red.bold
+          end
+        end
+      rescue => e
+        puts "Error: #{e.message}".red.bold
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    desc "screenshot", "Take a screenshot of the current iDRAC console"
+    method_option :output, type: :string, desc: "Output filename (default: idrac_screenshot_timestamp.png)"
+    def screenshot
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      
+      begin
+        # Capture a screenshot using the client
+        filename = client.screenshot
+        
+        # Rename the file if output option is provided
+        if options[:output]
+          new_filename = options[:output]
+          File.rename(filename, new_filename)
+          filename = new_filename
+        end
+        
+        puts "Screenshot saved to: #{filename}"
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}"
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    desc "summary", "Display a summary of system information"
+    method_option :verbose, type: :boolean, default: false, desc: "Show verbose output including raw API responses"
+    def summary
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      
+      begin
+        # Get system information using authenticated_request
+        puts "Retrieving system information...".light_yellow if options[:verbose]
+        system_response = client.authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
+        system_info = JSON.parse(system_response.body)
+        puts JSON.pretty_generate(system_info).light_yellow if options[:verbose]
+        
+        # Get iDRAC information using authenticated_request
+        puts "Retrieving iDRAC information...".light_yellow if options[:verbose]
+        idrac_response = client.authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1")
+        idrac_info = JSON.parse(idrac_response.body)
+        puts JSON.pretty_generate(idrac_info).light_yellow if options[:verbose]
+        
+        # Get network information using authenticated_request
+        puts "Retrieving network information...".light_yellow if options[:verbose]
+        network_response = client.authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/NIC.1")
+        network_info = JSON.parse(network_response.body)
+        puts JSON.pretty_generate(network_info).light_yellow if options[:verbose]
+        
+        # Initialize license_type to Unknown
+        license_type = "Unknown"
+        license_description = nil
+        
+        # Try to get license information using DMTF standard method
+        begin
+          puts "Retrieving license information (DMTF method)...".light_yellow if options[:verbose]
+          license_response = client.authenticated_request(:get, "/redfish/v1/LicenseService/Licenses")
+          license_info = JSON.parse(license_response.body)
+          puts JSON.pretty_generate(license_info).light_yellow if options[:verbose]
+          
+          # Extract license type if licenses are found
+          if license_info["Members"] && !license_info["Members"].empty?
+            license_entry_response = client.authenticated_request(:get, license_info["Members"][0]["@odata.id"])
+            license_entry = JSON.parse(license_entry_response.body)
+            puts JSON.pretty_generate(license_entry).light_yellow if options[:verbose]
+            
+            # Get license type from EntitlementId or LicenseType
+            if license_entry["EntitlementId"] && license_entry["EntitlementId"].include?("Enterprise")
+              license_type = "Enterprise"
+            elsif license_entry["LicenseType"]
+              license_type = license_entry["LicenseType"]
+            end
+            
+            # Get license description if available
+            license_description = license_entry["Description"] if license_entry["Description"]
+          end
+        rescue => e
+          puts "Error retrieving license information using DMTF method: #{e.message}".light_red if options[:verbose]
+          
+          # If DMTF method fails, try Dell OEM method
+          begin
+            puts "Retrieving license information (Dell OEM method)...".light_yellow if options[:verbose]
+            dell_license_response = client.authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenses")
+            dell_license_info = JSON.parse(dell_license_response.body)
+            puts JSON.pretty_generate(dell_license_info).light_yellow if options[:verbose]
+            
+            # Extract license type if licenses are found
+            if dell_license_info["Members"] && !dell_license_info["Members"].empty?
+              dell_license_entry_response = client.authenticated_request(:get, dell_license_info["Members"][0]["@odata.id"])
+              dell_license_entry = JSON.parse(dell_license_entry_response.body)
+              puts JSON.pretty_generate(dell_license_entry).light_yellow if options[:verbose]
+              
+              # Get license type from LicenseType or Description
+              if dell_license_entry["LicenseType"]
+                license_type = dell_license_entry["LicenseType"]
+              elsif dell_license_entry["Description"] && dell_license_entry["Description"].include?("Enterprise")
+                license_type = "Enterprise"
+              end
+              
+              # Get license description if available
+              license_description = dell_license_entry["Description"] if dell_license_entry["Description"]
+            end
+          rescue => e2
+            puts "Error retrieving Dell license information: #{e2.message}".light_red if options[:verbose]
+          end
+        end
+        
+        # Format the license display string
+        license_display = license_type
+        if license_description
+          license_display = "#{license_type} (#{license_description})"
+        end
+        
+        # Format and display the information
+        puts "System Summary:".green.bold
+        puts "=" * 50
+        
+        puts "Power State:".ljust(25) + (system_info["PowerState"] || "Unknown").light_cyan
+        puts "Model:".ljust(25) + (system_info["Model"] || "Unknown").light_cyan
+        puts "Host Name:".ljust(25) + (system_info["HostName"] || "Unknown").light_cyan
+        puts "Operating System:".ljust(25) + (system_info.dig("Oem", "Dell", "OperatingSystem") || "Unknown").light_cyan
+        puts "Operating System Version:".ljust(25) + (system_info.dig("Oem", "Dell", "OperatingSystemVersion") || "Unknown").light_cyan
+        puts "Service Tag:".ljust(25) + (system_info["SKU"] || "Unknown").light_cyan
+        puts "BIOS Version:".ljust(25) + (system_info.dig("BiosVersion") || "Unknown").light_cyan
+        puts "iDRAC Firmware Version:".ljust(25) + (idrac_info.dig("FirmwareVersion") || "Unknown").light_cyan
+        puts "IP Address:".ljust(25) + (network_info.dig("IPv4Addresses", 0, "Address") || "Unknown").light_cyan
+        puts "iDRAC MAC Address:".ljust(25) + (network_info.dig("MACAddress") || "Unknown").light_cyan
+        puts "License:".ljust(25) + license_display.light_cyan
+        
+        puts "=" * 50
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}".red.bold
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    desc "power:state", "Get current server power state"
+    def power_state
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      power = IDRAC::Power.new(client)
+      
+      begin
+        state = power.get_power_state
+        puts "Current power state: #{state}".light_cyan
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}".red.bold
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    desc "power:on", "Power on the server"
+    def power_on
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      power = IDRAC::Power.new(client)
+      
+      begin
+        power.power_on
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}".red.bold
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    desc "power:off", "Power off the server"
+    def power_off
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      power = IDRAC::Power.new(client)
+      
+      begin
+        power.power_off
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}".red.bold
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    desc "power:reboot", "Reboot the server"
+    def power_reboot
+      # This command requires a host
+      ensure_host_provided
+      
+      check_ssl_verification
+      client = create_client
+      power = IDRAC::Power.new(client)
+      
+      begin
+        power.reboot
+      rescue IDRAC::Error => e
+        puts "Error: #{e.message}".red.bold
+        exit 1
+      ensure
+        client.logout
+      end
+    end
+    
+    map "firmware:update" => :firmware_update
+    map "firmware:catalog" => :firmware_catalog
+    map "firmware:status" => :firmware_status
+    map "firmware:interactive" => :firmware_interactive
+
+    private
+
+    def ensure_host_provided
+      if !options[:host]
+        puts "Error: No value provided for required option '--host'".red.bold
+        exit 1
+      end
+    end
+
+    def check_ssl_verification
+      # If verify_ssl is not explicitly set in the command line, show a warning
+      unless ARGV.include?('--verify-ssl') || ARGV.include?('--no-verify-ssl')
+        puts "WARNING: SSL verification is disabled by default. iDRAC typically uses self-signed certificates.".yellow
+        puts "         Use --verify-ssl if you want to enable SSL verification.".yellow
+        puts ""
+      end
+    end
+
+    def create_client
+      IDRAC::Client.new(
+        host: options[:host],
+        username: options[:username],
+        password: options[:password],
+        port: options[:port],
+        use_ssl: !options[:no_ssl],
+        verify_ssl: options[:verify_ssl]
+      )
+    end
+  end
+end
+
+# Start the CLI
+IDRAC::CLI.start(ARGV) 
