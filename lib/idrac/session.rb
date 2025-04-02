@@ -11,6 +11,8 @@ module IDRAC
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, 
                 :x_auth_token, :session_location, :direct_mode, :auto_delete_sessions
     attr_accessor :verbosity
+    
+    include Debuggable
 
     def initialize(client)
       @client = client
@@ -231,22 +233,6 @@ module IDRAC
     end
 
     private
-
-    def debug(message, level = 0, color = :light_cyan)
-      # Only output if our verbosity level is high enough
-      return unless @verbosity >= level
-      
-      if color && message.respond_to?(color)
-        puts message.send(color)
-      else
-        puts message
-      end
-      
-      # For highest verbosity, also print stack trace
-      if @verbosity >= 3 && caller.length > 1
-        puts "  ↳ called from: #{caller[1..3].join("\n  ↳ ")}"
-      end
-    end
 
     def base_url
       protocol = use_ssl ? 'https' : 'http'

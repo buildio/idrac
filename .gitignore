@@ -17,3 +17,5 @@ tags
 .**.sw?
 
 idrac-*
+
+dell_firmware_download/

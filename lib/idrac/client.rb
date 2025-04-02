@@ -10,10 +10,11 @@ require 'colorize'
 module IDRAC
   class Client
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, :auto_delete_sessions, :session, :web
-    attr_accessor :direct_mode
+    attr_accessor :direct_mode, :verbosity
     
     include PowerMethods
     include SessionMethods
+    include Debuggable
 
     def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true)
       @host = host
@@ -24,6 +25,7 @@ module IDRAC
       @verify_ssl = verify_ssl
       @direct_mode = direct_mode
       @auto_delete_sessions = auto_delete_sessions
+      @verbosity = 0
       
       # Initialize the session and web classes
       @session = Session.new(self)
@@ -35,6 +37,13 @@ module IDRAC
         faraday.request :multipart
         faraday.request :url_encoded
         faraday.adapter Faraday.default_adapter
+        # Add request/response logging based on verbosity
+        if @verbosity > 0
+          faraday.response :logger, Logger.new(STDOUT), bodies: @verbosity >= 2 do |logger|
+            logger.filter(/(Authorization: Basic )([^,\n]+)/, '\1[FILTERED]')
+            logger.filter(/(Password"=>"?)([^,"]+)/, '\1[FILTERED]')
+          end
+        end
       end
     end
 
@@ -73,6 +82,8 @@ module IDRAC
         raise Error, "Maximum retry count reached for authenticated request"
       end
       
+      debug "Authenticated request: #{method.to_s.upcase} #{path}", 1
+      
       # If we're in direct mode, use Basic Auth
       if @direct_mode
         # Create Basic Auth header
@@ -82,12 +93,18 @@ module IDRAC
         options[:headers] ||= {}
         options[:headers]['Authorization'] = auth_header
         
+        debug "Using Basic Auth for request", 2
+        
         # Make the request
         begin
           response = connection.send(method, path) do |req|
             req.headers.merge!(options[:headers])
             req.body = options[:body] if options[:body]
           end
+          
+          debug "Response status: #{response.status}", 1
+          debug "Response headers: #{response.headers.inspect}", 2
+          debug "Response body: #{response.body}", 3 if response.body
           
           return response
         rescue => e
@@ -101,12 +118,18 @@ module IDRAC
           options[:headers] ||= {}
           options[:headers]['X-Auth-Token'] = session.x_auth_token
           
+          debug "Using X-Auth-Token for request", 2
+          
           # Make the request
           begin
             response = connection.send(method, path) do |req|
               req.headers.merge!(options[:headers])
               req.body = options[:body] if options[:body]
             end
+            
+            debug "Response status: #{response.status}", 1
+            debug "Response headers: #{response.headers.inspect}", 2
+            debug "Response body: #{response.body}", 3 if response.body
             
             # Check if the session is still valid
             if response.status == 401 || response.status == 403
@@ -157,6 +180,8 @@ module IDRAC
         web.login unless web.session_id
       end
       
+      debug "GET request to #{base_url}/#{path}", 1
+      
       headers_to_use = {
         "User-Agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
         "Accept-Encoding" => "deflate, gzip"
@@ -164,18 +189,29 @@ module IDRAC
       
       if web.cookies
         headers_to_use["Cookie"] = web.cookies
+        debug "Using WebUI cookies for request", 2
       elsif @direct_mode
         # In direct mode, use Basic Auth
         headers_to_use["Authorization"] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+        debug "Using Basic Auth for GET request", 2
       elsif session.x_auth_token
         headers_to_use["X-Auth-Token"] = session.x_auth_token
+        debug "Using X-Auth-Token for GET request", 2
       end
       
-      HTTParty.get(
+      debug "Request headers: #{headers_to_use.merge(headers).inspect}", 3
+      
+      response = HTTParty.get(
         "#{base_url}/#{path}",
         headers: headers_to_use.merge(headers),
         verify: false
       )
+      
+      debug "Response status: #{response.code}", 1
+      debug "Response headers: #{response.headers.inspect}", 2
+      debug "Response body: #{response.body.to_s[0..500]}#{response.body.to_s.length > 500 ? '...' : ''}", 3 if response.body
+      
+      response
     end
 
     def screenshot
