@@ -12,6 +12,9 @@ A Ruby client for the Dell iDRAC API. This gem provides a command-line interface
 - Comprehensive error handling with clear user guidance
 - Automatic job tracking and monitoring for firmware updates
 - Color-coded terminal output for improved readability and user experience
+- Job queue management (clear, monitor, list)
+- Lifecycle log and System Event Log (SEL) management
+- Lifecycle Controller status management
 
 ## Installation
 
@@ -37,9 +40,9 @@ The gem provides a command-line interface for interacting with iDRAC servers:
 
 ```bash
 # Take a screenshot of the iDRAC console
-idrac screenshot --host=192.168.1.100 --username=root --password=calvin
+idrac screenshot --host=192.168.1.100
 # Specify a custom output filename
-idrac screenshot --host=192.168.1.100 --username=root --password=calvin --output=my_screenshot.png
+idrac screenshot --host=192.168.1.100
 
 # Download the Dell firmware catalog (no host required)
 idrac catalog download
@@ -47,18 +50,36 @@ idrac catalog download
 idrac firmware:catalog
 
 # Check firmware status and available updates
-idrac firmware:status --host=192.168.1.100 --username=root --password=calvin
+idrac firmware:status --host=192.168.1.100 
 
 # Update firmware using a specific file
-idrac firmware:update /path/to/firmware.exe --host=192.168.1.100 --username=root --password=calvin
+idrac firmware:update /path/to/firmware.exe --host=192.168.1.100 
 
 # Interactive firmware update
-idrac firmware:interactive --host=192.168.1.100 --username=root --password=calvin
+idrac firmware:interactive --host=192.168.1.100 
 
 # Display a summary of system information
-idrac summary --host=192.168.1.100 --username=root --password=calvin
+idrac summary --host=192.168.1.100 
 # With verbose output for debugging
-idrac summary --host=192.168.1.100 --username=root --password=calvin --verbose
+idrac summary --host=192.168.1.100 
+
+# Job Management Commands
+idrac jobs:list --host=192.168.1.100 
+idrac jobs:detail --host=192.168.1.100 
+idrac jobs:clear --host=192.168.1.100 
+idrac jobs:force_clear --host=192.168.1.100 
+idrac jobs:wait JID_12345678 --host=192.168.1.100 
+idrac tasks --host=192.168.1.100 
+
+# Lifecycle Controller Commands
+idrac lifecycle:status --host=192.168.1.100 
+idrac lifecycle:enable --host=192.168.1.100 
+idrac lifecycle:disable --host=192.168.1.100 
+idrac lifecycle:ensure --host=192.168.1.100 
+idrac lifecycle:clear --host=192.168.1.100 
+
+# System Event Log (SEL) Commands
+idrac sel:clear --host=192.168.1.100 
 ```
 
 All commands automatically handle session expiration by re-authenticating when necessary, ensuring that long-running operations like firmware updates complete successfully even if the iDRAC session times out.
@@ -117,6 +138,38 @@ end
 job_id = firmware.update('/path/to/firmware.exe', wait: true)
 puts "Update completed with job ID: #{job_id}"
 
+# Job management
+jobs = client.jobs
+puts "Found #{jobs['Members'].count} jobs"
+
+# List job details
+client.jobs_detail
+
+# Clear all jobs
+client.clear_jobs!
+
+# Force clear job queue (use with caution)
+client.force_clear_jobs!
+
+# Wait for a specific job to complete
+job_data = client.wait_for_job("JID_12345678")
+
+# Lifecycle Controller operations
+# Check if Lifecycle Controller is enabled
+status = client.get_idrac_lifecycle_status
+
+# Enable Lifecycle Controller
+client.set_idrac_lifecycle_status(true)
+
+# Ensure Lifecycle Controller is enabled
+client.ensure_lifecycle_controller!
+
+# Clear Lifecycle log
+client.clear_lifecycle!
+
+# Clear System Event Logs
+client.clear_system_event_logs!
+
 # Create a client with auto_delete_sessions disabled
 client = IDRAC.new(
   host: '192.168.1.100',
@@ -133,6 +186,20 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
 ## Changelog
+
+### Version 0.1.39
+- **Added Job Management**: New methods for managing iDRAC jobs
+  - List jobs using `jobs` and `jobs_detail`
+  - Clear jobs with `clear_jobs!` 
+  - Force clear job queue with `force_clear_jobs!`
+  - Wait for specific jobs with `wait_for_job`
+- **Added Lifecycle Controller Management**: New methods for managing the Lifecycle Controller
+  - Check Lifecycle Controller status with `get_idrac_lifecycle_status`
+  - Enable/disable Lifecycle Controller with `set_idrac_lifecycle_status`
+  - Ensure Lifecycle Controller is enabled with `ensure_lifecycle_controller!`
+  - Clear Lifecycle logs with `clear_lifecycle!`
+  - Clear System Event Logs with `clear_system_event_logs!`
+- Improved API organization with dedicated modules for related functionality
 
 ### Version 0.1.38
 - **Enhanced License Display**: Updated the summary command to show both license type and description

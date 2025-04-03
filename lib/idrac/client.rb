@@ -15,6 +15,8 @@ module IDRAC
     include PowerMethods
     include SessionMethods
     include Debuggable
+    include JobMethods
+    include LifecycleMethods
 
     def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true)
       @host = host

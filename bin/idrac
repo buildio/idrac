@@ -30,8 +30,141 @@ module IDRAC
     def self.exit_on_failure?
       true
     end
+    
+    # Helper methods that shouldn't be exposed as commands
+    no_commands do
+      # Override the built-in help command to modify displayed command names
+      def help(command = nil)
+        if command
+          super
+        else
+          # Get the formatted help output
+          output = capture_stdout { super }
+          
+          # First handle methods with multiple underscores (like jobs_force_clear)
+          modified_output = output.gsub(/idrac (\w+)_(\w+)_(\w+)/) do |match|
+            "idrac #{$1}:#{$2}:#{$3}"
+          end
+          
+          # Then handle methods with a single underscore (like lifecycle_status)
+          modified_output = modified_output.gsub(/idrac (\w+)_(\w+)/) do |match|
+            "idrac #{$1}:#{$2}"
+          end
+          
+          puts modified_output
+        end
+      end
+      
+      # Utility method to capture stdout
+      def capture_stdout
+        original_stdout = $stdout
+        $stdout = StringIO.new
+        yield
+        $stdout.string
+      ensure
+        $stdout = original_stdout
+      end
+    end
+    
+    desc "jobs_list", "List all iDRAC jobs"
+    map "jobs:list" => :jobs_list
+    def jobs_list
+      with_idrac_client do |client|
+        client.jobs
+      end
+    end
+    
+    desc "jobs_detail", "List detailed job information"
+    map "jobs:detail" => :jobs_detail
+    def jobs_detail
+      with_idrac_client do |client|
+        client.jobs_detail
+      end
+    end
+    
+    desc "jobs_clear", "Clear all jobs from the job queue"
+    map "jobs:clear" => :jobs_clear
+    def jobs_clear
+      with_idrac_client do |client|
+        client.clear_jobs!
+      end
+    end
+    
+    desc "jobs_force_clear", "Force clear the job queue"
+    map "jobs:force_clear" => :jobs_force_clear
+    map "jobs:force:clear" => :jobs_force_clear
+    def jobs_force_clear
+      with_idrac_client do |client|
+        client.force_clear_jobs!
+      end
+    end
+    
+    desc "jobs_wait JOB_ID", "Wait for a specific job to complete"
+    map "jobs:wait" => :jobs_wait
+    def jobs_wait(job_id)
+      with_idrac_client do |client|
+        job_data = client.wait_for_job(job_id)
+        puts "Job completed: #{job_data['Id']} - #{job_data['JobState']} - #{job_data['Message']}".green
+      end
+    end
+    
+    desc "tasks", "List iDRAC tasks"
+    def tasks
+      with_idrac_client do |client|
+        client.tasks
+      end
+    end
+    
+    desc "lifecycle_status", "Check if Lifecycle Controller is enabled"
+    map "lifecycle:status" => :lifecycle_status
+    def lifecycle_status
+      with_idrac_client do |client|
+        client.get_idrac_lifecycle_status
+      end
+    end
+    
+    desc "lifecycle_enable", "Enable Lifecycle Controller"
+    map "lifecycle:enable" => :lifecycle_enable
+    def lifecycle_enable
+      with_idrac_client do |client|
+        client.set_idrac_lifecycle_status(true)
+      end
+    end
+    
+    desc "lifecycle_disable", "Disable Lifecycle Controller"
+    map "lifecycle:disable" => :lifecycle_disable
+    def lifecycle_disable
+      with_idrac_client do |client|
+        client.set_idrac_lifecycle_status(false)
+      end
+    end
+    
+    desc "lifecycle_ensure", "Ensure Lifecycle Controller is enabled"
+    map "lifecycle:ensure" => :lifecycle_ensure
+    def lifecycle_ensure
+      with_idrac_client do |client|
+        client.ensure_lifecycle_controller!
+      end
+    end
+    
+    desc "lifecycle_clear", "Clear Lifecycle log"
+    map "lifecycle:clear" => :lifecycle_clear
+    def lifecycle_clear
+      with_idrac_client do |client|
+        client.clear_lifecycle!
+      end
+    end
+    
+    desc "sel_clear", "Clear System Event Logs (SEL)"
+    map "sel:clear" => :sel_clear
+    def sel_clear
+      with_idrac_client do |client|
+        client.clear_system_event_logs!
+      end
+    end
 
-    desc "firmware:update PATH", "Update firmware using the specified file"
+    desc "firmware_update PATH", "Update firmware using the specified file"
+    map "firmware:update" => :firmware_update
     method_option :wait, type: :boolean, default: true, desc: "Wait for the update to complete"
     method_option :timeout, type: :numeric, default: 3600, desc: "Timeout in seconds when waiting"
     def firmware_update(path)
@@ -42,7 +175,8 @@ module IDRAC
       end
     end
     
-    desc "firmware:catalog [DIRECTORY]", "Download Dell firmware catalog"
+    desc "firmware_catalog [DIRECTORY]", "Download Dell firmware catalog"
+    map "firmware:catalog" => :firmware_catalog
     def firmware_catalog(directory = nil)
       # This command doesn't require a host
       catalog = IDRAC::FirmwareCatalog.new
@@ -57,7 +191,8 @@ module IDRAC
       end
     end
     
-    desc "firmware:status", "Show current firmware status and available updates"
+    desc "firmware_status", "Show current firmware status and available updates"
+    map "firmware:status" => :firmware_status
     method_option :catalog, type: :string, desc: "Path to existing catalog file"
     def firmware_status
       with_idrac_client do |client|
@@ -96,7 +231,8 @@ module IDRAC
       end
     end
     
-    desc "firmware:interactive", "Interactive firmware update"
+    desc "firmware_interactive", "Interactive firmware update"
+    map "firmware:interactive" => :firmware_interactive
     method_option :catalog, type: :string, desc: "Path to existing catalog file"
     def firmware_interactive
       with_idrac_client do |client|
@@ -276,7 +412,8 @@ module IDRAC
       end
     end
     
-    desc "power:state", "Get current server power state"
+    desc "power_state", "Get current server power state"
+    map "power:state" => :power_state
     def power_state
       with_idrac_client do |client|
         state = client.get_power_state
@@ -284,44 +421,38 @@ module IDRAC
       end
     end
     
-    desc "power:on", "Power on the server"
+    desc "power_on", "Power on the server"
+    map "power:on" => :power_on
     def power_on
       with_idrac_client do |client|
         client.power_on
       end
     end
     
-    desc "power:off", "Power off the server"
+    desc "power_off", "Power off the server"
+    map "power:off" => :power_off
     def power_off
       with_idrac_client do |client|
         client.power_off
       end
     end
     
-    desc "power:reboot", "Reboot the server"
+    desc "power_reboot", "Reboot the server"
+    map "power:reboot" => :power_reboot
     def power_reboot
       with_idrac_client do |client|
         client.reboot
       end
     end
     
-    desc "redfish:version", "Display the Redfish API version"
+    desc "redfish_version", "Display the Redfish API version"
+    map "redfish:version" => :redfish_version
     def redfish_version
       with_idrac_client do |client|
         version = client.redfish_version
         puts version
       end
     end
-    
-    map "firmware:update" => :firmware_update
-    map "firmware:catalog" => :firmware_catalog
-    map "firmware:status" => :firmware_status
-    map "firmware:interactive" => :firmware_interactive
-    map "power:state" => :power_state
-    map "power:on" => :power_on
-    map "power:off" => :power_off
-    map "power:reboot" => :power_reboot
-    map "redfish:version" => :redfish_version
 
     private
 

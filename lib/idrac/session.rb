@@ -32,10 +32,8 @@ module IDRAC
 
     def connection
       @connection ||= Faraday.new(url: base_url, ssl: { 
-        verify: verify_ssl,
-        # Additional SSL debugging options
-        min_version: :TLS1_1,
-        max_version: :TLS1_2 
+        verify: verify_ssl
+        # Keep SSL settings minimal for cross-version compatibility
       }) do |faraday|
         faraday.request :multipart
         faraday.request :url_encoded
@@ -87,7 +85,7 @@ module IDRAC
       
       begin
         # Get the list of sessions
-        response = request_with_basic_auth(:get, sessions_url)
+        response = request_with_basic_auth(:get, sessions_url, nil, 'application/json')
         
         if response.status != 200
           debug "Failed to get sessions list: #{response.status} - #{response.body}", 0, :red
@@ -115,7 +113,7 @@ module IDRAC
               next unless session_url
               
               # Delete the session
-              delete_response = request_with_basic_auth(:delete, session_url)
+              delete_response = request_with_basic_auth(:delete, session_url, nil, 'application/json')
               
               if delete_response.status == 200 || delete_response.status == 204
                 debug "Successfully deleted session: #{session_url}", 1, :green
@@ -147,7 +145,7 @@ module IDRAC
     
     # Try to delete sessions by direct URL when we can't list sessions
     def try_delete_latest_sessions
-      # Try to delete some recent session IDs directly
+      # Try to delete sessions by direct URL when we can't list sessions
       debug "Attempting to delete recent sessions directly...", 0
       base_url = determine_session_endpoint
       success = false
@@ -156,7 +154,7 @@ module IDRAC
       (1..10).each do |id|
         session_url = "#{base_url}/#{id}"
         begin
-          delete_response = request_with_basic_auth(:delete, session_url)
+          delete_response = request_with_basic_auth(:delete, session_url, nil, 'application/json')
           
           if delete_response.status == 200 || delete_response.status == 204
             debug "Successfully deleted session: #{session_url}", 1, :green
@@ -244,7 +242,12 @@ module IDRAC
         debug "=== Connection Debug Info ===", 2, :yellow
         debug "Host: #{host}, Port: #{port}, SSL: #{use_ssl}", 2
         debug "Ruby version: #{RUBY_VERSION}-p#{RUBY_PATCHLEVEL}", 2
-        debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 2
+        
+        begin
+          debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 2
+        rescue => e
+          debug "Could not determine OpenSSL version: #{e.message}", 2
+        end
         
         # Test basic TCP connection first
         begin
@@ -295,25 +298,25 @@ module IDRAC
       end
     end
     
-    def basic_auth_headers
+    def basic_auth_headers(content_type = 'application/json')
       {
         'Authorization' => "Basic #{Base64.strict_encode64("#{username}:#{password}")}",
-        'Content-Type' => 'application/json'
+        'Content-Type' => content_type
       }
     end
     
-    def request_with_basic_auth(method, url, body = nil)
+    def request_with_basic_auth(method, url, body = nil, content_type = 'application/json')
       debug "Basic Auth request: #{method.to_s.upcase} #{url}", 1
       debug "Request body size: #{body.to_s.size} bytes", 2 if body
       
       connection.send(method, url) do |req|
-        req.headers.merge!(basic_auth_headers)
+        req.headers.merge!(basic_auth_headers(content_type))
         req.body = body if body
         debug "Request headers: #{req.headers.reject { |k,v| k =~ /auth/i }.to_json}", 2
       end
     rescue Faraday::SSLError => e
       debug "SSL Error in Basic Auth request: #{e.message}", 0, :red
-      debug "SSL details: #{OpenSSL::OPENSSL_VERSION}, #{OpenSSL::SSL::OPENSSL_VERSION}", 1
+      debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 1
       debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
       raise e
     rescue => e
@@ -339,6 +342,7 @@ module IDRAC
         
         response = connection.post(url) do |req|
           req.headers['Content-Type'] = 'application/json'
+          req.headers['Accept'] = 'application/json'
           req.body = payload.to_json
           debug "Request headers: #{req.headers.reject { |k,v| k =~ /auth/i }.to_json}", 2
           debug "Request body: #{req.body}", 2
@@ -357,9 +361,26 @@ module IDRAC
           debug "Redfish session created successfully", 0, :green
           return true
         end
+        
+        # If the response status is 415 (Unsupported Media Type), try with different Content-Type
+        if response.status == 415 || (response.body.to_s.include?("unsupported media type"))
+          debug "415 Unsupported Media Type, trying alternate content type", 0, :yellow
+          
+          # Try with no content-type header, just the payload
+          alt_response = connection.post(url) do |req|
+            # No Content-Type header
+            req.headers['Accept'] = '*/*'
+            req.body = payload.to_json
+          end
+          
+          if process_session_response(alt_response)
+            debug "Redfish session created successfully with alternate content type", 0, :green
+            return true
+          end
+        end
       rescue Faraday::SSLError => e
         debug "SSL Error: #{e.message}", 0, :red
-        debug "SSL details: #{OpenSSL::OPENSSL_VERSION}, #{OpenSSL::SSL::OPENSSL_VERSION}", 1
+        debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 1
         debug "Connection URL: #{base_url}#{url}", 1
         debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
         return false
@@ -374,7 +395,8 @@ module IDRAC
       begin
         debug "Creating session with Basic Auth", 0
         
-        response = request_with_basic_auth(:post, url, payload.to_json)
+        # Try first with JSON format
+        response = request_with_basic_auth(:post, url, payload.to_json, 'application/json')
         
         debug "Response status: #{response.status}", 1
         debug "Response body size: #{response.body.to_s.size} bytes", 2
@@ -384,27 +406,59 @@ module IDRAC
         end
         
         if process_session_response(response)
-          debug "Redfish session created successfully with Basic Auth", 0, :green
+          debug "Redfish session created successfully with Basic Auth (JSON)", 0, :green
           return true
+        end
+        
+        # If that fails, try with form-urlencoded
+        if response.status == 415 || (response.body.to_s.include?("unsupported media type"))
+          debug "415 Unsupported Media Type with JSON, trying form-urlencoded", 0, :yellow
+          
+          form_data = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
+          form_response = request_with_basic_auth(:post, url, form_data, 'application/x-www-form-urlencoded')
+          
+          if process_session_response(form_response)
+            debug "Redfish session created successfully with Basic Auth (form-urlencoded)", 0, :green
+            return true
+          elsif form_response.status == 400
+            # Check for maximum sessions error
+            if (form_response.body.include?("maximum number of user sessions") || 
+                form_response.body.include?("RAC0218") || 
+                form_response.body.include?("Internal Server Error"))
+              debug "Maximum sessions reached detected during session creation", 0, :light_red
+              @sessions_maxed = true
+              return false
+            end
+          end
         elsif response.status == 400
-          # Check for maximum sessions error, both in JSON and HTML responses
+          # Check for maximum sessions error
           if (response.body.include?("maximum number of user sessions") || 
               response.body.include?("RAC0218") || 
               response.body.include?("Internal Server Error"))
             debug "Maximum sessions reached detected during session creation", 0, :light_red
             @sessions_maxed = true
             return false
-          else
-            debug "Failed to create Redfish session: #{response.status} - #{response.body}", 0, :red
-            return false
           end
-        else
-          debug "Failed to create Redfish session: #{response.status} - #{response.body}", 0, :red
-          return false
         end
+        
+        # Try one more approach with no Content-Type header
+        debug "Trying Basic Auth with no Content-Type header", 0, :yellow
+        no_content_type_response = connection.post(url) do |req|
+          req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+          req.headers['Accept'] = '*/*'
+          req.body = payload.to_json
+        end
+        
+        if process_session_response(no_content_type_response)
+          debug "Redfish session created successfully with Basic Auth (no content type)", 0, :green
+          return true
+        end
+        
+        debug "Failed to create Redfish session: #{response.status} - #{response.body}", 0, :red
+        return false
       rescue Faraday::SSLError => e
         debug "SSL Error in Basic Auth request: #{e.message}", 0, :red
-        debug "SSL details: #{OpenSSL::OPENSSL_VERSION}, #{OpenSSL::SSL::OPENSSL_VERSION}", 1
+        debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 1
         debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
         return false
       rescue => e
@@ -425,9 +479,13 @@ module IDRAC
           # Give the iDRAC a moment to process the session deletions
           sleep(3)
           
-          # Try one more time after clearing
+          # Try one more time after clearing with form-urlencoded
           begin
-            response = request_with_basic_auth(:post, url, payload.to_json)
+            response = connection.post(url) do |req|
+              req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+              req.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+              req.body = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
+            end
             
             if process_session_response(response)
               debug "Redfish session created successfully after clearing sessions", 0, :green
@@ -463,9 +521,10 @@ module IDRAC
         debug "Trying with form-urlencoded content type", 0
         debug "URL: #{base_url}#{url}", 1
         
+        # Try first without any authorization header
         response = connection.post(url) do |req|
           req.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-          req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+          req.headers['Accept'] = '*/*'
           req.body = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
           debug "Request headers: #{req.headers.reject { |k,v| k =~ /auth/i }.to_json}", 2
         end
@@ -477,13 +536,37 @@ module IDRAC
         if process_session_response(response)
           debug "Redfish session created successfully with form-urlencoded", 0, :green
           return true
+        end
+        
+        # If that fails, try with Basic Auth + form-urlencoded
+        debug "Trying form-urlencoded with Basic Auth", 0
+        auth_response = request_with_basic_auth(:post, url, "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}", 'application/x-www-form-urlencoded')
+        
+        if process_session_response(auth_response)
+          debug "Redfish session created successfully with form-urlencoded + Basic Auth", 0, :green
+          return true
+        end
+        
+        # Last resort: try with both headers (some iDRAC versions need this)
+        debug "Trying with both Content-Type headers", 0
+        both_response = connection.post(url) do |req|
+          req.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+          req.headers['Accept'] = 'application/json'
+          req.headers['X-Requested-With'] = 'XMLHttpRequest'
+          req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+          req.body = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
+        end
+        
+        if process_session_response(both_response)
+          debug "Redfish session created successfully with multiple content types", 0, :green
+          return true
         else
           debug "Failed with form-urlencoded too: #{response.status} - #{response.body}", 0, :red
           return false
         end
       rescue Faraday::SSLError => e
         debug "SSL Error in form-urlencoded request: #{e.message}", 0, :red
-        debug "SSL details: #{OpenSSL::OPENSSL_VERSION}, #{OpenSSL::SSL::OPENSSL_VERSION}", 1
+        debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 1
         debug "Connection URL: #{base_url}#{url}", 1
         debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
         return false
