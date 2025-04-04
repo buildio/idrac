@@ -166,6 +166,33 @@ module IDRAC
       end
     end
     
+    def get_power_usage_watts
+      # Login to iDRAC if needed
+      login unless @session_id
+      
+      response = authenticated_request(:get, "/redfish/v1/Chassis/System.Embedded.1/Power")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          watts = data["PowerControl"][0]["PowerConsumedWatts"]
+          # puts "Power usage: #{watts} watts".light_cyan
+          return watts.to_f
+        rescue JSON::ParserError
+          raise Error, "Failed to parse power usage response: #{response.body}"
+        end
+      else
+        error_message = "Failed to get power usage. Status code: #{response.status}"
+        begin
+          error_data = JSON.parse(response.body)
+          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
+        rescue
+          # Ignore JSON parsing errors
+        end
+        raise Error, error_message
+      end
+    end
+    
     private
     
     def wait_for_power_state(target_state:, tries: 6)
