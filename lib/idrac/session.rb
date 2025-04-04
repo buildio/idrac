@@ -50,24 +50,24 @@ module IDRAC
 
     # Force clear all sessions by directly using Basic Auth
     def force_clear_sessions
-      debug "Attempting to force clear all sessions...", 0
+      debug "Attempting to force clear all sessions...", 1
       
       max_retries = 3
       retry_count = 0
       
       while retry_count < max_retries
         if delete_all_sessions_with_basic_auth
-          debug "Successfully cleared sessions using Basic Auth", 0, :green
+          debug "Successfully cleared sessions using Basic Auth", 1, :green
           return true
         else
           retry_count += 1
           if retry_count < max_retries
             # Exponential backoff
             sleep_time = 2 ** retry_count
-            debug "Retrying session clear after #{sleep_time} seconds (attempt #{retry_count+1}/#{max_retries})", 0, :light_yellow
+            debug "Retrying session clear after #{sleep_time} seconds (attempt #{retry_count+1}/#{max_retries})", 1, :light_yellow
             sleep(sleep_time)
           else
-            debug "Failed to clear sessions after #{max_retries} attempts", 0, :red
+            debug "Failed to clear sessions after #{max_retries} attempts", 1, :red
             return false
           end
         end
@@ -78,7 +78,7 @@ module IDRAC
 
     # Delete all sessions using Basic Authentication
     def delete_all_sessions_with_basic_auth
-      debug "Attempting to delete all sessions using Basic Authentication...", 0
+      debug "Attempting to delete all sessions using Basic Authentication...", 1
       
       # First, get the list of sessions
       sessions_url = determine_session_endpoint
@@ -88,10 +88,10 @@ module IDRAC
         response = request_with_basic_auth(:get, sessions_url, nil, 'application/json')
         
         if response.status != 200
-          debug "Failed to get sessions list: #{response.status} - #{response.body}", 0, :red
+          debug "Failed to get sessions list: #{response.status} - #{response.body}", 1, :red
           # If we received HTML error, assume we can't get sessions and try direct session deletion
           if response.headers['content-type']&.include?('text/html') || response.body.to_s.include?('DOCTYPE html')
-            debug "Received HTML error response, trying direct session deletion", 0, :light_yellow
+            debug "Received HTML error response, trying direct session deletion", 1, :light_yellow
             return try_delete_latest_sessions
           end
           return false
@@ -102,7 +102,7 @@ module IDRAC
           sessions_data = JSON.parse(response.body)
           
           if sessions_data['Members'] && sessions_data['Members'].any?
-            debug "Found #{sessions_data['Members'].count} active sessions", 0, :light_yellow
+            debug "Found #{sessions_data['Members'].count} active sessions", 1, :light_yellow
             
             # Delete each session
             success = true
@@ -118,7 +118,7 @@ module IDRAC
               if delete_response.status == 200 || delete_response.status == 204
                 debug "Successfully deleted session: #{session_url}", 1, :green
               else
-                debug "Failed to delete session #{session_url}: #{delete_response.status}", 0, :red
+                debug "Failed to delete session #{session_url}: #{delete_response.status}", 1, :red
                 success = false
               end
               
@@ -128,17 +128,17 @@ module IDRAC
             
             return success
           else
-            debug "No active sessions found", 0, :light_yellow
+            debug "No active sessions found", 1, :light_yellow
             return true
           end
         rescue JSON::ParserError => e
-          debug "Error parsing sessions response: #{e.message}", 0, :red
-          debug "Trying direct session deletion", 0, :light_yellow
+          debug "Error parsing sessions response: #{e.message}", 1, :red
+          debug "Trying direct session deletion", 1, :light_yellow
           return try_delete_latest_sessions
         end
       rescue => e
-        debug "Error during session deletion with Basic Auth: #{e.message}", 0, :red
-        debug "Trying direct session deletion", 0, :light_yellow
+        debug "Error during session deletion with Basic Auth: #{e.message}", 1, :red
+        debug "Trying direct session deletion", 1, :light_yellow
         return try_delete_latest_sessions
       end
     end
@@ -146,7 +146,7 @@ module IDRAC
     # Try to delete sessions by direct URL when we can't list sessions
     def try_delete_latest_sessions
       # Try to delete sessions by direct URL when we can't list sessions
-      debug "Attempting to delete recent sessions directly...", 0
+      debug "Attempting to delete recent sessions directly...", 1
       base_url = determine_session_endpoint
       success = false
       
@@ -177,7 +177,7 @@ module IDRAC
     def create
       # Skip if we're in direct mode
       if @direct_mode
-        debug "Skipping Redfish session creation (direct mode)", 0, :light_yellow
+        debug "Skipping Redfish session creation (direct mode)", 1, :light_yellow
         return false
       end
       
@@ -186,7 +186,7 @@ module IDRAC
       
       payload = { "UserName" => username, "Password" => password }
       
-      debug "Attempting to create Redfish session at #{base_url}#{session_endpoint}", 0
+      debug "Attempting to create Redfish session at #{base_url}#{session_endpoint}", 1
       debug "SSL verification: #{verify_ssl ? 'Enabled' : 'Disabled'}", 1
       print_connection_debug_info if @verbosity >= 2
       
@@ -206,7 +206,7 @@ module IDRAC
       return unless @x_auth_token && @session_location
       
       begin
-        debug "Deleting Redfish session...", 0
+        debug "Deleting Redfish session...", 1
         
         # Use the X-Auth-Token for authentication
         headers = { 'X-Auth-Token' => @x_auth_token }
@@ -216,16 +216,16 @@ module IDRAC
         end
         
         if response.status == 200 || response.status == 204
-          debug "Redfish session deleted successfully", 0, :green
+          debug "Redfish session deleted successfully", 1, :green
           @x_auth_token = nil
           @session_location = nil
           return true
         else
-          debug "Failed to delete Redfish session: #{response.status} - #{response.body}", 0, :red
+          debug "Failed to delete Redfish session: #{response.status} - #{response.body}", 1, :red
           return false
         end
       rescue => e
-        debug "Error during Redfish session deletion: #{e.message}", 0, :red
+        debug "Error during Redfish session deletion: #{e.message}", 1, :red
         return false
       end
     end
@@ -315,12 +315,12 @@ module IDRAC
         debug "Request headers: #{req.headers.reject { |k,v| k =~ /auth/i }.to_json}", 2
       end
     rescue Faraday::SSLError => e
-      debug "SSL Error in Basic Auth request: #{e.message}", 0, :red
+      debug "SSL Error in Basic Auth request: #{e.message}", 1, :red
       debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 1
       debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
       raise e
     rescue => e
-      debug "Error during #{method} request with Basic Auth: #{e.class.name}: #{e.message}", 0, :red
+      debug "Error during #{method} request with Basic Auth: #{e.class.name}: #{e.message}", 1, :red
       debug e.backtrace.join("\n"), 2 if e.backtrace && @verbosity >= 2
       raise e
     end
@@ -338,7 +338,7 @@ module IDRAC
     
     def create_session_with_content_type(url, payload)
       begin
-        debug "Creating session with Content-Type: application/json", 0
+        debug "Creating session with Content-Type: application/json", 1
         
         response = connection.post(url) do |req|
           req.headers['Content-Type'] = 'application/json'
@@ -353,18 +353,18 @@ module IDRAC
         debug "Response body: #{response.body}", 2
         
         if response.status == 405
-          debug "405 Method Not Allowed: Check if the endpoint supports POST requests and verify the request format.", 0, :red
+          debug "405 Method Not Allowed: Check if the endpoint supports POST requests and verify the request format.", 1, :red
           return false
         end
         
         if process_session_response(response)
-          debug "Redfish session created successfully", 0, :green
+          debug "Redfish session created successfully", 1, :green
           return true
         end
         
         # If the response status is 415 (Unsupported Media Type), try with different Content-Type
         if response.status == 415 || (response.body.to_s.include?("unsupported media type"))
-          debug "415 Unsupported Media Type, trying alternate content type", 0, :yellow
+          debug "415 Unsupported Media Type, trying alternate content type", 1, :yellow
           
           # Try with no content-type header, just the payload
           alt_response = connection.post(url) do |req|
@@ -374,18 +374,18 @@ module IDRAC
           end
           
           if process_session_response(alt_response)
-            debug "Redfish session created successfully with alternate content type", 0, :green
+            debug "Redfish session created successfully with alternate content type", 1, :green
             return true
           end
         end
       rescue Faraday::SSLError => e
-        debug "SSL Error: #{e.message}", 0, :red
+        debug "SSL Error: #{e.message}", 1, :red
         debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 1
         debug "Connection URL: #{base_url}#{url}", 1
         debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
         return false
       rescue => e
-        debug "First session creation attempt failed: #{e.class.name}: #{e.message}", 0, :light_red
+        debug "First session creation attempt failed: #{e.class.name}: #{e.message}", 1, :light_red
         debug e.backtrace.join("\n"), 2 if e.backtrace && @verbosity >= 2
       end
       false
@@ -393,7 +393,7 @@ module IDRAC
     
     def create_session_with_basic_auth(url, payload)
       begin
-        debug "Creating session with Basic Auth", 0
+        debug "Creating session with Basic Auth", 1
         
         # Try first with JSON format
         response = request_with_basic_auth(:post, url, payload.to_json, 'application/json')
@@ -406,26 +406,26 @@ module IDRAC
         end
         
         if process_session_response(response)
-          debug "Redfish session created successfully with Basic Auth (JSON)", 0, :green
+          debug "Redfish session created successfully with Basic Auth (JSON)", 1, :green
           return true
         end
         
         # If that fails, try with form-urlencoded
         if response.status == 415 || (response.body.to_s.include?("unsupported media type"))
-          debug "415 Unsupported Media Type with JSON, trying form-urlencoded", 0, :yellow
+          debug "415 Unsupported Media Type with JSON, trying form-urlencoded", 1, :yellow
           
           form_data = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
           form_response = request_with_basic_auth(:post, url, form_data, 'application/x-www-form-urlencoded')
           
           if process_session_response(form_response)
-            debug "Redfish session created successfully with Basic Auth (form-urlencoded)", 0, :green
+            debug "Redfish session created successfully with Basic Auth (form-urlencoded)", 1, :green
             return true
           elsif form_response.status == 400
             # Check for maximum sessions error
             if (form_response.body.include?("maximum number of user sessions") || 
                 form_response.body.include?("RAC0218") || 
                 form_response.body.include?("Internal Server Error"))
-              debug "Maximum sessions reached detected during session creation", 0, :light_red
+              debug "Maximum sessions reached detected during session creation", 1, :light_red
               @sessions_maxed = true
               return false
             end
@@ -435,14 +435,14 @@ module IDRAC
           if (response.body.include?("maximum number of user sessions") || 
               response.body.include?("RAC0218") || 
               response.body.include?("Internal Server Error"))
-            debug "Maximum sessions reached detected during session creation", 0, :light_red
+            debug "Maximum sessions reached detected during session creation", 1, :light_red
             @sessions_maxed = true
             return false
           end
         end
         
         # Try one more approach with no Content-Type header
-        debug "Trying Basic Auth with no Content-Type header", 0, :yellow
+        debug "Trying Basic Auth with no Content-Type header", 1, :yellow
         no_content_type_response = connection.post(url) do |req|
           req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
           req.headers['Accept'] = '*/*'
@@ -450,19 +450,19 @@ module IDRAC
         end
         
         if process_session_response(no_content_type_response)
-          debug "Redfish session created successfully with Basic Auth (no content type)", 0, :green
+          debug "Redfish session created successfully with Basic Auth (no content type)", 1, :green
           return true
         end
         
-        debug "Failed to create Redfish session: #{response.status} - #{response.body}", 0, :red
+        debug "Failed to create Redfish session: #{response.status} - #{response.body}", 1, :red
         return false
       rescue Faraday::SSLError => e
-        debug "SSL Error in Basic Auth request: #{e.message}", 0, :red
+        debug "SSL Error in Basic Auth request: #{e.message}", 1, :red
         debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 1
         debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
         return false
       rescue => e
-        debug "Error during Redfish session creation with Basic Auth: #{e.class.name}: #{e.message}", 0, :red
+        debug "Error during Redfish session creation with Basic Auth: #{e.class.name}: #{e.message}", 1, :red
         debug e.backtrace.join("\n"), 2 if e.backtrace && @verbosity >= 2
         return false
       end
@@ -471,10 +471,10 @@ module IDRAC
     def handle_max_sessions_and_retry(url, payload)
       return false unless @sessions_maxed
       
-      debug "Maximum sessions reached, attempting to clear sessions", 0
+      debug "Maximum sessions reached, attempting to clear sessions", 1
       if @auto_delete_sessions
         if force_clear_sessions
-          debug "Successfully cleared sessions, trying to create a new session", 0, :green
+          debug "Successfully cleared sessions, trying to create a new session", 1, :green
           
           # Give the iDRAC a moment to process the session deletions
           sleep(3)
@@ -488,28 +488,28 @@ module IDRAC
             end
             
             if process_session_response(response)
-              debug "Redfish session created successfully after clearing sessions", 0, :green
+              debug "Redfish session created successfully after clearing sessions", 1, :green
               return true
             else
-              debug "Failed to create Redfish session after clearing sessions: #{response.status} - #{response.body}", 0, :red
+              debug "Failed to create Redfish session after clearing sessions: #{response.status} - #{response.body}", 1, :red
               # If still failing, try direct mode
-              debug "Falling back to direct mode", 0, :light_yellow
+              debug "Falling back to direct mode", 1, :light_yellow
               @direct_mode = true
               return false
             end
           rescue => e
-            debug "Error during session creation after clearing: #{e.class.name}: #{e.message}", 0, :red
-            debug "Falling back to direct mode", 0, :light_yellow
+            debug "Error during session creation after clearing: #{e.class.name}: #{e.message}", 1, :red
+            debug "Falling back to direct mode", 1, :light_yellow
             @direct_mode = true
             return false
           end
         else
-          debug "Failed to clear sessions, switching to direct mode", 0, :light_yellow
+          debug "Failed to clear sessions, switching to direct mode", 1, :light_yellow
           @direct_mode = true
           return false
         end
       else
-        debug "Auto delete sessions is disabled, switching to direct mode", 0, :light_yellow
+        debug "Auto delete sessions is disabled, switching to direct mode", 1, :light_yellow
         @direct_mode = true
         return false
       end
@@ -518,7 +518,7 @@ module IDRAC
     def create_session_with_form_urlencoded(url, payload)
       # Only try with form-urlencoded if we had a 415 error previously
       begin
-        debug "Trying with form-urlencoded content type", 0
+        debug "Trying with form-urlencoded content type", 1
         debug "URL: #{base_url}#{url}", 1
         
         # Try first without any authorization header
@@ -534,21 +534,21 @@ module IDRAC
         debug "Response body: #{response.body}", 3
         
         if process_session_response(response)
-          debug "Redfish session created successfully with form-urlencoded", 0, :green
+          debug "Redfish session created successfully with form-urlencoded", 1, :green
           return true
         end
         
         # If that fails, try with Basic Auth + form-urlencoded
-        debug "Trying form-urlencoded with Basic Auth", 0
+        debug "Trying form-urlencoded with Basic Auth", 1
         auth_response = request_with_basic_auth(:post, url, "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}", 'application/x-www-form-urlencoded')
         
         if process_session_response(auth_response)
-          debug "Redfish session created successfully with form-urlencoded + Basic Auth", 0, :green
+          debug "Redfish session created successfully with form-urlencoded + Basic Auth", 1, :green
           return true
         end
         
         # Last resort: try with both headers (some iDRAC versions need this)
-        debug "Trying with both Content-Type headers", 0
+        debug "Trying with both Content-Type headers", 1
         both_response = connection.post(url) do |req|
           req.headers['Content-Type'] = 'application/x-www-form-urlencoded'
           req.headers['Accept'] = 'application/json'
@@ -558,20 +558,20 @@ module IDRAC
         end
         
         if process_session_response(both_response)
-          debug "Redfish session created successfully with multiple content types", 0, :green
+          debug "Redfish session created successfully with multiple content types", 1, :green
           return true
         else
-          debug "Failed with form-urlencoded too: #{response.status} - #{response.body}", 0, :red
+          debug "Failed with form-urlencoded too: #{response.status} - #{response.body}", 1, :red
           return false
         end
       rescue Faraday::SSLError => e
-        debug "SSL Error in form-urlencoded request: #{e.message}", 0, :red
+        debug "SSL Error in form-urlencoded request: #{e.message}", 1, :red
         debug "OpenSSL version: #{OpenSSL::OPENSSL_VERSION}", 1
         debug "Connection URL: #{base_url}#{url}", 1
         debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
         return false
       rescue => e
-        debug "Error during form-urlencoded session creation: #{e.class.name}: #{e.message}", 0, :red
+        debug "Error during form-urlencoded session creation: #{e.class.name}: #{e.message}", 1, :red
         debug e.backtrace.join("\n"), 2 if e.backtrace && @verbosity >= 2
         return false
       end
@@ -607,21 +607,21 @@ module IDRAC
               end
             end
           rescue JSON::ParserError => e
-            debug "Error parsing Redfish version: #{e.message}", 0, :red
+            debug "Error parsing Redfish version: #{e.message}", 1, :red
             debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
           rescue => e
-            debug "Error determining Redfish version: #{e.message}", 0, :red
+            debug "Error determining Redfish version: #{e.message}", 1, :red
             debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
           end
         end
       rescue => e
-        debug "Error checking Redfish version: #{e.message}", 0, :red
+        debug "Error checking Redfish version: #{e.message}", 1, :red
         debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
       end
       
       # Default to /redfish/v1/Sessions if we can't determine version
       default_endpoint = '/redfish/v1/Sessions'
-      debug "Defaulting to endpoint #{default_endpoint}", 0, :light_yellow
+      debug "Defaulting to endpoint #{default_endpoint}", 1, :light_yellow
       default_endpoint
     end
   end
@@ -629,34 +629,34 @@ module IDRAC
   # Module containing extracted session methods to be included in Client
   module SessionMethods
     def force_clear_sessions
-      debug = ->(msg, level=0, color=:light_cyan) { 
+      debug = ->(msg, level=1, color=:light_cyan) { 
         verbosity = respond_to?(:verbosity) ? verbosity : 0
         return unless verbosity >= level
         msg = msg.send(color) if color && msg.respond_to?(color)
         puts msg
       }
       
-      debug.call "Attempting to force clear all sessions...", 0
+      debug.call "Attempting to force clear all sessions...", 1
       
       if delete_all_sessions_with_basic_auth
-        debug.call "Successfully cleared sessions using Basic Auth", 0, :green
+        debug.call "Successfully cleared sessions using Basic Auth", 1, :green
         true
       else
-        debug.call "Failed to clear sessions using Basic Auth", 0, :red
+        debug.call "Failed to clear sessions using Basic Auth", 1, :red
         false
       end
     end
 
     # Delete all sessions using Basic Authentication
     def delete_all_sessions_with_basic_auth
-      debug = ->(msg, level=0, color=:light_cyan) { 
+      debug = ->(msg, level=1, color=:light_cyan) { 
         verbosity = respond_to?(:verbosity) ? verbosity : 0
         return unless verbosity >= level
         msg = msg.send(color) if color && msg.respond_to?(color)
         puts msg
       }
       
-      debug.call "Attempting to delete all sessions using Basic Authentication...", 0
+      debug.call "Attempting to delete all sessions using Basic Authentication...", 1
       
       # First, get the list of sessions
       sessions_url = session&.determine_session_endpoint || '/redfish/v1/Sessions'
@@ -666,7 +666,7 @@ module IDRAC
         response = authenticated_request(:get, sessions_url)
         
         if response.status != 200
-          debug.call "Failed to get sessions list: #{response.status} - #{response.body}", 0, :red
+          debug.call "Failed to get sessions list: #{response.status} - #{response.body}", 1, :red
           return false
         end
         
@@ -675,7 +675,7 @@ module IDRAC
           sessions_data = JSON.parse(response.body)
           
           if sessions_data['Members'] && sessions_data['Members'].any?
-            debug.call "Found #{sessions_data['Members'].count} active sessions", 0, :light_yellow
+            debug.call "Found #{sessions_data['Members'].count} active sessions", 1, :light_yellow
             
             # Delete each session
             success = true
@@ -691,7 +691,7 @@ module IDRAC
               if delete_response.status == 200 || delete_response.status == 204
                 debug.call "Successfully deleted session: #{session_url}", 1, :green
               else
-                debug.call "Failed to delete session #{session_url}: #{delete_response.status}", 0, :red
+                debug.call "Failed to delete session #{session_url}: #{delete_response.status}", 1, :red
                 success = false
               end
               
@@ -701,15 +701,15 @@ module IDRAC
             
             return success
           else
-            debug.call "No active sessions found", 0, :light_yellow
+            debug.call "No active sessions found", 1, :light_yellow
             return true
           end
         rescue JSON::ParserError => e
-          debug.call "Error parsing sessions response: #{e.message}", 0, :red
+          debug.call "Error parsing sessions response: #{e.message}", 1, :red
           return false
         end
       rescue => e
-        debug.call "Error during session deletion with Basic Auth: #{e.message}", 0, :red
+        debug.call "Error during session deletion with Basic Auth: #{e.message}", 1, :red
         return false
       end
     end

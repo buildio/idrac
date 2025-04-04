@@ -53,16 +53,16 @@ module IDRAC
     def login
       # If we're in direct mode, skip login attempts
       if @direct_mode
-        puts "Using direct mode (Basic Auth) for all requests".light_yellow
+        debug "Using direct mode (Basic Auth) for all requests", 1, :light_yellow
         return true
       end
       
       # Try to create a Redfish session
       if session.create
-        puts "Successfully logged in to iDRAC using Redfish session".green
+        debug "Successfully logged in to iDRAC using Redfish session", 1, :green
         return true
       else
-        puts "Failed to create Redfish session, falling back to direct mode".light_yellow
+        debug "Failed to create Redfish session, falling back to direct mode", 1, :light_yellow
         @direct_mode = true
         return true
       end
@@ -72,7 +72,7 @@ module IDRAC
     def logout
       session.delete if session.x_auth_token
       web.logout if web.session_id
-      puts "Logged out from iDRAC".green
+      debug "Logged out from iDRAC", 1, :green
       return true
     end
 
@@ -80,7 +80,7 @@ module IDRAC
     def authenticated_request(method, path, options = {}, retry_count = 0)
       # Limit retries to prevent infinite loops
       if retry_count >= 3
-        puts "Maximum retry count reached for authenticated request".red.bold
+        debug "Maximum retry count reached for authenticated request", 1, :red
         raise Error, "Maximum retry count reached for authenticated request"
       end
       
@@ -110,7 +110,7 @@ module IDRAC
           
           return response
         rescue => e
-          puts "Error during authenticated request (direct mode): #{e.message}".red.bold
+          debug "Error during authenticated request (direct mode): #{e.message}", 1, :red
           raise Error, "Error during authenticated request: #{e.message}"
         end
       else
@@ -135,14 +135,14 @@ module IDRAC
             
             # Check if the session is still valid
             if response.status == 401 || response.status == 403
-              puts "Session expired or invalid, attempting to create a new session...".light_yellow
+              debug "Session expired or invalid, attempting to create a new session...", 1, :light_yellow
               
               # Try to create a new session
               if session.create
-                puts "Successfully created a new session, retrying request...".green
+                debug "Successfully created a new session, retrying request...", 1, :green
                 return authenticated_request(method, path, options, retry_count + 1)
               else
-                puts "Failed to create a new session, falling back to direct mode...".light_yellow
+                debug "Failed to create a new session, falling back to direct mode...", 1, :light_yellow
                 @direct_mode = true
                 return authenticated_request(method, path, options, retry_count + 1)
               end
@@ -150,14 +150,14 @@ module IDRAC
             
             return response
           rescue => e
-            puts "Error during authenticated request (token mode): #{e.message}".red.bold
+            debug "Error during authenticated request (token mode): #{e.message}", 1, :red
             
             # Try to create a new session
             if session.create
-              puts "Successfully created a new session after error, retrying request...".green
+              debug "Successfully created a new session after error, retrying request...", 1, :green
               return authenticated_request(method, path, options, retry_count + 1)
             else
-              puts "Failed to create a new session after error, falling back to direct mode...".light_yellow
+              debug "Failed to create a new session after error, falling back to direct mode...", 1, :light_yellow
               @direct_mode = true
               return authenticated_request(method, path, options, retry_count + 1)
             end
@@ -165,10 +165,10 @@ module IDRAC
         else
           # If we don't have a token, try to create a session
           if session.create
-            puts "Successfully created a new session, making request...".green
+            debug "Successfully created a new session, making request...", 1, :green
             return authenticated_request(method, path, options, retry_count + 1)
           else
-            puts "Failed to create a session, falling back to direct mode...".light_yellow
+            debug "Failed to create a session, falling back to direct mode...", 1, :light_yellow
             @direct_mode = true
             return authenticated_request(method, path, options, retry_count + 1)
           end

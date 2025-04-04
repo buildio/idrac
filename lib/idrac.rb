@@ -14,7 +14,7 @@ module IDRAC
   # Provides debugging functionality to IDRAC classes
   module Debuggable
     # Debug output helper - only outputs if verbosity level is high enough
-    def debug(message, level = 0, color = :light_cyan)
+    def debug(message, level = 1, color = :light_cyan)
       return unless respond_to?(:verbosity) && verbosity >= level
       color_method = color.is_a?(Symbol) && String.method_defined?(color) ? color : :to_s
       puts message.send(color_method)
