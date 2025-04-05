@@ -616,6 +616,36 @@ module IDRAC
       end
     end
 
+    desc "storage_controllers", "Get all storage controllers information"
+    map "storage:controllers" => :storage_controllers
+    def storage_controllers
+      with_idrac_client do |client|
+        controllers = client.controllers
+        
+        puts "\nStorage Controllers Summary:".green.bold
+        puts "-" * 80
+        
+        controllers.each do |controller|
+          puts "Controller: #{controller[:name]}".cyan.bold
+          puts "  Model:           #{controller[:model]}"
+          puts "  Status:          #{controller[:status]}"
+          puts "  Drives:          #{controller[:drives_count]}"
+          puts "  Firmware:        #{controller[:firmware_version]}"
+          puts "  Type:            #{controller[:controller_type]}"
+          puts "  PCI Slot:        #{controller[:pci_slot]}"
+          
+          if controller[:encryption_capability]
+            puts "  Encryption:      #{controller[:encryption_capability]}"
+            puts "  Encryption Mode: #{controller[:encryption_mode] || 'Disabled'}"
+          end
+          
+          puts
+        end
+        
+        puts "Total controllers: #{controllers.size}".green
+      end
+    end
+
     desc "storage_drives", "Get physical drive information"
     map "storage:drives" => :storage_drives
     def storage_drives
