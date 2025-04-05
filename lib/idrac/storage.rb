@@ -61,7 +61,7 @@ module IDRAC
           data = JSON.parse(response.body)
           drives = data["Drives"].map do |body|
             serial = body["SerialNumber"] 
-            serial = body["Identifiers"].first["DurableName"] if serial.nil?
+            serial = body["Identifiers"].first["DurableName"] if serial.blank?
             { 
               serial: serial,
               model: body["Model"],

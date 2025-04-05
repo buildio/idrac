@@ -37,6 +37,7 @@ module IDRAC
 end
 
 require 'idrac/version'
+require 'idrac/core_ext'
 require 'idrac/error'
 require 'idrac/web'
 require 'idrac/firmware_catalog'

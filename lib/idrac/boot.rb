@@ -11,7 +11,7 @@ module IDRAC
         begin
           data = JSON.parse(response.body)
           
-          if data["Attributes"]["UefiBootSeq"].nil? || data["Attributes"]["UefiBootSeq"].empty?
+          if data["Attributes"]["UefiBootSeq"].blank?
             puts "Not in UEFI mode".red
             return false
           end

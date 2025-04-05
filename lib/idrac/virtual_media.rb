@@ -18,12 +18,7 @@ module IDRAC
               puts "#{m["Name"]} #{m["ConnectedVia"]}".yellow
             end
             
-            action_path = nil
-            begin
-              action_path = m["Actions"]["#VirtualMedia.InsertMedia"]["target"]
-            rescue
-              # No action path available
-            end
+            action_path = m.dig("Actions", "#VirtualMedia.InsertMedia", "target")
             
             { 
               device: m["Id"], 
