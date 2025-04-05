@@ -454,6 +454,145 @@ module IDRAC
       end
     end
 
+    desc "test:all", "Run tests for all major functionality areas"
+    map "test" => :test_all
+    option :quiet, type: :boolean, default: false, desc: "Minimize output, just show pass/fail"
+    option :skip_destructive, type: :boolean, default: true, desc: "Skip tests that could modify the system"
+    def test_all
+      quiet = options[:quiet]
+      skip_destructive = options[:skip_destructive]
+      
+      passed = []
+      failed = []
+      skipped = []
+      
+      tests = [
+        # Basic information
+        { name: "System Summary", method: -> (c) { c.summary } },
+        { name: "Redfish Version", method: -> (c) { c.redfish_version } },
+        
+        # Power methods
+        { name: "Power State", method: -> (c) { c.get_power_state } },
+        { name: "Power Usage", method: -> (c) { c.get_power_usage_watts } },
+        
+        # Jobs and lifecycle
+        { name: "Jobs List", method: -> (c) { c.jobs } },
+        { name: "Lifecycle Status", method: -> (c) { c.lifecycle_status } },
+        
+        # Storage
+        { name: "Storage Controller", method: -> (c) { c.controller } },
+        { name: "Physical Drives", method: -> (c) { controller = c.controller; c.drives(controller) } },
+        { name: "Virtual Disks", method: -> (c) { controller = c.controller; c.volumes(controller) } },
+        
+        # System components
+        { name: "Memory Info", method: -> (c) { c.memory } },
+        { name: "PSU Info", method: -> (c) { c.psus } },
+        { name: "Fan Info", method: -> (c) { c.fans } },
+        { name: "NIC Info", method: -> (c) { c.nics } },
+        { name: "PCI Devices", method: -> (c) { c.pci_devices } },
+        { name: "iDRAC Network", method: -> (c) { c.idrac_network } },
+        { name: "System Events", method: -> (c) { c.system_event_logs } },
+        
+        # Virtual media
+        { name: "Virtual Media Status", method: -> (c) { c.virtual_media } },
+        { name: "Boot Source", method: -> (c) { c.get_boot_source_override } },
+        
+        # Boot/BIOS
+        { name: "Boot Options", method: -> (c) { c.get_bios_boot_options } }
+      ]
+      
+      # Destructive tests - only run if explicitly enabled
+      destructive_tests = [
+        # Virtual media operations
+        { name: "Eject Virtual Media", method: -> (c) { c.eject_virtual_media } },
+        
+        # BIOS settings check (read-only but could affect future operations)
+        { name: "BIOS OS Power Control", method: -> (c) { c.set_bios_os_power_control } },
+      ]
+      
+      puts "======= iDRAC Functionality Test =======" unless quiet
+      puts "Testing #{tests.length} non-destructive operations" unless quiet
+      
+      with_idrac_client do |client|
+        begin
+          # Get firmware version first to help with diagnostics
+          firmware = client.get_firmware_version
+          puts "iDRAC Firmware: #{firmware}" unless quiet
+          
+          # Run all the standard tests
+          tests.each do |test|
+            test_name = test[:name]
+            
+            begin
+              puts "\nTesting: #{test_name}..." unless quiet
+              result = test[:method].call(client)
+              
+              if result || result.nil? # nil is fine for commands that just print
+                passed << test_name
+                puts "✅ #{test_name} - PASSED" unless quiet
+              else
+                failed << test_name
+                puts "❌ #{test_name} - FAILED" unless quiet
+              end
+            rescue => e
+              failed << test_name
+              puts "❌ #{test_name} - ERROR: #{e.message}" unless quiet
+              puts e.backtrace.join("\n") if options[:verbose]
+            end
+          end
+          
+          # Run destructive tests if enabled
+          unless skip_destructive
+            puts "\nTesting #{destructive_tests.length} potentially destructive operations" unless quiet
+            
+            destructive_tests.each do |test|
+              test_name = test[:name]
+              
+              begin
+                puts "\nTesting: #{test_name}..." unless quiet
+                result = test[:method].call(client)
+                
+                if result || result.nil?
+                  passed << test_name
+                  puts "✅ #{test_name} - PASSED" unless quiet
+                else
+                  failed << test_name
+                  puts "❌ #{test_name} - FAILED" unless quiet
+                end
+              rescue => e
+                failed << test_name
+                puts "❌ #{test_name} - ERROR: #{e.message}" unless quiet
+                puts e.backtrace.join("\n") if options[:verbose]
+              end
+            end
+          else
+            skipped = destructive_tests.map { |t| t[:name] }
+            puts "\nSkipped #{skipped.length} destructive tests" unless quiet
+          end
+        rescue => e
+          puts "Failed to initialize client: #{e.message}".red
+          puts e.backtrace.join("\n") if options[:verbose]
+          exit 1
+        end
+      end
+      
+      # Print summary
+      puts "\n======= Test Summary =======" 
+      puts "✅ PASSED: #{passed.length} tests"
+      
+      if failed.any?
+        puts "❌ FAILED: #{failed.length} tests"
+        puts failed.map { |name| "  - #{name}" }.join("\n")
+      end
+      
+      if skipped.any?
+        puts "⏭ SKIPPED: #{skipped.length} tests"
+        puts skipped.map { |name| "  - #{name}" }.join("\n") unless quiet
+      end
+      
+      exit(failed.empty? ? 0 : 1)
+    end
+
     # Storage commands
     desc "storage_controller", "Get storage controller information"
     map "storage:controller" => :storage_controller
