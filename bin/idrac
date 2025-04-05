@@ -789,21 +789,19 @@ module IDRAC
 
     desc "system_events", "Get system event logs"
     map "system:events" => :system_events
-    method_option :limit, type: :numeric, default: 10, desc: "Maximum number of events to display"
     def system_events
       with_idrac_client do |client|
-        logs = client.system_event_logs
+        events = client.system_event_logs
         
-        puts "\nSystem Event Logs (showing #{[options[:limit], logs.size].min} of #{logs.size}):".green.bold
-        
-        logs.take(options[:limit]).each do |log|
-          severity_color = case log['Severity']
-                           when 'Critical' then :red
-                           when 'Warning' then :yellow
-                           else :cyan
-                           end
+        puts "\nSystem Events (#{events.size}):".green.bold
+        events.each do |event|
+          severity_color = case event[:severity]
+                          when "Critical" then :red
+                          when "Warning" then :yellow
+                          else :cyan
+                          end
           
-          puts "#{log['Created']}: #{log['Message']}".send(severity_color)
+          puts "#{event[:id]} - #{event[:created]} - #{event[:severity].send(severity_color)} - #{event[:message]}"
         end
       end
     end
@@ -934,6 +932,209 @@ module IDRAC
       end
     end
 
+    # Test commands
+    desc "test_live", "Test all major functionality of the gem on a real system"
+    map "test:live" => :test_live
+    method_option :timeout, type: :numeric, default: 10, desc: "Connection timeout in seconds"
+    def test_live
+      test_results = {}
+      
+      puts "Running comprehensive live test of idrac gem functionality...".green.bold
+      puts "=" * 80
+      puts "This will test all read-only operations of the gem. No changes will be made to your system.".yellow
+      puts "Using connection timeout of #{options[:timeout]} seconds (use --timeout=X to change)".yellow
+      puts "=" * 80
+      
+      with_idrac_client do |client|
+        # Set higher verbosity temporarily for comprehensive logging
+        original_verbosity = client.verbosity
+        client.verbosity = 1
+        
+        # Set timeout for connection
+        client.web.connection.options.timeout = options[:timeout]
+        client.web.connection.options.open_timeout = options[:timeout]
+        
+        begin
+          # Basic connection test
+          puts "\n[TEST] Basic connection".cyan.bold
+          begin
+            version = client.redfish_version
+            puts "✓ Connection successful, Redfish version: #{version}".green
+            test_results["connection"] = { status: "PASS", message: "Connected to iDRAC successfully" }
+          rescue Faraday::TimeoutError => e
+            puts "✗ Connection timed out after #{options[:timeout]} seconds. Check host and network.".red
+            test_results["connection"] = { status: "FAIL", message: "Connection timeout: #{e.message}" }
+            puts "No further tests will be run until connection is established.".red
+            break
+          rescue => e
+            puts "✗ Connection failed: #{e.message}".red
+            test_results["connection"] = { status: "FAIL", message: e.message }
+            puts "No further tests will be run until connection is established.".red
+            break
+          end
+          
+          # System info test
+          puts "\n[TEST] System information".cyan.bold
+          begin
+            response = client.authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
+            system_info = JSON.parse(response.body)
+            puts "✓ System info: #{system_info['Model']} (#{system_info['SKU']})".green
+            test_results["system_info"] = { status: "PASS", message: "Retrieved system information successfully" }
+          rescue => e
+            puts "✗ System info failed: #{e.message}".red
+            test_results["system_info"] = { status: "FAIL", message: e.message }
+          end
+          
+          # Power tests
+          puts "\n[TEST] Power management".cyan.bold
+          begin
+            power_state = client.get_power_state
+            puts "✓ Power state: #{power_state}".green
+            
+            watts = client.get_power_usage_watts
+            puts "✓ Power usage: #{watts} watts".green
+            test_results["power"] = { status: "PASS", message: "Retrieved power information successfully" }
+          rescue => e
+            puts "✗ Power tests failed: #{e.message}".red
+            test_results["power"] = { status: "FAIL", message: e.message }
+          end
+          
+          # Storage tests
+          puts "\n[TEST] Storage management".cyan.bold
+          begin
+            controller = client.controller
+            puts "✓ Storage controller: #{controller['Name']} (#{controller['Model']})".green
+            
+            drives = client.drives(controller)
+            puts "✓ Found #{drives.size} physical drives".green
+            
+            volumes = client.volumes(controller)
+            puts "✓ Found #{volumes.size} virtual disks".green
+            test_results["storage"] = { status: "PASS", message: "Retrieved storage information successfully" }
+          rescue => e
+            puts "✗ Storage tests failed: #{e.message}".red
+            test_results["storage"] = { status: "FAIL", message: e.message }
+          end
+          
+          # System component tests
+          puts "\n[TEST] System components".cyan.bold
+          begin
+            begin
+              memory = client.memory
+              puts "✓ Memory: #{client.total_memory_human(memory)}".green
+              memory_test_status = "PASS"
+              memory_test_message = "Retrieved memory information successfully"
+            rescue => e
+              puts "✗ Memory test failed: #{e.message}".red
+              memory_test_status = "FAIL"
+              memory_test_message = e.message
+            end
+            
+            begin
+              psus = client.psus
+              puts "✓ Found #{psus.size} power supplies".green
+              psu_test_status = "PASS"
+              psu_test_message = "Retrieved PSU information successfully"
+            rescue => e
+              puts "✗ PSU test failed: #{e.message}".red
+              psu_test_status = "FAIL"
+              psu_test_message = e.message
+            end
+            
+            begin
+              fans = client.fans
+              puts "✓ Found #{fans.size} fans".green
+              fan_test_status = "PASS"
+              fan_test_message = "Retrieved fan information successfully"
+            rescue => e
+              puts "✗ Fan test failed: #{e.message}".red
+              fan_test_status = "FAIL" 
+              fan_test_message = e.message
+            end
+            
+            begin
+              nics = client.nics
+              puts "✓ Found #{nics.size} network interfaces".green
+              nic_test_status = "PASS"
+              nic_test_message = "Retrieved NIC information successfully"
+            rescue => e
+              puts "✗ NIC test failed: #{e.message}".red
+              nic_test_status = "FAIL"
+              nic_test_message = e.message
+            end
+            
+            test_results["memory"] = { status: memory_test_status, message: memory_test_message }
+            test_results["psus"] = { status: psu_test_status, message: psu_test_message }
+            test_results["fans"] = { status: fan_test_status, message: fan_test_message }
+            test_results["nics"] = { status: nic_test_status, message: nic_test_message }
+          rescue => e
+            puts "✗ System component tests failed: #{e.message}".red
+            test_results["system_components"] = { status: "FAIL", message: e.message }
+          end
+          
+          # Virtual media tests
+          puts "\n[TEST] Virtual media".cyan.bold
+          begin
+            media = client.virtual_media
+            puts "✓ Found #{media.size} virtual media devices".green
+            test_results["virtual_media"] = { status: "PASS", message: "Retrieved virtual media information successfully" }
+          rescue => e
+            puts "✗ Virtual media test failed: #{e.message}".red
+            test_results["virtual_media"] = { status: "FAIL", message: e.message }
+          end
+          
+          # Boot management tests
+          puts "\n[TEST] Boot management".cyan.bold
+          begin
+            boot_options = client.get_bios_boot_options
+            puts "✓ Retrieved BIOS boot options".green
+            
+            boot_override = client.get_boot_source_override
+            puts "✓ Boot source override: #{boot_override}".green
+            test_results["boot"] = { status: "PASS", message: "Retrieved boot information successfully" }
+          rescue => e
+            puts "✗ Boot management test failed: #{e.message}".red
+            test_results["boot"] = { status: "FAIL", message: e.message }
+          end
+          
+          # Jobs and tasks
+          puts "\n[TEST] Jobs and tasks".cyan.bold
+          begin
+            jobs = client.jobs
+            puts "✓ Retrieved job queue information".green
+            test_results["jobs"] = { status: "PASS", message: "Retrieved job information successfully" }
+          rescue => e
+            puts "✗ Jobs test failed: #{e.message}".red
+            test_results["jobs"] = { status: "FAIL", message: e.message }
+          end
+          
+        rescue => e
+          puts "\n✗ Unexpected error during testing: #{e.message}".red.bold
+          puts e.backtrace.join("\n").red if client.verbosity >= 2
+        ensure
+          # Restore original verbosity
+          client.verbosity = original_verbosity
+        end
+        
+        # Print summary
+        puts "\n" + "=" * 80
+        puts "TEST SUMMARY:".green.bold
+        puts "=" * 80
+        
+        pass_count = test_results.count { |_, v| v[:status] == "PASS" }
+        fail_count = test_results.count { |_, v| v[:status] == "FAIL" }
+        
+        test_results.each do |test_name, result|
+          status_color = result[:status] == "PASS" ? :green : :red
+          puts "#{test_name.ljust(20)}: #{result[:status].send(status_color)} - #{result[:message]}"
+        end
+        
+        puts "=" * 80
+        puts "OVERALL: #{pass_count} passed, #{fail_count} failed".send(fail_count == 0 ? :green : :yellow).bold
+        puts "=" * 80
+      end
+    end
+    
     private
 
     def with_idrac_client
