@@ -332,6 +332,67 @@ module IDRAC
       return nics_with_pci
     end
 
+    # Get system identification information
+    def system_info
+      response = authenticated_request(:get, "/redfish/v1")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          
+          # Initialize return hash with defaults
+          info = {
+            is_dell: false,
+            is_ancient_dell: false,
+            product: data["Product"] || "Unknown",
+            service_tag: nil,
+            model: nil,
+            idrac_version: data["RedfishVersion"],
+            firmware_version: nil
+          }
+          
+          # Check if it's a Dell iDRAC
+          if data["Product"] == "Integrated Dell Remote Access Controller"
+            info[:is_dell] = true
+            
+            # Get service tag from Dell OEM data
+            info[:service_tag] = data.dig("Oem", "Dell", "ServiceTag")
+            
+            # Get firmware version - try both common locations
+            info[:firmware_version] = data["FirmwareVersion"] || data.dig("Oem", "Dell", "FirmwareVersion")
+            
+            # Get additional system information
+            system_response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
+            if system_response.status == 200
+              system_data = JSON.parse(system_response.body)
+              info[:model] = system_data["Model"]
+            end
+          else
+            # Check if it's an older Dell model
+            begin
+              chassis_response = authenticated_request(:get, "/redfish/v1/Chassis/System.Embedded.1")
+              if chassis_response.status == 200
+                chassis_data = JSON.parse(chassis_response.body)
+                if chassis_data["Manufacturer"] && chassis_data["Manufacturer"].include?("Dell")
+                  info[:is_ancient_dell] = true
+                  info[:model] = chassis_data["Model"]
+                  info[:service_tag] = chassis_data["SKU"] || chassis_data["SerialNumber"]
+                end
+              end
+            rescue
+              # Ignore errors while checking for ancient Dell
+            end
+          end
+          
+          return info
+        rescue JSON::ParserError
+          raise Error, "Failed to parse system info response: #{response.body}"
+        end
+      else
+        raise Error, "Failed to get system info. Status code: #{response.status}"
+      end
+    end
+
     # Get system event logs
     def system_event_logs
       response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Sel?$expand=*($levels=1)")
