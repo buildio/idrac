@@ -2,7 +2,7 @@ require 'json'
 require 'colorize'
 
 module IDRAC
-  module LifecycleMethods
+  module Lifecycle
     # Check if the Lifecycle Controller is enabled
     def get_lifecycle_status
       # Try the standard Attributes endpoint first

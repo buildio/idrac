@@ -2,7 +2,7 @@ require 'json'
 require 'colorize'
 
 module IDRAC
-  module VirtualMediaMethods
+  module VirtualMedia
     # Get current virtual media status
     def virtual_media
       response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)")

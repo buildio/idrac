@@ -2,7 +2,7 @@ require 'json'
 require 'colorize'
 
 module IDRAC
-  module PowerMethods
+  module Power
     def power_on(wait: true)
       # Login to iDRAC if needed
       login unless @session_id

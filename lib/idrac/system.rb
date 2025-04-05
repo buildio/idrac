@@ -2,7 +2,7 @@ require 'json'
 require 'colorize'
 
 module IDRAC
-  module SystemComponentMethods
+  module System
     # Get memory information
     def memory
       response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/Memory?$expand=*($levels=1)")

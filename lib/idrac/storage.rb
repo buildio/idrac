@@ -2,7 +2,7 @@ require 'json'
 require 'colorize'
 
 module IDRAC
-  module StorageMethods
+  module Storage
     # Get storage controllers information
     def controller
       # Use the controllers method to get all controllers

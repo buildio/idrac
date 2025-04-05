@@ -20,8 +20,8 @@ RSpec.describe "idrac power methods" do
   
   describe "#get_power_usage_watts" do
     it "returns power consumption in watts" do
-      # Create a client instance directly with the PowerMethods module
-      client = Class.new { include IDRAC::PowerMethods }.new
+      # Create a client instance directly with the Power module
+      client = Class.new { include IDRAC::Power }.new
       
       # Mock the login method to avoid actual login
       allow(client).to receive(:login)
@@ -38,8 +38,8 @@ RSpec.describe "idrac power methods" do
     end
     
     it "raises an error when power data request fails" do
-      # Create a client instance directly with the PowerMethods module
-      client = Class.new { include IDRAC::PowerMethods }.new
+      # Create a client instance directly with the Power module
+      client = Class.new { include IDRAC::Power }.new
       
       # Mock the login method to avoid actual login
       allow(client).to receive(:login)

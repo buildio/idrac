@@ -2,7 +2,7 @@ require 'json'
 require 'colorize'
 
 module IDRAC
-  module JobMethods
+  module Jobs
     # Get a list of jobs
     def jobs
       response = authenticated_request(:get, '/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)')

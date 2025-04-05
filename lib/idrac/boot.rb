@@ -2,7 +2,7 @@ require 'json'
 require 'colorize'
 
 module IDRAC
-  module BootManagementMethods
+  module Boot
     # Get BIOS boot options
     def get_bios_boot_options
       response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/BootSources")

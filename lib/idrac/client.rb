@@ -12,15 +12,15 @@ module IDRAC
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, :auto_delete_sessions, :session, :web
     attr_accessor :direct_mode, :verbosity, :retry_count, :retry_delay
     
-    include PowerMethods
-    include SessionMethods
+    include Power
+    include SessionUtils
     include Debuggable
-    include JobMethods
-    include LifecycleMethods
-    include StorageMethods
-    include SystemComponentMethods
-    include VirtualMediaMethods
-    include BootManagementMethods
+    include Jobs
+    include Lifecycle
+    include Storage
+    include System
+    include VirtualMedia
+    include Boot
 
     def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true, retry_count: 3, retry_delay: 1)
       @host = host

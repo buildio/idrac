@@ -676,7 +676,7 @@ module IDRAC
   end
 
   # Module containing extracted session methods to be included in Client
-  module SessionMethods
+  module SessionUtils
     def force_clear_sessions
       debug = ->(msg, level=1, color=:light_cyan) { 
         verbosity = respond_to?(:verbosity) ? verbosity : 0
