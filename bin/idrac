@@ -1043,13 +1043,13 @@ module IDRAC
             break
           end
           
-          # Power tests - retry up to 3 times if authentication fails
+          # Power tests
           puts "\n[TEST] Power management".cyan.bold
           begin
-            power_state = client.with_retries { client.get_power_state }
+            power_state = client.get_power_state
             puts "✓ Power state: #{power_state}".green
             
-            watts = client.with_retries { client.get_power_usage_watts }
+            watts = client.get_power_usage_watts
             puts "✓ Power usage: #{watts} watts".green
             test_results["power"] = { status: "PASS", message: "Retrieved power information successfully" }
           rescue => e
@@ -1060,13 +1060,13 @@ module IDRAC
           # Storage tests
           puts "\n[TEST] Storage management".cyan.bold
           begin
-            controller = client.with_retries { client.controller }
+            controller = client.controller
             puts "✓ Storage controller: #{controller['Name']} (#{controller['Model']})".green
             
-            drives = client.with_retries { client.drives(controller) }
+            drives = client.drives(controller)
             puts "✓ Found #{drives.size} physical drives".green
             
-            volumes = client.with_retries { client.volumes(controller) }
+            volumes = client.volumes(controller)
             puts "✓ Found #{volumes.size} virtual disks".green
             test_results["storage"] = { status: "PASS", message: "Retrieved storage information successfully" }
           rescue => e
@@ -1078,7 +1078,7 @@ module IDRAC
           puts "\n[TEST] System components".cyan.bold
           begin
             begin
-              memory = client.with_retries { client.memory }
+              memory = client.memory
               puts "✓ Memory: #{client.total_memory_human(memory)}".green
               memory_test_status = "PASS"
               memory_test_message = "Retrieved memory information successfully"
@@ -1089,7 +1089,7 @@ module IDRAC
             end
             
             begin
-              psus = client.with_retries { client.psus }
+              psus = client.psus
               puts "✓ Found #{psus.size} power supplies".green
               psu_test_status = "PASS"
               psu_test_message = "Retrieved PSU information successfully"
@@ -1100,7 +1100,7 @@ module IDRAC
             end
             
             begin
-              fans = client.with_retries { client.fans }
+              fans = client.fans
               puts "✓ Found #{fans.size} fans".green
               fan_test_status = "PASS"
               fan_test_message = "Retrieved fan information successfully"
@@ -1111,7 +1111,7 @@ module IDRAC
             end
             
             begin
-              nics = client.with_retries { client.nics }
+              nics = client.nics
               puts "✓ Found #{nics.size} network interfaces".green
               nic_test_status = "PASS"
               nic_test_message = "Retrieved NIC information successfully"
@@ -1133,7 +1133,7 @@ module IDRAC
           # Virtual media tests
           puts "\n[TEST] Virtual media".cyan.bold
           begin
-            media = client.with_retries { client.virtual_media }
+            media = client.virtual_media
             puts "✓ Found #{media.size} virtual media devices".green
             test_results["virtual_media"] = { status: "PASS", message: "Retrieved virtual media information successfully" }
           rescue => e
@@ -1144,10 +1144,10 @@ module IDRAC
           # Boot management tests
           puts "\n[TEST] Boot management".cyan.bold
           begin
-            boot_options = client.with_retries { client.get_bios_boot_options }
+            boot_options = client.get_bios_boot_options
             puts "✓ Retrieved BIOS boot options".green
             
-            boot_override = client.with_retries { client.get_boot_source_override }
+            boot_override = client.get_boot_source_override
             puts "✓ Boot source override: #{boot_override}".green
             test_results["boot"] = { status: "PASS", message: "Retrieved boot information successfully" }
           rescue => e
@@ -1158,7 +1158,7 @@ module IDRAC
           # Jobs and tasks
           puts "\n[TEST] Jobs and tasks".cyan.bold
           begin
-            jobs = client.with_retries { client.jobs }
+            jobs = client.jobs
             puts "✓ Retrieved job queue information".green
             test_results["jobs"] = { status: "PASS", message: "Retrieved job information successfully" }
           rescue => e

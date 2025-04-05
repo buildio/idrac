@@ -83,7 +83,22 @@ module IDRAC
     end
 
     # Send an authenticated request to the iDRAC
-    def authenticated_request(method, path, options = {}, retry_count = 0)
+    def authenticated_request(method, path, options = {})
+      with_retries do
+        _authenticated_request_impl(method, path, options)
+      end
+    end
+
+    def get(path:, headers: {})
+      with_retries do
+        _get_impl(path: path, headers: headers)
+      end
+    end
+
+    private
+    
+    # Implementation of authenticated request without retry logic
+    def _authenticated_request_impl(method, path, options = {}, retry_count = 0)
       # Check retry count to prevent infinite recursion
       if retry_count >= @retry_count
         debug "Maximum retry count reached", 1, :red
@@ -126,14 +141,14 @@ module IDRAC
           if response.status == 401 || response.status == 403
             debug "Authentication failed in direct mode, retrying with new credentials...", 1, :light_yellow
             sleep(retry_count + 1) # Add some delay before retry
-            return authenticated_request(method, path, options, retry_count + 1)
+            return _authenticated_request_impl(method, path, options, retry_count + 1)
           end
           
           return response
         rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
           debug "Connection error in direct mode: #{e.message}", 1, :red
           sleep(retry_count + 1) # Add some delay before retry
-          return authenticated_request(method, path, options, retry_count + 1)
+          return _authenticated_request_impl(method, path, options, retry_count + 1)
         rescue => e
           debug "Error during direct mode request: #{e.message}", 1, :red
           raise Error, "Error during authenticated request: #{e.message}"
@@ -170,11 +185,11 @@ module IDRAC
             # Try to create a new session
             if session.create
               debug "Successfully created a new session after expiration, retrying request...", 1, :green
-              return authenticated_request(method, path, options, retry_count + 1)
+              return _authenticated_request_impl(method, path, options, retry_count + 1)
             else
               debug "Failed to create a new session after expiration, falling back to direct mode...", 1, :light_yellow
               @direct_mode = true
-              return authenticated_request(method, path, options, retry_count + 1)
+              return _authenticated_request_impl(method, path, options, retry_count + 1)
             end
           end
           
@@ -186,17 +201,17 @@ module IDRAC
           # If we still have the token, try to reuse it
           if session.x_auth_token
             debug "Retrying with existing token after connection error", 1, :light_yellow
-            return authenticated_request(method, path, options, retry_count + 1)
+            return _authenticated_request_impl(method, path, options, retry_count + 1)
           else
             # Otherwise try to create a new session
             debug "Trying to create a new session after connection error", 1, :light_yellow
             if session.create
               debug "Successfully created a new session after connection error", 1, :green
-              return authenticated_request(method, path, options, retry_count + 1)
+              return _authenticated_request_impl(method, path, options, retry_count + 1)
             else
               debug "Failed to create session after connection error, falling back to direct mode", 1, :light_yellow
               @direct_mode = true
-              return authenticated_request(method, path, options, retry_count + 1)
+              return _authenticated_request_impl(method, path, options, retry_count + 1)
             end
           end
         rescue => e
@@ -205,27 +220,27 @@ module IDRAC
           # Try to create a new session
           if session.create
             debug "Successfully created a new session after error, retrying request...", 1, :green
-            return authenticated_request(method, path, options, retry_count + 1)
+            return _authenticated_request_impl(method, path, options, retry_count + 1)
           else
             debug "Failed to create a new session after error, falling back to direct mode...", 1, :light_yellow
             @direct_mode = true
-            return authenticated_request(method, path, options, retry_count + 1)
+            return _authenticated_request_impl(method, path, options, retry_count + 1)
           end
         end
       else
         # If we don't have a token, try to create a session
         if session.create
           debug "Successfully created a new session, making request...", 1, :green
-          return authenticated_request(method, path, options, retry_count + 1)
+          return _authenticated_request_impl(method, path, options, retry_count + 1)
         else
           debug "Failed to create a session, falling back to direct mode...", 1, :light_yellow
           @direct_mode = true
-          return authenticated_request(method, path, options, retry_count + 1)
+          return _authenticated_request_impl(method, path, options, retry_count + 1)
         end
       end
     end
 
-    def get(path:, headers: {})
+    def _get_impl(path:, headers: {})
       # For screenshot functionality, we need to use the WebUI cookies
       if web.cookies.nil? && path.include?('screen/screen.jpg')
         web.login unless web.session_id
@@ -264,6 +279,8 @@ module IDRAC
       
       response
     end
+
+    public
 
     def screenshot
       web.capture_screenshot
