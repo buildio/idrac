@@ -90,7 +90,7 @@ module IDRAC
           drives = data["Drives"].map do |body|
             serial = body["SerialNumber"] 
             serial = body["Identifiers"].first["DurableName"] if serial.blank?
-            { 
+            drive_data = { 
               serial: serial,
               model: body["Model"],
               name: body["Name"],
@@ -108,9 +108,11 @@ module IDRAC
               encryption_ability: body["EncryptionAbility"],
               "@odata.id": body["@odata.id"]
             }
+            
+            RecursiveOpenStruct.new(drive_data, recurse_over_arrays: true)
           end
           
-          return drives.sort_by { |d| d[:name] }
+          return drives.sort_by { |d| d.name }
         rescue JSON::ParserError
           raise Error, "Failed to parse drives response: #{response.body}"
         end
@@ -134,7 +136,7 @@ module IDRAC
           data = JSON.parse(response.body)
           volumes = data["Members"].map do |vol|
             drives = vol["Links"]["Drives"]
-            volume = { 
+            volume_data = { 
               name: vol["Name"], 
               capacity_bytes: vol["CapacityBytes"], 
               volume_type: vol["VolumeType"],
@@ -145,31 +147,40 @@ module IDRAC
               raid_level: vol["RAIDType"],
               encrypted: vol["Encrypted"],
               lock_status: vol.dig("Oem", "Dell", "DellVirtualDisk", "LockStatus"),
-              "@odata.id": vol["@odata.id"]
+              odata_id: vol["@odata.id"]
             }
             
-            # Check FastPath settings
-            volume[:fastpath] = fastpath_good?(volume)
-            
             # Handle volume operations and status
-            if vol["Operations"].any?
-              volume[:health] = vol["Status"]["Health"] ? vol["Status"]["Health"] : "N/A"
-              volume[:progress] = vol["Operations"].first["PercentageComplete"]
-              volume[:message] = vol["Operations"].first["OperationName"]     
+            if vol["Operations"] && vol["Operations"].any?
+              volume_data[:health] = vol["Status"]["Health"] ? vol["Status"]["Health"] : "N/A"
+              volume_data[:progress] = vol["Operations"].first["PercentageComplete"]
+              volume_data[:message] = vol["Operations"].first["OperationName"]     
             elsif vol["Status"]["Health"] == "OK"
-              volume[:health] = "OK"
-              volume[:progress] = nil
-              volume[:message] = nil
+              volume_data[:health] = "OK"
+              volume_data[:progress] = nil
+              volume_data[:message] = nil
             else
-              volume[:health] = "?"
-              volume[:progress] = nil
-              volume[:message] = nil
+              volume_data[:health] = "?"
+              volume_data[:progress] = nil
+              volume_data[:message] = nil
             end
+            
+            # Create a RecursiveOpenStruct with the data
+            volume = RecursiveOpenStruct.new(volume_data, recurse_over_arrays: true)
+            
+            # Check FastPath settings - we'll use the temp_volume hash for this
+            # since our fastpath_good? method still needs to support both hash and OpenStruct
+            temp_volume = {
+              write_cache_policy: volume_data[:write_cache_policy],
+              read_cache_policy: volume_data[:read_cache_policy],
+              stripe_size: volume_data[:stripe_size]
+            }
+            volume.fastpath = fastpath_good?(temp_volume)
             
             volume
           end
           
-          return volumes.sort_by { |d| d[:name] }
+          return volumes.sort_by { |d| d.name }
         rescue JSON::ParserError
           raise Error, "Failed to parse volumes response: #{response.body}"
         end
@@ -363,7 +374,7 @@ module IDRAC
 
     # Check if all physical disks are Self-Encrypting Drives
     def all_seds?(drives)
-      drives.all? { |d| d[:encryption_ability] == "SelfEncryptingDrive" }
+      drives.all? { |d| d.encryption_ability == "SelfEncryptingDrive" }
     end
 
     # Check if the system is ready for SED operations

@@ -681,22 +681,22 @@ module IDRAC
         
         puts "\nVirtual Disks (#{volumes.size}):".green.bold
         volumes.each do |volume|
-          capacity_gb = volume[:capacity_bytes].to_f / (1024**3)
-          health_color = volume[:health] == "OK" ? :green : :yellow
+          capacity_gb = volume.capacity_bytes.to_f / (1024**3)
+          health_color = volume.health == "OK" ? :green : :yellow
           
-          puts "#{volume[:name]}:".bold
-          puts "  RAID Type: #{volume[:raid_level] || volume[:volume_type]}".cyan
-          puts "  Health: #{volume[:health].send(health_color)}"
+          puts "#{volume.name}:".bold
+          puts "  RAID Type: #{volume.raid_level || volume.volume_type}".cyan
+          puts "  Health: #{volume.health.send(health_color)}"
           puts "  Capacity: #{capacity_gb.round(2)} GB".cyan
-          puts "  Stripe Size: #{volume[:stripe_size]}".cyan
-          puts "  Read Cache: #{volume[:read_cache_policy]}".cyan
-          puts "  Write Cache: #{volume[:write_cache_policy]}".cyan
-          puts "  FastPath: #{volume[:fastpath] == 'enabled' ? 'Enabled'.green : 'Disabled'.yellow}"
-          puts "  Encrypted: #{volume[:encrypted] ? 'Yes'.green : 'No'.yellow}" if volume[:encrypted] != nil
+          puts "  Stripe Size: #{volume.stripe_size}".cyan
+          puts "  Read Cache: #{volume.read_cache_policy}".cyan
+          puts "  Write Cache: #{volume.write_cache_policy}".cyan
+          puts "  FastPath: #{volume.fastpath == 'enabled' ? 'Enabled'.green : 'Disabled'.yellow}"
+          puts "  Encrypted: #{volume.encrypted ? 'Yes'.green : 'No'.yellow}" if volume.encrypted != nil
           
-          if volume[:progress]
-            puts "  Progress: #{volume[:progress]}%".cyan
-            puts "  Operation: #{volume[:message]}".cyan
+          if volume.progress
+            puts "  Progress: #{volume.progress}%".cyan
+            puts "  Operation: #{volume.message}".cyan
           end
           puts ""
         end
@@ -742,7 +742,7 @@ module IDRAC
         
         puts "Available volumes:".green
         volumes.each_with_index do |vol, idx|
-          puts "#{idx+1}. #{vol[:name]} (#{vol[:raid_level] || vol[:volume_type]}, #{(vol[:capacity_bytes].to_f / (1024**3)).round(2)} GB)"
+          puts "#{idx+1}. #{vol.name} (#{vol.raid_level || vol.volume_type}, #{(vol.capacity_bytes.to_f / (1024**3)).round(2)} GB)"
         end
         
         print "Enter the number of the volume to delete (or 'q' to quit): "
@@ -757,12 +757,12 @@ module IDRAC
         if index >= 0 && index < volumes.size
           volume = volumes[index]
           
-          puts "You are about to delete '#{volume[:name]}'. All data will be lost!".red.bold
+          puts "You are about to delete '#{volume.name}'. All data will be lost!".red.bold
           print "Type the volume name to confirm deletion: "
           confirm = $stdin.gets.chomp
           
           if confirm == volume[:name]
-            client.delete_volume(volume[:"@odata.id"])
+            client.delete_volume(volume.data_id)
             puts "Volume deleted successfully".green
           else
             puts "Volume name did not match. Operation cancelled".yellow
