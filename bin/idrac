@@ -463,11 +463,11 @@ module IDRAC
         license = client.license_info
         if license
           puts "\nLicense Information:".green.bold
-          puts "Description: #{license['Description']}".cyan
-          puts "License Type: #{license['LicenseType']}".cyan
+          puts "Description: #{license.Description}".cyan
+          puts "License Type: #{license.LicenseType}".cyan
           puts "License Version: #{client.license_version || 'Unknown'}".cyan
-          puts "Removable: #{license['Removable']}".cyan
-          puts "Status: #{license.dig('Status', 'Health') || 'Unknown'}".cyan
+          puts "Removable: #{license.Removable}".cyan
+          puts "Status: #{license&.Status&.Health || 'Unknown'}".cyan
         else
           puts "No license information available".yellow
         end
