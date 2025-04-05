@@ -948,7 +948,43 @@ module IDRAC
       with_idrac_client do |client|
         # Set higher verbosity temporarily for comprehensive logging
         original_verbosity = client.verbosity
-        client.verbosity = 1
+        
+        # Configure verbosity level based on user options
+        if options[:very_verbose] || options[:debug]
+          client.verbosity = options[:debug] ? 3 : 2
+          puts "HTTP request/response details will be shown (verbosity level: #{client.verbosity})".cyan
+        else
+          client.verbosity = options[:verbose] ? 1 : 0
+          puts "HTTP request/response details hidden (use -vv or -vvv for details)".cyan 
+          
+          # Silence Faraday logging for lower verbosity levels
+          if defined?(Faraday.default_connection) && Faraday.default_connection
+            begin
+              Faraday.default_connection.builder.handlers.each do |handler|
+                if defined?(Faraday::Response::Logger) && handler.klass == Faraday::Response::Logger && 
+                   handler.instance_variable_defined?(:@logger) && handler.instance_variable_get(:@logger)
+                  handler.instance_variable_get(:@logger).level = Logger::WARN
+                end
+              end
+            rescue => e
+              puts "Warning: Unable to configure logging: #{e.message}".yellow if options[:verbose]
+            end
+          end
+          
+          # Also try to silence the built-in logger in the client
+          if client.respond_to?(:connection) && client.connection.respond_to?(:builder)
+            begin
+              client.connection.builder.handlers.each do |handler|
+                if defined?(Faraday::Response::Logger) && handler.klass == Faraday::Response::Logger &&
+                   handler.instance_variable_defined?(:@logger) && handler.instance_variable_get(:@logger)
+                  handler.instance_variable_get(:@logger).level = Logger::WARN
+                end
+              end
+            rescue => e
+              puts "Warning: Unable to configure client logging: #{e.message}".yellow if options[:verbose]
+            end
+          end
+        end
         
         # Set timeout for connection - modify the connection object if it's available
         begin

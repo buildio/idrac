@@ -80,102 +80,91 @@ module IDRAC
       return true
     end
 
-    # Make an authenticated request to the iDRAC
+    # Send an authenticated request to the iDRAC
     def authenticated_request(method, path, options = {}, retry_count = 0)
-      # Limit retries to prevent infinite loops
+      # Check retry count to prevent infinite recursion
       if retry_count >= 3
-        debug "Maximum retry count reached for authenticated request", 1, :red
-        raise Error, "Maximum retry count reached for authenticated request"
+        debug "Maximum retry count reached", 1, :red
+        raise Error, "Failed to authenticate after multiple retries"
       end
       
+      # Form the full URL
+      full_url = "#{base_url}/redfish/v1".chomp('/') + '/' + path.sub(/^\//, '')
+      
+      # Log the request
       debug "Authenticated request: #{method.to_s.upcase} #{path}", 1
       
-      # If we're in direct mode, use Basic Auth
-      if @direct_mode
-        # Create Basic Auth header
-        auth_header = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
-        
-        # Add the Authorization header to the request
-        options[:headers] ||= {}
-        options[:headers]['Authorization'] = auth_header
-        
-        debug "Using Basic Auth for request", 2
-        
-        # Make the request
+      # Extract options
+      body = options[:body]
+      headers = options[:headers] || {}
+      
+      # Add client headers
+      headers['User-Agent'] ||= 'iDRAC Ruby Client'
+      headers['Accept'] ||= 'application/json'
+      
+      # Use Redfish session token if available, otherwise use direct mode with Basic Auth
+      if session.x_auth_token && !@direct_mode
         begin
-          response = connection.send(method, path) do |req|
-            req.headers.merge!(options[:headers])
-            req.body = options[:body] if options[:body]
-          end
+          headers['X-Auth-Token'] = session.x_auth_token
           
-          debug "Response status: #{response.status}", 1
-          debug "Response headers: #{response.headers.inspect}", 2
-          debug "Response body: #{response.body}", 3 if response.body
+          debug "Using X-Auth-Token for authentication", 2
+          debug "Request headers: #{headers.reject { |k,v| k =~ /auth/i }.to_json}", 3
+          debug "Request body: #{body.to_s[0..500]}", 3 if body
           
-          return response
-        rescue => e
-          debug "Error during authenticated request (direct mode): #{e.message}", 1, :red
-          raise Error, "Error during authenticated request: #{e.message}"
-        end
-      else
-        # Use X-Auth-Token if available
-        if session.x_auth_token
-          # Add the X-Auth-Token header to the request
-          options[:headers] ||= {}
-          options[:headers]['X-Auth-Token'] = session.x_auth_token
+          response = session.connection.run_request(
+            method,
+            path.sub(/^\//, ''),
+            body,
+            headers
+          )
           
-          debug "Using X-Auth-Token for request", 2
+          debug "Response status: #{response.status}", 2
+          debug "Response headers: #{response.headers.to_json}", 3
+          debug "Response body: #{response.body.to_s[0..500]}", 3 if response.body
           
-          # Make the request
-          begin
-            response = connection.send(method, path) do |req|
-              req.headers.merge!(options[:headers])
-              req.body = options[:body] if options[:body]
+          # Handle session expiration
+          if response.status == 401 || response.status == 403
+            debug "Session expired or invalid, creating a new session...", 1, :light_yellow
+            
+            # If session.delete returns true, the session was successfully deleted
+            if session.delete
+              debug "Successfully cleared expired session", 1, :green
             end
-            
-            debug "Response status: #{response.status}", 1
-            debug "Response headers: #{response.headers.inspect}", 2
-            debug "Response body: #{response.body}", 3 if response.body
-            
-            # Check if the session is still valid
-            if response.status == 401 || response.status == 403
-              debug "Session expired or invalid, attempting to create a new session...", 1, :light_yellow
-              
-              # Try to create a new session
-              if session.create
-                debug "Successfully created a new session, retrying request...", 1, :green
-                return authenticated_request(method, path, options, retry_count + 1)
-              else
-                debug "Failed to create a new session, falling back to direct mode...", 1, :light_yellow
-                @direct_mode = true
-                return authenticated_request(method, path, options, retry_count + 1)
-              end
-            end
-            
-            return response
-          rescue => e
-            debug "Error during authenticated request (token mode): #{e.message}", 1, :red
             
             # Try to create a new session
             if session.create
-              debug "Successfully created a new session after error, retrying request...", 1, :green
+              debug "Successfully created a new session after expiration, retrying request...", 1, :green
               return authenticated_request(method, path, options, retry_count + 1)
             else
-              debug "Failed to create a new session after error, falling back to direct mode...", 1, :light_yellow
+              debug "Failed to create a new session after expiration, falling back to direct mode...", 1, :light_yellow
               @direct_mode = true
               return authenticated_request(method, path, options, retry_count + 1)
             end
           end
-        else
-          # If we don't have a token, try to create a session
+          
+          return response
+        rescue => e
+          debug "Error during authenticated request (token mode): #{e.message}", 1, :red
+          
+          # Try to create a new session
           if session.create
-            debug "Successfully created a new session, making request...", 1, :green
+            debug "Successfully created a new session after error, retrying request...", 1, :green
             return authenticated_request(method, path, options, retry_count + 1)
           else
-            debug "Failed to create a session, falling back to direct mode...", 1, :light_yellow
+            debug "Failed to create a new session after error, falling back to direct mode...", 1, :light_yellow
             @direct_mode = true
             return authenticated_request(method, path, options, retry_count + 1)
           end
+        end
+      else
+        # If we don't have a token, try to create a session
+        if session.create
+          debug "Successfully created a new session, making request...", 1, :green
+          return authenticated_request(method, path, options, retry_count + 1)
+        else
+          debug "Failed to create a session, falling back to direct mode...", 1, :light_yellow
+          @direct_mode = true
+          return authenticated_request(method, path, options, retry_count + 1)
         end
       end
     end
