@@ -21,6 +21,7 @@ module IDRAC
     include System
     include VirtualMedia
     include Boot
+    include License
 
     def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true, retry_count: 3, retry_delay: 1)
       @host = host

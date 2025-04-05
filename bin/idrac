@@ -456,6 +456,37 @@ module IDRAC
       end
     end
 
+    desc "license_info", "Display license information"
+    map "license:info" => :license_info
+    def license_info
+      with_idrac_client do |client|
+        license = client.license_info
+        if license
+          puts "\nLicense Information:".green.bold
+          puts "Description: #{license['Description']}".cyan
+          puts "License Type: #{license['LicenseType']}".cyan
+          puts "License Version: #{client.license_version || 'Unknown'}".cyan
+          puts "Removable: #{license['Removable']}".cyan
+          puts "Status: #{license.dig('Status', 'Health') || 'Unknown'}".cyan
+        else
+          puts "No license information available".yellow
+        end
+      end
+    end
+
+    desc "license_version", "Display the iDRAC license version number"
+    map "license:version" => :license_version
+    def license_version
+      with_idrac_client do |client|
+        version = client.license_version
+        if version
+          puts version
+        else
+          puts "Unknown license version"
+        end
+      end
+    end
+
     desc "test:all", "Run tests for all major functionality areas"
     map "test" => :test_all
     option :quiet, type: :boolean, default: false, desc: "Minimize output, just show pass/fail"
@@ -472,6 +503,8 @@ module IDRAC
         # Basic information
         { name: "System Summary", method: -> (c) { c.summary } },
         { name: "Redfish Version", method: -> (c) { c.redfish_version } },
+        { name: "License Version", method: -> (c) { c.license_version } },
+        { name: "System Health", method: -> (c) { c.system_health } },
         
         # Power methods
         { name: "Power State", method: -> (c) { c.get_power_state } },
@@ -488,6 +521,7 @@ module IDRAC
         
         # System components
         { name: "Memory Info", method: -> (c) { c.memory } },
+        { name: "CPU Info", method: -> (c) { c.cpus } },
         { name: "PSU Info", method: -> (c) { c.psus } },
         { name: "Fan Info", method: -> (c) { c.fans } },
         { name: "NIC Info", method: -> (c) { c.nics } },
@@ -863,6 +897,27 @@ module IDRAC
       end
     end
 
+    desc "system_cpus", "Get processor/CPU information" 
+    map "system:cpus" => :system_cpus
+    def system_cpus
+      with_idrac_client do |client|
+        cpus = client.cpus
+        
+        puts "\nProcessor Summary:".green.bold
+        puts "=" * 50
+        
+        health_color = cpus[:status] == "OK" ? :green : :red
+        
+        puts "Processor Model:".ljust(25) + cpus[:model].to_s.light_cyan
+        puts "Processor Count:".ljust(25) + cpus[:count].to_s.light_cyan
+        puts "Physical Cores:".ljust(25) + cpus[:cores].to_s.light_cyan
+        puts "Logical Cores:".ljust(25) + cpus[:threads].to_s.light_cyan
+        puts "Status:".ljust(25) + cpus[:status].to_s.send(health_color)
+        
+        puts "=" * 50
+      end
+    end
+
     desc "system_psus", "Get power supply information"
     map "system:psus" => :system_psus
     def system_psus
@@ -1122,6 +1177,46 @@ module IDRAC
             puts "  Ancient Dell System detected. Update firmware.".yellow
           end
         end
+      end
+    end
+
+    desc "system_config", "Get complete system configuration"
+    map "system:config" => :system_config
+    def system_config
+      with_idrac_client do |client|
+        response = client.authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$expand=*($levels=1)")
+        if response.status == 200
+          config = JSON.parse(response.body)
+          puts JSON.pretty_generate(config)
+        else
+          puts "Failed to retrieve system configuration: #{response.status}".red
+        end
+      end
+    end
+
+    desc "system_health", "Get system health status"
+    map "system:health" => :system_health
+    def system_health
+      with_idrac_client do |client|
+        health = client.system_health
+        
+        puts "\nSystem Health Status:".green.bold
+        puts "=" * 50
+        
+        # Display overall health with color coding
+        overall_color = health[:overall] == "OK" ? :green : :red
+        system_color = health[:system] == "OK" ? :green : :red
+        processor_color = health[:processor] == "OK" ? :green : :red
+        memory_color = health[:memory] == "OK" ? :green : :red
+        storage_color = health[:storage] == "OK" ? :green : (health[:storage].nil? ? :yellow : :red)
+        
+        puts "Overall Health:".ljust(25) + health[:overall].to_s.send(overall_color)
+        puts "System Health:".ljust(25) + health[:system].to_s.send(system_color)
+        puts "Processor Health:".ljust(25) + health[:processor].to_s.send(processor_color)
+        puts "Memory Health:".ljust(25) + health[:memory].to_s.send(memory_color)
+        puts "Storage Health:".ljust(25) + (health[:storage] || "Unknown").to_s.send(storage_color)
+        
+        puts "=" * 50
       end
     end
 

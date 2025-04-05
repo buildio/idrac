@@ -50,7 +50,8 @@ module IDRAC
               encryption_capability: controller.dig("Oem", "Dell", "DellController", "EncryptionCapability"),
               controller_type: controller.dig("Oem", "Dell", "DellController", "ControllerType"),
               pci_slot: controller.dig("Oem", "Dell", "DellController", "PCISlot"),
-              raw: controller
+              raw: controller,
+              odata_id: controller["@odata.id"]
             }
             
             RecursiveOpenStruct.new(controller_data, recurse_over_arrays: true)

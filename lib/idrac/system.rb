@@ -367,29 +367,72 @@ module IDRAC
               system_data = JSON.parse(system_response.body)
               info[:model] = system_data["Model"]
             end
+          
+            return info
           else
-            # Check if it's an older Dell model
-            begin
-              chassis_response = authenticated_request(:get, "/redfish/v1/Chassis/System.Embedded.1")
-              if chassis_response.status == 200
-                chassis_data = JSON.parse(chassis_response.body)
-                if chassis_data["Manufacturer"] && chassis_data["Manufacturer"].include?("Dell")
-                  info[:is_ancient_dell] = true
-                  info[:model] = chassis_data["Model"]
-                  info[:service_tag] = chassis_data["SKU"] || chassis_data["SerialNumber"]
-                end
-              end
-            rescue
-              # Ignore errors while checking for ancient Dell
+            # Try to handle ancient Dell models where Product is null or non-standard
+            if data["Product"].nil? || data.dig("Oem", "Dell")
+              info[:is_ancient_dell] = true
+              return info
             end
           end
           
           return info
         rescue JSON::ParserError
-          raise Error, "Failed to parse system info response: #{response.body}"
+          raise Error, "Failed to parse system information: #{response.body}"
         end
       else
-        raise Error, "Failed to get system info. Status code: #{response.status}"
+        raise Error, "Failed to get system information. Status code: #{response.status}"
+      end
+    end
+    
+    # Get processor/CPU information
+    def cpus
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$expand=*($levels=1)")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          
+          summary = {
+            count: data.dig("ProcessorSummary", "Count"),
+            model: data.dig("ProcessorSummary", "Model"),
+            cores: data.dig("ProcessorSummary", "CoreCount"),
+            threads: data.dig("ProcessorSummary", "LogicalProcessorCount"),
+            status: data.dig("ProcessorSummary", "Status", "Health")
+          }
+          
+          return summary
+        rescue JSON::ParserError
+          raise Error, "Failed to parse processor information: #{response.body}"
+        end
+      else
+        raise Error, "Failed to get processor information. Status code: #{response.status}"
+      end
+    end
+
+    # Get system health status
+    def system_health
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$expand=*($levels=1)")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          
+          health = {
+            overall: data.dig("Status", "HealthRollup"),
+            system: data.dig("Status", "Health"),
+            processor: data.dig("ProcessorSummary", "Status", "Health"),
+            memory: data.dig("MemorySummary", "Status", "Health"),
+            storage: data.dig("Storage", "Status", "Health")
+          }
+          
+          return health
+        rescue JSON::ParserError
+          raise Error, "Failed to parse system health information: #{response.body}"
+        end
+      else
+        raise Error, "Failed to get system health. Status code: #{response.status}"
       end
     end
 
