@@ -997,6 +997,18 @@ module IDRAC
         end
         
         begin
+          # Establish a session that will be used for all tests
+          # Force the creation of a new session and test it works
+          if client.session.respond_to?(:delete) 
+            client.session.delete rescue nil
+          end
+          
+          session_created = client.session.create
+          if !session_created && !client.direct_mode
+            puts "Failed to establish a session, falling back to direct mode".yellow
+            client.direct_mode = true
+          end
+          
           # Basic connection test
           puts "\n[TEST] Basic connection".cyan.bold
           begin
@@ -1025,15 +1037,17 @@ module IDRAC
           rescue => e
             puts "✗ System info failed: #{e.message}".red
             test_results["system_info"] = { status: "FAIL", message: e.message }
+            # If we can't get basic system info, stop testing
+            break
           end
           
-          # Power tests
+          # Power tests - retry up to 3 times if authentication fails
           puts "\n[TEST] Power management".cyan.bold
           begin
-            power_state = client.get_power_state
+            power_state = with_retries(3) { client.get_power_state }
             puts "✓ Power state: #{power_state}".green
             
-            watts = client.get_power_usage_watts
+            watts = with_retries(3) { client.get_power_usage_watts }
             puts "✓ Power usage: #{watts} watts".green
             test_results["power"] = { status: "PASS", message: "Retrieved power information successfully" }
           rescue => e
@@ -1044,13 +1058,13 @@ module IDRAC
           # Storage tests
           puts "\n[TEST] Storage management".cyan.bold
           begin
-            controller = client.controller
+            controller = with_retries(3) { client.controller }
             puts "✓ Storage controller: #{controller['Name']} (#{controller['Model']})".green
             
-            drives = client.drives(controller)
+            drives = with_retries(3) { client.drives(controller) }
             puts "✓ Found #{drives.size} physical drives".green
             
-            volumes = client.volumes(controller)
+            volumes = with_retries(3) { client.volumes(controller) }
             puts "✓ Found #{volumes.size} virtual disks".green
             test_results["storage"] = { status: "PASS", message: "Retrieved storage information successfully" }
           rescue => e
@@ -1062,7 +1076,7 @@ module IDRAC
           puts "\n[TEST] System components".cyan.bold
           begin
             begin
-              memory = client.memory
+              memory = with_retries(3) { client.memory }
               puts "✓ Memory: #{client.total_memory_human(memory)}".green
               memory_test_status = "PASS"
               memory_test_message = "Retrieved memory information successfully"
@@ -1073,7 +1087,7 @@ module IDRAC
             end
             
             begin
-              psus = client.psus
+              psus = with_retries(3) { client.psus }
               puts "✓ Found #{psus.size} power supplies".green
               psu_test_status = "PASS"
               psu_test_message = "Retrieved PSU information successfully"
@@ -1084,7 +1098,7 @@ module IDRAC
             end
             
             begin
-              fans = client.fans
+              fans = with_retries(3) { client.fans }
               puts "✓ Found #{fans.size} fans".green
               fan_test_status = "PASS"
               fan_test_message = "Retrieved fan information successfully"
@@ -1095,7 +1109,7 @@ module IDRAC
             end
             
             begin
-              nics = client.nics
+              nics = with_retries(3) { client.nics }
               puts "✓ Found #{nics.size} network interfaces".green
               nic_test_status = "PASS"
               nic_test_message = "Retrieved NIC information successfully"
@@ -1117,7 +1131,7 @@ module IDRAC
           # Virtual media tests
           puts "\n[TEST] Virtual media".cyan.bold
           begin
-            media = client.virtual_media
+            media = with_retries(3) { client.virtual_media }
             puts "✓ Found #{media.size} virtual media devices".green
             test_results["virtual_media"] = { status: "PASS", message: "Retrieved virtual media information successfully" }
           rescue => e
@@ -1128,10 +1142,10 @@ module IDRAC
           # Boot management tests
           puts "\n[TEST] Boot management".cyan.bold
           begin
-            boot_options = client.get_bios_boot_options
+            boot_options = with_retries(3) { client.get_bios_boot_options }
             puts "✓ Retrieved BIOS boot options".green
             
-            boot_override = client.get_boot_source_override
+            boot_override = with_retries(3) { client.get_boot_source_override }
             puts "✓ Boot source override: #{boot_override}".green
             test_results["boot"] = { status: "PASS", message: "Retrieved boot information successfully" }
           rescue => e
@@ -1142,7 +1156,7 @@ module IDRAC
           # Jobs and tasks
           puts "\n[TEST] Jobs and tasks".cyan.bold
           begin
-            jobs = client.jobs
+            jobs = with_retries(3) { client.jobs }
             puts "✓ Retrieved job queue information".green
             test_results["jobs"] = { status: "PASS", message: "Retrieved job information successfully" }
           rescue => e
@@ -1154,6 +1168,15 @@ module IDRAC
           puts "\n✗ Unexpected error during testing: #{e.message}".red.bold
           puts e.backtrace.join("\n").red if client.verbosity >= 2
         ensure
+          # Clean up - make sure we delete the session to avoid leaving orphaned sessions
+          begin
+            if client.session.respond_to?(:delete) && client.session.x_auth_token
+              client.session.delete 
+            end
+          rescue
+            # Ignore errors during cleanup
+          end
+          
           # Restore original verbosity
           client.verbosity = original_verbosity
         end
@@ -1174,6 +1197,26 @@ module IDRAC
         puts "=" * 80
         puts "OVERALL: #{pass_count} passed, #{fail_count} failed".send(fail_count == 0 ? :green : :yellow).bold
         puts "=" * 80
+      end
+    end
+    
+    # Helper method for retry logic
+    no_commands do
+      def with_retries(max_retries = 3, delay = 1)
+        retries = 0
+        begin
+          yield
+        rescue => e
+          retries += 1
+          if retries <= max_retries
+            puts "WARN: #{e.message}".yellow
+            puts "Retrying (#{retries}/#{max_retries})...".yellow
+            sleep delay * retries  # Exponential backoff
+            retry
+          else
+            raise e
+          end
+        end
       end
     end
     

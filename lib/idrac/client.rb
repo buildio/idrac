@@ -102,8 +102,42 @@ module IDRAC
       headers['User-Agent'] ||= 'iDRAC Ruby Client'
       headers['Accept'] ||= 'application/json'
       
-      # Use Redfish session token if available, otherwise use direct mode with Basic Auth
-      if session.x_auth_token && !@direct_mode
+      # If we're in direct mode, use Basic Auth
+      if @direct_mode
+        # Create Basic Auth header
+        auth_header = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+        headers['Authorization'] = auth_header
+        debug "Using Basic Auth for request (direct mode)", 2
+        
+        begin
+          # Make the request directly
+          response = session.connection.run_request(
+            method,
+            path.sub(/^\//, ''),
+            body,
+            headers
+          )
+          
+          debug "Response status: #{response.status}", 2
+          
+          # Even in direct mode, check for authentication issues
+          if response.status == 401 || response.status == 403
+            debug "Authentication failed in direct mode, retrying with new credentials...", 1, :light_yellow
+            sleep(retry_count + 1) # Add some delay before retry
+            return authenticated_request(method, path, options, retry_count + 1)
+          end
+          
+          return response
+        rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+          debug "Connection error in direct mode: #{e.message}", 1, :red
+          sleep(retry_count + 1) # Add some delay before retry
+          return authenticated_request(method, path, options, retry_count + 1)
+        rescue => e
+          debug "Error during direct mode request: #{e.message}", 1, :red
+          raise Error, "Error during authenticated request: #{e.message}"
+        end
+      # Use Redfish session token if available
+      elsif session.x_auth_token
         begin
           headers['X-Auth-Token'] = session.x_auth_token
           
@@ -143,6 +177,26 @@ module IDRAC
           end
           
           return response
+        rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+          debug "Connection error: #{e.message}", 1, :red
+          sleep(retry_count + 1) # Add some delay before retry
+          
+          # If we still have the token, try to reuse it
+          if session.x_auth_token
+            debug "Retrying with existing token after connection error", 1, :light_yellow
+            return authenticated_request(method, path, options, retry_count + 1)
+          else
+            # Otherwise try to create a new session
+            debug "Trying to create a new session after connection error", 1, :light_yellow
+            if session.create
+              debug "Successfully created a new session after connection error", 1, :green
+              return authenticated_request(method, path, options, retry_count + 1)
+            else
+              debug "Failed to create session after connection error, falling back to direct mode", 1, :light_yellow
+              @direct_mode = true
+              return authenticated_request(method, path, options, retry_count + 1)
+            end
+          end
         rescue => e
           debug "Error during authenticated request (token mode): #{e.message}", 1, :red
           
