@@ -906,13 +906,13 @@ module IDRAC
         puts "\nProcessor Summary:".green.bold
         puts "=" * 50
         
-        health_color = cpus[:status] == "OK" ? :green : :red
+        health_color = cpus.status == "OK" ? :green : :red
         
-        puts "Processor Model:".ljust(25) + cpus[:model].to_s.light_cyan
-        puts "Processor Count:".ljust(25) + cpus[:count].to_s.light_cyan
-        puts "Physical Cores:".ljust(25) + cpus[:cores].to_s.light_cyan
-        puts "Logical Cores:".ljust(25) + cpus[:threads].to_s.light_cyan
-        puts "Status:".ljust(25) + cpus[:status].to_s.send(health_color)
+        puts "Processor Model:".ljust(25) + cpus.model.to_s.light_cyan
+        puts "Processor Count:".ljust(25) + cpus.count.to_s.light_cyan
+        puts "Physical Cores:".ljust(25) + cpus.cores.to_s.light_cyan
+        puts "Logical Cores:".ljust(25) + cpus.threads.to_s.light_cyan
+        puts "Status:".ljust(25) + cpus.status.to_s.send(health_color)
         
         puts "=" * 50
       end
@@ -1164,16 +1164,16 @@ module IDRAC
       with_idrac_client do |client|
         info = client.system_info
         
-        if info[:is_dell]
+        if info.is_dell
           puts "Dell iDRAC System:".green.bold
-          puts "  Service Tag: #{info[:service_tag]}".cyan
-          puts "  Model: #{info[:model]}".cyan
-          puts "  iDRAC Version: #{info[:idrac_version]}".cyan
-          puts "  Firmware Version: #{info[:firmware_version]}".cyan
+          puts "  Service Tag: #{info.service_tag}".cyan
+          puts "  Model: #{info.model}".cyan
+          puts "  iDRAC Version: #{info.idrac_version}".cyan
+          puts "  Firmware Version: #{info.firmware_version}".cyan
         else
           puts "Not a Dell iDRAC system".yellow
-          puts "  Product: #{info[:product]}".cyan
-          if info[:is_ancient_dell]
+          puts "  Product: #{info.product}".cyan
+          if info.is_ancient_dell
             puts "  Ancient Dell System detected. Update firmware.".yellow
           end
         end
@@ -1204,17 +1204,17 @@ module IDRAC
         puts "=" * 50
         
         # Display overall health with color coding
-        overall_color = health[:overall] == "OK" ? :green : :red
-        system_color = health[:system] == "OK" ? :green : :red
-        processor_color = health[:processor] == "OK" ? :green : :red
-        memory_color = health[:memory] == "OK" ? :green : :red
-        storage_color = health[:storage] == "OK" ? :green : (health[:storage].nil? ? :yellow : :red)
+        overall_color = health.overall == "OK" ? :green : :red
+        system_color = health.system == "OK" ? :green : :red
+        processor_color = health.processor == "OK" ? :green : :red
+        memory_color = health.memory == "OK" ? :green : :red
+        storage_color = health.storage == "OK" ? :green : (health.storage.nil? ? :yellow : :red)
         
-        puts "Overall Health:".ljust(25) + health[:overall].to_s.send(overall_color)
-        puts "System Health:".ljust(25) + health[:system].to_s.send(system_color)
-        puts "Processor Health:".ljust(25) + health[:processor].to_s.send(processor_color)
-        puts "Memory Health:".ljust(25) + health[:memory].to_s.send(memory_color)
-        puts "Storage Health:".ljust(25) + (health[:storage] || "Unknown").to_s.send(storage_color)
+        puts "Overall Health:".ljust(25) + health.overall.to_s.send(overall_color)
+        puts "System Health:".ljust(25) + health.system.to_s.send(system_color)
+        puts "Processor Health:".ljust(25) + health.processor.to_s.send(processor_color)
+        puts "Memory Health:".ljust(25) + health.memory.to_s.send(memory_color)
+        puts "Storage Health:".ljust(25) + (health.storage || "Unknown").to_s.send(storage_color)
         
         puts "=" * 50
       end

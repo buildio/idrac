@@ -368,16 +368,16 @@ module IDRAC
               info[:model] = system_data["Model"]
             end
           
-            return info
+            return RecursiveOpenStruct.new(info, recurse_over_arrays: true)
           else
             # Try to handle ancient Dell models where Product is null or non-standard
             if data["Product"].nil? || data.dig("Oem", "Dell")
               info[:is_ancient_dell] = true
-              return info
+              return RecursiveOpenStruct.new(info, recurse_over_arrays: true)
             end
           end
           
-          return info
+          return RecursiveOpenStruct.new(info, recurse_over_arrays: true)
         rescue JSON::ParserError
           raise Error, "Failed to parse system information: #{response.body}"
         end
@@ -402,7 +402,7 @@ module IDRAC
             status: data.dig("ProcessorSummary", "Status", "Health")
           }
           
-          return summary
+          return RecursiveOpenStruct.new(summary, recurse_over_arrays: true)
         rescue JSON::ParserError
           raise Error, "Failed to parse processor information: #{response.body}"
         end
@@ -427,7 +427,7 @@ module IDRAC
             storage: data.dig("Storage", "Status", "Health")
           }
           
-          return health
+          return RecursiveOpenStruct.new(health, recurse_over_arrays: true)
         rescue JSON::ParserError
           raise Error, "Failed to parse system health information: #{response.body}"
         end
