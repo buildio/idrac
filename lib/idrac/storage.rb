@@ -5,35 +5,60 @@ module IDRAC
   module StorageMethods
     # Get storage controllers information
     def controller
+      # Use the controllers method to get all controllers
+      controller_list = controllers
+      
+      puts "Controllers".green
+      controller_list.each { |c| puts "#{c[:name]} > #{c[:drives_count]}" }
+      
+      puts "Drives".green
+      controller_list.each do |c|
+        puts "Storage: #{c[:name]} > #{c[:status]} > #{c[:drives_count]}"
+      end
+      
+      # Find the controller with the most drives (usually the PERC)
+      controller_info = controller_list.max_by { |c| c[:drives_count] }
+      
+      if controller_info[:name] =~ /PERC/
+        puts "Found #{controller_info[:name]}".green
+      else
+        puts "Found #{controller_info[:name]} but continuing...".yellow
+      end
+      
+      # Return the raw controller data
+      controller_info[:raw]
+    end
+
+    # Get all storage controllers and return them as an array
+    def controllers
       response = authenticated_request(:get, '/redfish/v1/Systems/System.Embedded.1/Storage?$expand=*($levels=1)')
       
       if response.status == 200
         begin
           data = JSON.parse(response.body)
           
-          puts "Controllers".green
-          data["Members"].each { |ctrlr| puts "#{ctrlr["Name"]} > #{ctrlr["Drives@odata.count"]}" }
-          
-          puts "Drives".green
-          data["Members"].each do |m|
-            puts "Storage: #{m["Name"]} > #{m["Status"]["Health"] || "N/A"} > #{m["Drives"].size}"
+          # Transform and return all controllers as an array of hashes with consistent keys
+          controllers = data["Members"].map do |controller|
+            {
+              name: controller["Name"],
+              model: controller["Model"],
+              drives_count: controller["Drives"].size,
+              status: controller["Status"]["Health"] || "N/A",
+              firmware_version: controller.dig("StorageControllers", 0, "FirmwareVersion"),
+              encryption_mode: controller.dig("Oem", "Dell", "DellController", "EncryptionMode"),
+              encryption_capability: controller.dig("Oem", "Dell", "DellController", "EncryptionCapability"),
+              controller_type: controller.dig("Oem", "Dell", "DellController", "ControllerType"),
+              pci_slot: controller.dig("Oem", "Dell", "DellController", "PCISlot"),
+              raw: controller
+            }
           end
           
-          # Find the controller with the most drives (usually the PERC)
-          controller = data["Members"].sort_by { |ctrlr| ctrlr["Drives"].size }.last
-          
-          if controller["Name"] =~ /PERC/
-            puts "Found #{controller["Name"]}".green
-          else
-            puts "Found #{controller["Name"]} but continuing...".yellow
-          end
-          
-          return controller
+          return controllers.sort_by { |c| c[:name] }
         rescue JSON::ParserError
-          raise Error, "Failed to parse controller response: #{response.body}"
+          raise Error, "Failed to parse controllers response: #{response.body}"
         end
       else
-        raise Error, "Failed to get controller. Status code: #{response.status}"
+        raise Error, "Failed to get controllers. Status code: #{response.status}"
       end
     end
 
