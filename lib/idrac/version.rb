@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module IDRAC
-  VERSION = "0.3.6"
+  VERSION = "0.4.4"
 end

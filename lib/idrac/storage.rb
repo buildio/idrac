@@ -150,8 +150,11 @@ module IDRAC
               odata_id: vol["@odata.id"]
             }
             
+            # Check FastPath settings
+            volume_data[:fastpath] = fastpath_good?(vol)
+            
             # Handle volume operations and status
-            if vol["Operations"] && vol["Operations"].any?
+            if vol["Operations"].any?
               volume_data[:health] = vol["Status"]["Health"] ? vol["Status"]["Health"] : "N/A"
               volume_data[:progress] = vol["Operations"].first["PercentageComplete"]
               volume_data[:message] = vol["Operations"].first["OperationName"]     
@@ -165,19 +168,8 @@ module IDRAC
               volume_data[:message] = nil
             end
             
-            # Create a RecursiveOpenStruct with the data
-            volume = RecursiveOpenStruct.new(volume_data, recurse_over_arrays: true)
-            
-            # Check FastPath settings - we'll use the temp_volume hash for this
-            # since our fastpath_good? method still needs to support both hash and OpenStruct
-            temp_volume = {
-              write_cache_policy: volume_data[:write_cache_policy],
-              read_cache_policy: volume_data[:read_cache_policy],
-              stripe_size: volume_data[:stripe_size]
-            }
-            volume.fastpath = fastpath_good?(temp_volume)
-            
-            volume
+            # Create the RecursiveOpenStruct after all properties are set
+            RecursiveOpenStruct.new(volume_data, recurse_over_arrays: true)
           end
           
           return volumes.sort_by { |d| d.name }
