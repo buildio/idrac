@@ -36,13 +36,17 @@ module IDRAC
   end
 end
 
-require_relative "idrac/version"
-require_relative "idrac/error"
-require_relative "idrac/session"
-require_relative "idrac/web"
-require_relative "idrac/power"
-require_relative "idrac/jobs"
-require_relative "idrac/lifecycle"
-require_relative "idrac/client"
-require_relative "idrac/firmware"
-require_relative "idrac/firmware_catalog"
+require 'idrac/version'
+require 'idrac/error'
+require 'idrac/web'
+require 'idrac/firmware_catalog'
+require 'idrac/firmware'
+require 'idrac/session'
+require 'idrac/power'
+require 'idrac/lifecycle'
+require 'idrac/jobs'
+require 'idrac/storage'
+require 'idrac/system'
+require 'idrac/virtual_media'
+require 'idrac/boot'
+require 'idrac/client'

@@ -119,7 +119,7 @@ module IDRAC
     map "lifecycle:status" => :lifecycle_status
     def lifecycle_status
       with_idrac_client do |client|
-        client.get_idrac_lifecycle_status
+        client.get_lifecycle_status
       end
     end
     
@@ -127,7 +127,7 @@ module IDRAC
     map "lifecycle:enable" => :lifecycle_enable
     def lifecycle_enable
       with_idrac_client do |client|
-        client.set_idrac_lifecycle_status(true)
+        client.set_lifecycle_status(true)
       end
     end
     
@@ -135,7 +135,7 @@ module IDRAC
     map "lifecycle:disable" => :lifecycle_disable
     def lifecycle_disable
       with_idrac_client do |client|
-        client.set_idrac_lifecycle_status(false)
+        client.set_lifecycle_status(false)
       end
     end
     
@@ -451,6 +451,486 @@ module IDRAC
       with_idrac_client do |client|
         version = client.redfish_version
         puts version
+      end
+    end
+
+    # Storage commands
+    desc "storage_controller", "Get storage controller information"
+    map "storage:controller" => :storage_controller
+    def storage_controller
+      with_idrac_client do |client|
+        controller = client.controller
+        puts "\nStorage Controller Summary:".green.bold
+        puts "Name: #{controller['Name']}".cyan
+        puts "Model: #{controller['Model']}".cyan
+        puts "Health: #{controller['Status']['Health']}".cyan
+        puts "Manufacturer: #{controller['Manufacturer']}".cyan
+        
+        if client.controller_encryption_capable?(controller)
+          puts "Encryption Capable: Yes".green
+          puts "Encryption Enabled: #{client.controller_encryption_enabled?(controller) ? 'Yes'.green : 'No'.yellow}"
+        else
+          puts "Encryption Capable: No".yellow
+        end
+      end
+    end
+
+    desc "storage_drives", "Get physical drive information"
+    map "storage:drives" => :storage_drives
+    def storage_drives
+      with_idrac_client do |client|
+        controller = client.controller
+        drives = client.drives(controller)
+        
+        puts "\nPhysical Drives (#{drives.size}):".green.bold
+        drives.each do |drive|
+          capacity_gb = drive[:capacity_bytes].to_f / (1024**3)
+          health_color = drive[:health] == "OK" ? :green : :red
+          
+          puts "#{drive[:name]}:".bold
+          puts "  Model: #{drive[:model]}".cyan
+          puts "  Health: #{drive[:health].send(health_color)}"
+          puts "  Capacity: #{capacity_gb.round(2)} GB".cyan
+          puts "  Media Type: #{drive[:media_type]}".cyan
+          puts "  Serial: #{drive[:serial]}".cyan
+          if drive[:encryption_ability]
+            puts "  Encryption: #{drive[:encryption_ability]}".cyan
+          end
+          puts ""
+        end
+      end
+    end
+
+    desc "storage_volumes", "Get virtual disk information"
+    map "storage:volumes" => :storage_volumes
+    def storage_volumes
+      with_idrac_client do |client|
+        controller = client.controller
+        volumes = client.volumes(controller)
+        
+        puts "\nVirtual Disks (#{volumes.size}):".green.bold
+        volumes.each do |volume|
+          capacity_gb = volume[:capacity_bytes].to_f / (1024**3)
+          health_color = volume[:health] == "OK" ? :green : :yellow
+          
+          puts "#{volume[:name]}:".bold
+          puts "  RAID Type: #{volume[:raid_level] || volume[:volume_type]}".cyan
+          puts "  Health: #{volume[:health].send(health_color)}"
+          puts "  Capacity: #{capacity_gb.round(2)} GB".cyan
+          puts "  Stripe Size: #{volume[:stripe_size]}".cyan
+          puts "  Read Cache: #{volume[:read_cache_policy]}".cyan
+          puts "  Write Cache: #{volume[:write_cache_policy]}".cyan
+          puts "  FastPath: #{volume[:fastpath] == 'enabled' ? 'Enabled'.green : 'Disabled'.yellow}"
+          puts "  Encrypted: #{volume[:encrypted] ? 'Yes'.green : 'No'.yellow}" if volume[:encrypted] != nil
+          
+          if volume[:progress]
+            puts "  Progress: #{volume[:progress]}%".cyan
+            puts "  Operation: #{volume[:message]}".cyan
+          end
+          puts ""
+        end
+      end
+    end
+
+    desc "storage_create_volume", "Create a new virtual disk"
+    map "storage:create_volume" => :storage_create_volume
+    method_option :name, type: :string, default: "vssd0", desc: "Volume name"
+    method_option :raid, type: :string, default: "RAID5", desc: "RAID type (RAID0, RAID1, RAID5, RAID6, RAID10)"
+    def storage_create_volume
+      with_idrac_client do |client|
+        controller = client.controller
+        drives = client.drives(controller)
+        
+        # Confirm with the user before proceeding
+        puts "This will create a new #{options[:raid]} volume named '#{options[:name]}' using #{drives.size} drives.".yellow
+        puts "All data on these drives will be lost!".red.bold
+        
+        print "Do you want to continue? (y/n): "
+        confirmation = $stdin.gets.chomp.downcase
+        
+        if confirmation == 'y'
+          client.create_virtual_disk(controller['Id'], drives, name: options[:name], raid_type: options[:raid])
+          puts "Volume created successfully".green
+        else
+          puts "Operation cancelled".yellow
+        end
+      end
+    end
+
+    desc "storage_delete_volume", "Delete a virtual disk"
+    map "storage:delete_volume" => :storage_delete_volume
+    def storage_delete_volume
+      with_idrac_client do |client|
+        controller = client.controller
+        volumes = client.volumes(controller)
+        
+        if volumes.empty?
+          puts "No volumes found to delete".yellow
+          return
+        end
+        
+        puts "Available volumes:".green
+        volumes.each_with_index do |vol, idx|
+          puts "#{idx+1}. #{vol[:name]} (#{vol[:raid_level] || vol[:volume_type]}, #{(vol[:capacity_bytes].to_f / (1024**3)).round(2)} GB)"
+        end
+        
+        print "Enter the number of the volume to delete (or 'q' to quit): "
+        input = $stdin.gets.chomp
+        
+        if input.downcase == 'q'
+          puts "Operation cancelled".yellow
+          return
+        end
+        
+        index = input.to_i - 1
+        if index >= 0 && index < volumes.size
+          volume = volumes[index]
+          
+          puts "You are about to delete '#{volume[:name]}'. All data will be lost!".red.bold
+          print "Type the volume name to confirm deletion: "
+          confirm = $stdin.gets.chomp
+          
+          if confirm == volume[:name]
+            client.delete_volume(volume[:"@odata.id"])
+            puts "Volume deleted successfully".green
+          else
+            puts "Volume name did not match. Operation cancelled".yellow
+          end
+        else
+          puts "Invalid selection".red
+        end
+      end
+    end
+
+    desc "storage_encryption_enable", "Enable Self-Encrypting Drive (SED) support"
+    map "storage:encryption_enable" => :storage_encryption_enable
+    method_option :passphrase, type: :string, desc: "Encryption passphrase"
+    method_option :keyid, type: :string, desc: "Key identifier"
+    def storage_encryption_enable
+      with_idrac_client do |client|
+        controller = client.controller
+        drives = client.drives(controller)
+        
+        if !client.controller_encryption_capable?(controller)
+          puts "This controller does not support encryption".red
+          return
+        end
+        
+        if client.controller_encryption_enabled?(controller)
+          puts "Encryption is already enabled on this controller".yellow
+          return
+        end
+        
+        if !client.all_seds?(drives)
+          puts "Not all drives are Self-Encrypting Drives (SEDs)".red
+          return
+        end
+        
+        # Get passphrase if not provided
+        passphrase = options[:passphrase]
+        if passphrase.nil?
+          print "Enter encryption passphrase (min 8 characters): "
+          passphrase = $stdin.noecho(&:gets).chomp
+          puts
+        end
+        
+        # Get keyid if not provided
+        keyid = options[:keyid] || "RAID-Key-#{Time.now.strftime('%Y%m%d')}"
+        
+        client.enable_local_key_management(controller['Id'], passphrase: passphrase, keyid: keyid)
+        puts "Encryption enabled successfully".green
+      end
+    end
+
+    desc "storage_encryption_disable", "Disable Self-Encrypting Drive (SED) support"
+    map "storage:encryption_disable" => :storage_encryption_disable
+    def storage_encryption_disable
+      with_idrac_client do |client|
+        controller = client.controller
+        
+        if !client.controller_encryption_enabled?(controller)
+          puts "Encryption is not enabled on this controller".yellow
+          return
+        end
+        
+        puts "WARNING: Disabling encryption may prevent access to encrypted data!".red.bold
+        print "Type 'DISABLE' to confirm: "
+        confirmation = $stdin.gets.chomp
+        
+        if confirmation == 'DISABLE'
+          client.disable_local_key_management(controller['Id'])
+          puts "Encryption disabled successfully".green
+        else
+          puts "Operation cancelled".yellow
+        end
+      end
+    end
+    
+    # System component commands
+    desc "system_memory", "Get memory/DIMM information"
+    map "system:memory" => :system_memory
+    def system_memory
+      with_idrac_client do |client|
+        memory = client.memory
+        
+        puts "\nMemory Modules (#{memory.size}):".green.bold
+        memory.each do |dimm|
+          capacity_gb = dimm["capacity_bytes"].to_f / (1024**3)
+          health_color = dimm["health"] == "OK" ? :green : :red
+          
+          puts "#{dimm['name']}:".bold
+          puts "  Model: #{dimm['model']}".cyan
+          puts "  Health: #{dimm['health'].send(health_color)}"
+          puts "  Capacity: #{capacity_gb.round(2)} GB".cyan
+          puts "  Speed: #{dimm['speed_mhz']} MHz".cyan
+          puts "  Serial: #{dimm['serial']}".cyan
+          puts ""
+        end
+        
+        # Show total memory
+        puts "Total Memory: #{client.total_memory_human(memory)}".green.bold
+      end
+    end
+
+    desc "system_psus", "Get power supply information"
+    map "system:psus" => :system_psus
+    def system_psus
+      with_idrac_client do |client|
+        psus = client.psus
+        
+        puts "\nPower Supplies (#{psus.size}):".green.bold
+        psus.each do |psu|
+          health_color = psu["status"] == "OK" ? :green : :red
+          
+          puts "#{psu['name']}:".bold
+          puts "  Model: #{psu['model']}".cyan
+          puts "  Health: #{psu['status'].send(health_color)}"
+          puts "  Input: #{psu['voltage']} V (#{psu['voltage_human']})".cyan
+          puts "  Output: #{psu['watts']} W".cyan
+          puts "  Serial: #{psu['serial']}".cyan
+          puts ""
+        end
+      end
+    end
+
+    desc "system_fans", "Get fan information"
+    map "system:fans" => :system_fans
+    def system_fans
+      with_idrac_client do |client|
+        fans = client.fans
+        
+        if fans.empty?
+          puts "No fan information available (system might be powered off)".yellow
+          return
+        end
+        
+        puts "\nFans (#{fans.size}):".green.bold
+        fans.each do |fan|
+          health_color = fan["status"] == "OK" ? :green : :red
+          
+          puts "#{fan['name']}:".bold
+          puts "  Health: #{fan['status'].send(health_color)}"
+          puts "  Speed: #{fan['rpm']} RPM".cyan
+          puts ""
+        end
+      end
+    end
+
+    desc "system_nics", "Get network adapter information"
+    map "system:nics" => :system_nics
+    def system_nics
+      with_idrac_client do |client|
+        nics = client.nics
+        pci = client.pci_devices
+        nics_with_pci = client.nics_to_pci(nics, pci)
+        
+        puts "\nNetwork Adapters (#{nics_with_pci.size}):".green.bold
+        nics_with_pci.each do |nic|
+          puts "#{nic['name']}:".bold
+          puts "  Manufacturer: #{nic['manufacturer']}".cyan
+          puts "  Model: #{nic['model']}".cyan
+          
+          if nic['ports'] && nic['ports'].any?
+            puts "  Ports:".cyan
+            nic['ports'].each do |port|
+              status_color = port["status"] == "Up" ? :green : :yellow
+              
+              puts "    #{port['name']}:".bold
+              puts "      Status: #{port['status'].send(status_color)}"
+              puts "      MAC: #{port['mac']}".cyan
+              puts "      Speed: #{port['speed_mbps']} Mbps".cyan
+              if port['pci']
+                puts "      PCI Bus: #{port['pci']}".cyan
+                puts "      Linux Device: #{port['linux_device']}".cyan
+              end
+              puts ""
+            end
+          end
+          puts ""
+        end
+      end
+    end
+
+    desc "system_idrac_network", "Get iDRAC network configuration"
+    map "system:idrac_network" => :system_idrac_network
+    def system_idrac_network
+      with_idrac_client do |client|
+        idrac = client.idrac_network
+        
+        puts "\niDRAC Network Configuration:".green.bold
+        puts "Status: #{idrac['status']}".cyan
+        puts "IPv4: #{idrac['ipv4']}".cyan
+        puts "Subnet Mask: #{idrac['mask']}".cyan
+        puts "MAC Address: #{idrac['mac']}".cyan
+        puts "Origin: #{idrac['origin']}".cyan
+        puts "Speed: #{idrac['speed_mbps']} Mbps".cyan
+      end
+    end
+
+    desc "system_events", "Get system event logs"
+    map "system:events" => :system_events
+    method_option :limit, type: :numeric, default: 10, desc: "Maximum number of events to display"
+    def system_events
+      with_idrac_client do |client|
+        logs = client.system_event_logs
+        
+        puts "\nSystem Event Logs (showing #{[options[:limit], logs.size].min} of #{logs.size}):".green.bold
+        
+        logs.take(options[:limit]).each do |log|
+          severity_color = case log['Severity']
+                           when 'Critical' then :red
+                           when 'Warning' then :yellow
+                           else :cyan
+                           end
+          
+          puts "#{log['Created']}: #{log['Message']}".send(severity_color)
+        end
+      end
+    end
+    
+    # Virtual media commands
+    desc "vmedia_status", "Get virtual media status"
+    map "vmedia:status" => :vmedia_status
+    def vmedia_status
+      with_idrac_client do |client|
+        media = client.virtual_media
+        
+        puts "\nVirtual Media Status:".green.bold
+        
+        if media.empty?
+          puts "No virtual media devices found".yellow
+          return
+        end
+        
+        media.each do |m|
+          status = m[:inserted] ? "Inserted: #{m[:image]}".green : "Not Inserted".yellow
+          puts "#{m[:device]}: #{status}"
+        end
+      end
+    end
+
+    desc "vmedia_insert URL", "Insert virtual media from URL"
+    map "vmedia:insert" => :vmedia_insert
+    method_option :device, type: :string, default: "CD", desc: "Device type (CD or RemovableDisk)"
+    def vmedia_insert(url)
+      with_idrac_client do |client|
+        puts "Inserting media from #{url} into #{options[:device]}..."
+        client.insert_virtual_media(url, device: options[:device])
+      end
+    end
+
+    desc "vmedia_eject", "Eject virtual media"
+    map "vmedia:eject" => :vmedia_eject
+    method_option :device, type: :string, default: "CD", desc: "Device to eject (CD or RemovableDisk)"
+    def vmedia_eject
+      with_idrac_client do |client|
+        client.eject_virtual_media(device: options[:device])
+      end
+    end
+
+    desc "vmedia_boot_once", "Set system to boot from virtual media once"
+    map "vmedia:boot_once" => :vmedia_boot_once
+    def vmedia_boot_once
+      with_idrac_client do |client|
+        client.set_one_time_virtual_media_boot
+        puts "System configured to boot from virtual media on next restart"
+      end
+    end
+    
+    # Boot management commands
+    desc "boot_options", "Get current boot options"
+    map "boot:options" => :boot_options
+    def boot_options
+      with_idrac_client do |client|
+        options = client.get_bios_boot_options
+        
+        if options == false
+          puts "Failed to get boot options. System may not be in UEFI mode.".red
+          return
+        end
+        
+        puts "\nBoot Options:".green.bold
+        
+        # Display enabled boot options (current boot order)
+        puts "Current Boot Order:".cyan
+        options[:boot_order].each_with_index do |opt, idx|
+          puts "  #{idx+1}. #{opt}"
+        end
+        
+        # Display all available boot options
+        puts "\nAvailable Boot Options:".cyan
+        options[:boot_options].each do |opt|
+          enabled = options[:boot_order].include?(opt)
+          status = enabled ? "Enabled".green : "Disabled".yellow
+          puts "  #{opt}: #{status}"
+        end
+      end
+    end
+
+    desc "boot_enable_uefi", "Enable UEFI boot mode"
+    map "boot:enable_uefi" => :boot_enable_uefi
+    def boot_enable_uefi
+      with_idrac_client do |client|
+        client.ensure_uefi_boot
+      end
+    end
+
+    desc "boot_set_hd_first", "Set boot order with hard drive first"
+    map "boot:set_hd_first" => :boot_set_hd_first
+    def boot_set_hd_first
+      with_idrac_client do |client|
+        client.set_boot_order_hd_first
+      end
+    end
+
+    desc "boot_ignore_errors", "Configure BIOS to ignore boot errors"
+    map "boot:ignore_errors" => :boot_ignore_errors
+    method_option :enable, type: :boolean, default: true, desc: "Enable or disable ignoring boot errors"
+    def boot_ignore_errors
+      with_idrac_client do |client|
+        client.set_bios_ignore_errors(options[:enable])
+        if options[:enable]
+          puts "BIOS configured to ignore boot errors".green
+        else
+          puts "BIOS configured to halt on boot errors".green
+        end
+      end
+    end
+
+    desc "boot_power_optimization", "Configure BIOS for OS-controlled power management"
+    map "boot:power_optimization" => :boot_power_optimization
+    def boot_power_optimization
+      with_idrac_client do |client|
+        client.set_bios_os_power_control
+        puts "BIOS configured for OS power management optimization".green
+      end
+    end
+
+    desc "boot_source_override", "Get current boot source override settings"
+    map "boot:source_override" => :boot_source_override
+    def boot_source_override
+      with_idrac_client do |client|
+        client.get_boot_source_override
       end
     end
 
