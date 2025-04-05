@@ -15,6 +15,7 @@ A Ruby client for the Dell iDRAC API. This gem provides a command-line interface
 - Job queue management (clear, monitor, list)
 - Lifecycle log and System Event Log (SEL) management
 - Lifecycle Controller status management
+- Return values as RecursiveOpenStruct objects for convenient attribute access
 
 ## Installation
 
@@ -170,6 +171,25 @@ client.clear_lifecycle!
 # Clear System Event Logs
 client.clear_system_event_logs!
 
+# Working with RecursiveOpenStruct objects
+# Many methods return data as RecursiveOpenStruct objects for easier property access
+
+# Get memory information
+memory_modules = client.memory
+memory_modules.each do |dimm|
+  # Access properties directly as methods
+  puts "#{dimm.name}: #{dimm.capacity_bytes / (1024**3)}GB, Speed: #{dimm.speed_mhz}MHz"
+end
+
+# Get storage information
+controller = client.controller
+volumes = client.volumes(controller)
+volumes.each do |volume|
+  # Access properties via dot notation
+  puts "#{volume.name} (#{volume.raid_level}): #{volume.capacity_bytes / (1024**3)}GB"
+  puts "  Health: #{volume.health}, FastPath: #{volume.fastpath}"
+end
+
 # Create a client with auto_delete_sessions disabled
 client = IDRAC.new(
   host: '192.168.1.100',
@@ -186,6 +206,12 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
 ## Changelog
+
+### Version 0.1.40
+- **Enhanced Return Values**: Methods that return system components now provide RecursiveOpenStruct objects
+  - Memory, drives, volumes, PSUs, and fans now support convenient dot notation for attribute access
+  - Improved object structure with consistent property naming across different component types
+  - Better code organization and readability when working with returned objects
 
 ### Version 0.1.39
 - **Added Job Management**: New methods for managing iDRAC jobs
