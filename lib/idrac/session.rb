@@ -203,29 +203,78 @@ module IDRAC
     
     # Delete the Redfish session
     def delete
-      return unless @x_auth_token && @session_location
+      return false unless @x_auth_token || @session_location
       
       begin
         debug "Deleting Redfish session...", 1
         
-        # Use the X-Auth-Token for authentication
-        headers = { 'X-Auth-Token' => @x_auth_token }
-        
-        response = connection.delete(@session_location) do |req|
-          req.headers.merge!(headers)
+        if @session_location
+          # Use the X-Auth-Token for authentication
+          headers = { 'X-Auth-Token' => @x_auth_token }
+          
+          begin
+            response = connection.delete(@session_location) do |req|
+              req.headers.merge!(headers)
+            end
+            
+            if response.status == 200 || response.status == 204
+              debug "Redfish session deleted successfully", 1, :green
+              @x_auth_token = nil
+              @session_location = nil
+              return true
+            end
+          rescue => session_e
+            debug "Error during session deletion via location: #{session_e.message}", 1, :yellow
+            # Continue to try basic auth method
+          end
         end
         
-        if response.status == 200 || response.status == 204
-          debug "Redfish session deleted successfully", 1, :green
+        # If deleting via session location fails or there's no session location,
+        # try to delete by using the basic auth method
+        if @x_auth_token
+          # Try to determine session ID from the X-Auth-Token or session_location
+          session_id = nil
+          
+          # Extract session ID from location if available
+          if @session_location
+            if @session_location =~ /\/([^\/]+)$/
+              session_id = $1
+            end
+          end
+          
+          # If we have an extracted session ID
+          if session_id
+            debug "Trying to delete session by ID #{session_id}", 1
+            
+            begin
+              endpoint = determine_session_endpoint
+              delete_url = "#{endpoint}/#{session_id}"
+              
+              delete_response = request_with_basic_auth(:delete, delete_url, nil)
+              
+              if delete_response.status == 200 || delete_response.status == 204
+                debug "Successfully deleted session via ID", 1, :green
+                @x_auth_token = nil
+                @session_location = nil
+                return true
+              end
+            rescue => id_e
+              debug "Error during session deletion via ID: #{id_e.message}", 1, :yellow
+            end
+          end
+          
+          # Last resort: clear the token variable even if we couldn't properly delete it
+          debug "Clearing session token internally", 1, :yellow
           @x_auth_token = nil
           @session_location = nil
-          return true
-        else
-          debug "Failed to delete Redfish session: #{response.status} - #{response.body}", 1, :red
-          return false
         end
+        
+        return false
       rescue => e
         debug "Error during Redfish session deletion: #{e.message}", 1, :red
+        # Clear token variable anyway
+        @x_auth_token = nil
+        @session_location = nil
         return false
       end
     end

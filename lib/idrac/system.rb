@@ -19,7 +19,7 @@ module IDRAC
             { 
               "model" => m["Model"], 
               "name" => m["Name"], 
-              "capacity_bytes" => m["CapacityMiB"].to_i * 1.megabyte, 
+              "capacity_bytes" => m["CapacityMiB"].to_i.megabyte, 
               "health" => m["Status"]["Health"] ? m["Status"]["Health"] : "N/A", 
               "speed_mhz" => m["OperatingSpeedMhz"], 
               "part_number" => m["PartNumber"], 
@@ -377,7 +377,7 @@ module IDRAC
     # Get total memory in human-readable format
     def total_memory_human(memory_data)
       total_memory = memory_data.sum { |m| m['capacity_bytes'] }
-      "%0.2f GB" % (total_memory.to_f / 1024.0 / 1024.0 / 1024.0)
+      "%0.2f GB" % (total_memory.to_f / 1.gigabyte)
     end
   end
 end 

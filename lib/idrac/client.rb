@@ -10,7 +10,7 @@ require 'colorize'
 module IDRAC
   class Client
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, :auto_delete_sessions, :session, :web
-    attr_accessor :direct_mode, :verbosity
+    attr_accessor :direct_mode, :verbosity, :retry_count, :retry_delay
     
     include PowerMethods
     include SessionMethods
@@ -22,7 +22,7 @@ module IDRAC
     include VirtualMediaMethods
     include BootManagementMethods
 
-    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true)
+    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true, retry_count: 3, retry_delay: 1)
       @host = host
       @username = username
       @password = password
@@ -32,6 +32,8 @@ module IDRAC
       @direct_mode = direct_mode
       @auto_delete_sessions = auto_delete_sessions
       @verbosity = 0
+      @retry_count = retry_count
+      @retry_delay = retry_delay
       
       # Initialize the session and web classes
       @session = Session.new(self)
@@ -80,107 +82,165 @@ module IDRAC
       return true
     end
 
-    # Make an authenticated request to the iDRAC
-    def authenticated_request(method, path, options = {}, retry_count = 0)
-      # Limit retries to prevent infinite loops
-      if retry_count >= 3
-        debug "Maximum retry count reached for authenticated request", 1, :red
-        raise Error, "Maximum retry count reached for authenticated request"
+    # Send an authenticated request to the iDRAC
+    def authenticated_request(method, path, options = {})
+      with_retries do
+        _perform_authenticated_request(method, path, options)
+      end
+    end
+
+    def get(path:, headers: {})
+      with_retries do
+        _perform_get(path: path, headers: headers)
+      end
+    end
+
+    private
+    
+    # Implementation of authenticated request without retry logic
+    def _perform_authenticated_request(method, path, options = {}, retry_count = 0)
+      # Check retry count to prevent infinite recursion
+      if retry_count >= @retry_count
+        debug "Maximum retry count reached", 1, :red
+        raise Error, "Failed to authenticate after #{@retry_count} retries"
       end
       
+      # Form the full URL
+      full_url = "#{base_url}/redfish/v1".chomp('/') + '/' + path.sub(/^\//, '')
+      
+      # Log the request
       debug "Authenticated request: #{method.to_s.upcase} #{path}", 1
+      
+      # Extract options
+      body = options[:body]
+      headers = options[:headers] || {}
+      
+      # Add client headers
+      headers['User-Agent'] ||= 'iDRAC Ruby Client'
+      headers['Accept'] ||= 'application/json'
       
       # If we're in direct mode, use Basic Auth
       if @direct_mode
         # Create Basic Auth header
         auth_header = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+        headers['Authorization'] = auth_header
+        debug "Using Basic Auth for request (direct mode)", 2
         
-        # Add the Authorization header to the request
-        options[:headers] ||= {}
-        options[:headers]['Authorization'] = auth_header
-        
-        debug "Using Basic Auth for request", 2
-        
-        # Make the request
         begin
-          response = connection.send(method, path) do |req|
-            req.headers.merge!(options[:headers])
-            req.body = options[:body] if options[:body]
+          # Make the request directly
+          response = session.connection.run_request(
+            method,
+            path.sub(/^\//, ''),
+            body,
+            headers
+          )
+          
+          debug "Response status: #{response.status}", 2
+          
+          # Even in direct mode, check for authentication issues
+          if response.status == 401 || response.status == 403
+            debug "Authentication failed in direct mode, retrying with new credentials...", 1, :light_yellow
+            sleep(retry_count + 1) # Add some delay before retry
+            return _perform_authenticated_request(method, path, options, retry_count + 1)
           end
           
-          debug "Response status: #{response.status}", 1
-          debug "Response headers: #{response.headers.inspect}", 2
-          debug "Response body: #{response.body}", 3 if response.body
-          
           return response
+        rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+          debug "Connection error in direct mode: #{e.message}", 1, :red
+          sleep(retry_count + 1) # Add some delay before retry
+          return _perform_authenticated_request(method, path, options, retry_count + 1)
         rescue => e
-          debug "Error during authenticated request (direct mode): #{e.message}", 1, :red
+          debug "Error during direct mode request: #{e.message}", 1, :red
           raise Error, "Error during authenticated request: #{e.message}"
         end
-      else
-        # Use X-Auth-Token if available
-        if session.x_auth_token
-          # Add the X-Auth-Token header to the request
-          options[:headers] ||= {}
-          options[:headers]['X-Auth-Token'] = session.x_auth_token
+      # Use Redfish session token if available
+      elsif session.x_auth_token
+        begin
+          headers['X-Auth-Token'] = session.x_auth_token
           
-          debug "Using X-Auth-Token for request", 2
+          debug "Using X-Auth-Token for authentication", 2
+          debug "Request headers: #{headers.reject { |k,v| k =~ /auth/i }.to_json}", 3
+          debug "Request body: #{body.to_s[0..500]}", 3 if body
           
-          # Make the request
-          begin
-            response = connection.send(method, path) do |req|
-              req.headers.merge!(options[:headers])
-              req.body = options[:body] if options[:body]
+          response = session.connection.run_request(
+            method,
+            path.sub(/^\//, ''),
+            body,
+            headers
+          )
+          
+          debug "Response status: #{response.status}", 2
+          debug "Response headers: #{response.headers.to_json}", 3
+          debug "Response body: #{response.body.to_s[0..500]}", 3 if response.body
+          
+          # Handle session expiration
+          if response.status == 401 || response.status == 403
+            debug "Session expired or invalid, creating a new session...", 1, :light_yellow
+            
+            # If session.delete returns true, the session was successfully deleted
+            if session.delete
+              debug "Successfully cleared expired session", 1, :green
             end
-            
-            debug "Response status: #{response.status}", 1
-            debug "Response headers: #{response.headers.inspect}", 2
-            debug "Response body: #{response.body}", 3 if response.body
-            
-            # Check if the session is still valid
-            if response.status == 401 || response.status == 403
-              debug "Session expired or invalid, attempting to create a new session...", 1, :light_yellow
-              
-              # Try to create a new session
-              if session.create
-                debug "Successfully created a new session, retrying request...", 1, :green
-                return authenticated_request(method, path, options, retry_count + 1)
-              else
-                debug "Failed to create a new session, falling back to direct mode...", 1, :light_yellow
-                @direct_mode = true
-                return authenticated_request(method, path, options, retry_count + 1)
-              end
-            end
-            
-            return response
-          rescue => e
-            debug "Error during authenticated request (token mode): #{e.message}", 1, :red
             
             # Try to create a new session
             if session.create
-              debug "Successfully created a new session after error, retrying request...", 1, :green
-              return authenticated_request(method, path, options, retry_count + 1)
+              debug "Successfully created a new session after expiration, retrying request...", 1, :green
+              return _perform_authenticated_request(method, path, options, retry_count + 1)
             else
-              debug "Failed to create a new session after error, falling back to direct mode...", 1, :light_yellow
+              debug "Failed to create a new session after expiration, falling back to direct mode...", 1, :light_yellow
               @direct_mode = true
-              return authenticated_request(method, path, options, retry_count + 1)
+              return _perform_authenticated_request(method, path, options, retry_count + 1)
             end
           end
-        else
-          # If we don't have a token, try to create a session
-          if session.create
-            debug "Successfully created a new session, making request...", 1, :green
-            return authenticated_request(method, path, options, retry_count + 1)
+          
+          return response
+        rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+          debug "Connection error: #{e.message}", 1, :red
+          sleep(retry_count + 1) # Add some delay before retry
+          
+          # If we still have the token, try to reuse it
+          if session.x_auth_token
+            debug "Retrying with existing token after connection error", 1, :light_yellow
+            return _perform_authenticated_request(method, path, options, retry_count + 1)
           else
-            debug "Failed to create a session, falling back to direct mode...", 1, :light_yellow
-            @direct_mode = true
-            return authenticated_request(method, path, options, retry_count + 1)
+            # Otherwise try to create a new session
+            debug "Trying to create a new session after connection error", 1, :light_yellow
+            if session.create
+              debug "Successfully created a new session after connection error", 1, :green
+              return _perform_authenticated_request(method, path, options, retry_count + 1)
+            else
+              debug "Failed to create session after connection error, falling back to direct mode", 1, :light_yellow
+              @direct_mode = true
+              return _perform_authenticated_request(method, path, options, retry_count + 1)
+            end
           end
+        rescue => e
+          debug "Error during authenticated request (token mode): #{e.message}", 1, :red
+          
+          # Try to create a new session
+          if session.create
+            debug "Successfully created a new session after error, retrying request...", 1, :green
+            return _perform_authenticated_request(method, path, options, retry_count + 1)
+          else
+            debug "Failed to create a new session after error, falling back to direct mode...", 1, :light_yellow
+            @direct_mode = true
+            return _perform_authenticated_request(method, path, options, retry_count + 1)
+          end
+        end
+      else
+        # If we don't have a token, try to create a session
+        if session.create
+          debug "Successfully created a new session, making request...", 1, :green
+          return _perform_authenticated_request(method, path, options, retry_count + 1)
+        else
+          debug "Failed to create a session, falling back to direct mode...", 1, :light_yellow
+          @direct_mode = true
+          return _perform_authenticated_request(method, path, options, retry_count + 1)
         end
       end
     end
 
-    def get(path:, headers: {})
+    def _perform_get(path:, headers: {})
       # For screenshot functionality, we need to use the WebUI cookies
       if web.cookies.nil? && path.include?('screen/screen.jpg')
         web.login unless web.session_id
@@ -220,6 +280,8 @@ module IDRAC
       response
     end
 
+    public
+
     def screenshot
       web.capture_screenshot
     end
@@ -236,6 +298,35 @@ module IDRAC
         data["RedfishVersion"]
       else
         raise Error, "Failed to get Redfish version: #{response.status} - #{response.body}"
+      end
+    end
+
+    # Execute a block with automatic retries
+    # @param max_retries [Integer] Maximum number of retry attempts
+    # @param initial_delay [Integer] Initial delay in seconds between retries (increases exponentially)
+    # @param error_classes [Array] Array of error classes to catch and retry
+    # @yield The block to execute with retries
+    # @return [Object] The result of the block
+    def with_retries(max_retries = nil, initial_delay = nil, error_classes = nil)
+      # Use instance variables if not specified
+      max_retries ||= @retry_count
+      initial_delay ||= @retry_delay
+      error_classes ||= [StandardError]
+      
+      retries = 0
+      begin
+        yield
+      rescue *error_classes => e
+        retries += 1
+        if retries <= max_retries
+          delay = initial_delay * (retries ** 1.5).to_i  # Exponential backoff
+          debug "RETRY: #{e.message} - Attempt #{retries}/#{max_retries}, waiting #{delay}s", 1, :yellow
+          sleep delay
+          retry
+        else
+          debug "MAX RETRIES REACHED: #{e.message} after #{max_retries} attempts", 1, :red
+          raise e
+        end
       end
     end
   end
