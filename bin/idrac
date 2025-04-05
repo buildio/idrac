@@ -950,9 +950,15 @@ module IDRAC
         original_verbosity = client.verbosity
         client.verbosity = 1
         
-        # Set timeout for connection
-        client.web.connection.options.timeout = options[:timeout]
-        client.web.connection.options.open_timeout = options[:timeout]
+        # Set timeout for connection - modify the connection object if it's available
+        begin
+          if client.respond_to?(:connection) && client.connection.respond_to?(:options)
+            client.connection.options.timeout = options[:timeout]
+            client.connection.options.open_timeout = options[:timeout]
+          end
+        rescue => e
+          puts "Warning: Unable to set timeout options: #{e.message}".yellow
+        end
         
         begin
           # Basic connection test
