@@ -490,5 +490,117 @@ module IDRAC
       total_memory = memory_data.sum { |m| m.capacity_bytes }
       "%0.2f GB" % (total_memory.to_f / 1.gigabyte)
     end
+
+    # Get complete system configuration
+    def get_system_config
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$expand=*($levels=1)")
+      
+      if response.status == 200
+        return JSON.parse(response.body)
+      else
+        raise Error, "Failed to retrieve system configuration: #{response.status}"
+      end
+    end
+    
+    # Get system summary information (used by CLI summary command)
+    def get_system_summary
+      # Get system information
+      system_response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
+      system_info = JSON.parse(system_response.body)
+      
+      # Get iDRAC information
+      idrac_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1")
+      idrac_info = JSON.parse(idrac_response.body)
+      
+      # Get network information
+      network_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/NIC.1")
+      network_info = JSON.parse(network_response.body)
+      
+      # Initialize license_type to Unknown
+      license_type = "Unknown"
+      license_description = nil
+      
+      # Try to get license information using DMTF standard method
+      begin
+        license_response = authenticated_request(:get, "/redfish/v1/LicenseService/Licenses")
+        license_info = JSON.parse(license_response.body)
+        
+        # Extract license type if licenses are found
+        if license_info["Members"] && !license_info["Members"].empty?
+          license_entry_response = authenticated_request(:get, license_info["Members"][0]["@odata.id"])
+          license_entry = JSON.parse(license_entry_response.body)
+          
+          # Get license type from EntitlementId or LicenseType
+          if license_entry["EntitlementId"] && license_entry["EntitlementId"].include?("Enterprise")
+            license_type = "Enterprise"
+          elsif license_entry["LicenseType"]
+            license_type = license_entry["LicenseType"]
+          end
+          
+          # Get license description if available
+          license_description = license_entry["Description"] if license_entry["Description"]
+        end
+      rescue => e
+        # If DMTF method fails, try Dell OEM method
+        begin
+          dell_license_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenses")
+          dell_license_info = JSON.parse(dell_license_response.body)
+          
+          # Extract license type if licenses are found
+          if dell_license_info["Members"] && !dell_license_info["Members"].empty?
+            dell_license_entry_response = authenticated_request(:get, dell_license_info["Members"][0]["@odata.id"])
+            dell_license_entry = JSON.parse(dell_license_entry_response.body)
+            
+            # Get license type from LicenseType or Description
+            if dell_license_entry["LicenseType"]
+              license_type = dell_license_entry["LicenseType"]
+            elsif dell_license_entry["Description"] && dell_license_entry["Description"].include?("Enterprise")
+              license_type = "Enterprise"
+            end
+            
+            # Get license description if available
+            license_description = dell_license_entry["Description"] if dell_license_entry["Description"]
+          end
+        rescue => e2
+          # License information not available
+        end
+      end
+      
+      # Format the license display string
+      license_display = license_type
+      if license_description
+        license_display = "#{license_type} (#{license_description})"
+      end
+
+      # Return the system summary
+      {
+        power_state: system_info["PowerState"],
+        model: system_info["Model"],
+        host_name: system_info["HostName"],
+        operating_system: system_info.dig("Oem", "Dell", "OperatingSystem"),
+        os_version: system_info.dig("Oem", "Dell", "OperatingSystemVersion"),
+        service_tag: system_info["SKU"],
+        bios_version: system_info.dig("BiosVersion"),
+        idrac_firmware: idrac_info.dig("FirmwareVersion"),
+        ip_address: network_info.dig("IPv4Addresses", 0, "Address"),
+        mac_address: network_info.dig("MACAddress"),
+        license: license_display
+      }
+    end
+    
+    # Get basic system information (used for test_live function)
+    def get_basic_system_info
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
+      
+      if response.status == 200
+        data = JSON.parse(response.body)
+        return {
+          model: data["Model"],
+          sku: data["SKU"]
+        }
+      else
+        raise Error, "Failed to get basic system information: #{response.status}"
+      end
+    end
   end
 end 

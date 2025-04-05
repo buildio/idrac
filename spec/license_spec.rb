@@ -20,11 +20,14 @@ RSpec.describe IDRAC::License do
       license_class.include(IDRAC::License)
       license_instance = license_class.new
       allow(license_instance).to receive(:client).and_return(client)
-      allow(license_instance).to receive(:authenticated_request).and_return(license_details_response)
+      
+      # Need to mock both calls - first to get the collection, then to get the details
+      allow(license_instance).to receive(:authenticated_request).with(:get, "/redfish/v1/LicenseService/Licenses").and_return(license_collection_response)
+      allow(license_instance).to receive(:authenticated_request).with(:get, "/redfish/v1/LicenseService/Licenses/FD00000011364489").and_return(license_details_response)
       allow(license_instance).to receive(:debug)
 
       expected_details = JSON.parse(license_details_response.body)
-      expect(license_instance.license_info).to eq(expected_details)
+      expect(license_instance.license_info).to eq(RecursiveOpenStruct.new(expected_details, recurse_over_arrays: true))
     end
   end
 
@@ -36,7 +39,12 @@ RSpec.describe IDRAC::License do
       allow(license_instance).to receive(:client).and_return(client)
       allow(license_instance).to receive(:authenticated_request).and_return(license_details_response)
       allow(license_instance).to receive(:debug)
-      allow(license_instance).to receive(:license_info).and_return(JSON.parse(license_details_response.body))
+      
+      # Return RecursiveOpenStruct instead of Hash
+      license_data = JSON.parse(license_details_response.body)
+      allow(license_instance).to receive(:license_info).and_return(
+        RecursiveOpenStruct.new(license_data, recurse_over_arrays: true)
+      )
 
       expect(license_instance.license_version).to eq(9)
     end
@@ -47,9 +55,11 @@ RSpec.describe IDRAC::License do
       license_instance = license_class.new
       allow(license_instance).to receive(:client).and_return(client)
       allow(license_instance).to receive(:debug)
-      allow(license_instance).to receive(:license_info).and_return({
-        "Description" => "Some other license"
-      })
+      
+      # Return RecursiveOpenStruct instead of Hash
+      allow(license_instance).to receive(:license_info).and_return(
+        RecursiveOpenStruct.new({"Description" => "Some other license"}, recurse_over_arrays: true)
+      )
 
       expect(license_instance.license_version).to be_nil
     end

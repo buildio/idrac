@@ -312,103 +312,24 @@ module IDRAC
       with_idrac_client do |client|
         verbose = options[:verbose] || options[:very_verbose] || options[:debug]
         
-        # Get system information using authenticated_request
-        puts "Retrieving system information...".light_yellow if verbose
-        system_response = client.authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
-        system_info = JSON.parse(system_response.body)
-        puts JSON.pretty_generate(system_info).light_yellow if verbose
-        
-        # Get iDRAC information using authenticated_request
-        puts "Retrieving iDRAC information...".light_yellow if verbose
-        idrac_response = client.authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1")
-        idrac_info = JSON.parse(idrac_response.body)
-        puts JSON.pretty_generate(idrac_info).light_yellow if verbose
-        
-        # Get network information using authenticated_request
-        puts "Retrieving network information...".light_yellow if verbose
-        network_response = client.authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/NIC.1")
-        network_info = JSON.parse(network_response.body)
-        puts JSON.pretty_generate(network_info).light_yellow if verbose
-        
-        # Initialize license_type to Unknown
-        license_type = "Unknown"
-        license_description = nil
-        
-        # Try to get license information using DMTF standard method
-        begin
-          puts "Retrieving license information (DMTF method)...".light_yellow if verbose
-          license_response = client.authenticated_request(:get, "/redfish/v1/LicenseService/Licenses")
-          license_info = JSON.parse(license_response.body)
-          puts JSON.pretty_generate(license_info).light_yellow if verbose
-          
-          # Extract license type if licenses are found
-          if license_info["Members"] && !license_info["Members"].empty?
-            license_entry_response = client.authenticated_request(:get, license_info["Members"][0]["@odata.id"])
-            license_entry = JSON.parse(license_entry_response.body)
-            puts JSON.pretty_generate(license_entry).light_yellow if verbose
-            
-            # Get license type from EntitlementId or LicenseType
-            if license_entry["EntitlementId"] && license_entry["EntitlementId"].include?("Enterprise")
-              license_type = "Enterprise"
-            elsif license_entry["LicenseType"]
-              license_type = license_entry["LicenseType"]
-            end
-            
-            # Get license description if available
-            license_description = license_entry["Description"] if license_entry["Description"]
-          end
-        rescue => e
-          puts "Error retrieving license information using DMTF method: #{e.message}".light_red if verbose
-          
-          # If DMTF method fails, try Dell OEM method
-          begin
-            puts "Retrieving license information (Dell OEM method)...".light_yellow if verbose
-            dell_license_response = client.authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenses")
-            dell_license_info = JSON.parse(dell_license_response.body)
-            puts JSON.pretty_generate(dell_license_info).light_yellow if verbose
-            
-            # Extract license type if licenses are found
-            if dell_license_info["Members"] && !dell_license_info["Members"].empty?
-              dell_license_entry_response = client.authenticated_request(:get, dell_license_info["Members"][0]["@odata.id"])
-              dell_license_entry = JSON.parse(dell_license_entry_response.body)
-              puts JSON.pretty_generate(dell_license_entry).light_yellow if verbose
-              
-              # Get license type from LicenseType or Description
-              if dell_license_entry["LicenseType"]
-                license_type = dell_license_entry["LicenseType"]
-              elsif dell_license_entry["Description"] && dell_license_entry["Description"].include?("Enterprise")
-                license_type = "Enterprise"
-              end
-              
-              # Get license description if available
-              license_description = dell_license_entry["Description"] if dell_license_entry["Description"]
-            end
-          rescue => e2
-            puts "Error retrieving Dell license information: #{e2.message}".light_red if verbose
-          end
-        end
-        
-        # Format the license display string
-        license_display = license_type
-        if license_description
-          license_display = "#{license_type} (#{license_description})"
-        end
+        # Get summary from client
+        system_summary = client.get_system_summary
         
         # Format and display the information
         puts "System Summary:".green.bold
         puts "=" * 50
         
-        puts "Power State:".ljust(25) + (system_info["PowerState"] || "Unknown").light_cyan
-        puts "Model:".ljust(25) + (system_info["Model"] || "Unknown").light_cyan
-        puts "Host Name:".ljust(25) + (system_info["HostName"] || "Unknown").light_cyan
-        puts "Operating System:".ljust(25) + (system_info.dig("Oem", "Dell", "OperatingSystem") || "Unknown").light_cyan
-        puts "Operating System Version:".ljust(25) + (system_info.dig("Oem", "Dell", "OperatingSystemVersion") || "Unknown").light_cyan
-        puts "Service Tag:".ljust(25) + (system_info["SKU"] || "Unknown").light_cyan
-        puts "BIOS Version:".ljust(25) + (system_info.dig("BiosVersion") || "Unknown").light_cyan
-        puts "iDRAC Firmware Version:".ljust(25) + (idrac_info.dig("FirmwareVersion") || "Unknown").light_cyan
-        puts "IP Address:".ljust(25) + (network_info.dig("IPv4Addresses", 0, "Address") || "Unknown").light_cyan
-        puts "iDRAC MAC Address:".ljust(25) + (network_info.dig("MACAddress") || "Unknown").light_cyan
-        puts "License:".ljust(25) + license_display.light_cyan
+        puts "Power State:".ljust(25) + (system_summary[:power_state] || "Unknown").light_cyan
+        puts "Model:".ljust(25) + (system_summary[:model] || "Unknown").light_cyan
+        puts "Host Name:".ljust(25) + (system_summary[:host_name] || "Unknown").light_cyan
+        puts "Operating System:".ljust(25) + (system_summary[:operating_system] || "Unknown").light_cyan
+        puts "Operating System Version:".ljust(25) + (system_summary[:os_version] || "Unknown").light_cyan
+        puts "Service Tag:".ljust(25) + (system_summary[:service_tag] || "Unknown").light_cyan
+        puts "BIOS Version:".ljust(25) + (system_summary[:bios_version] || "Unknown").light_cyan
+        puts "iDRAC Firmware Version:".ljust(25) + (system_summary[:idrac_firmware] || "Unknown").light_cyan
+        puts "IP Address:".ljust(25) + (system_summary[:ip_address] || "Unknown").light_cyan
+        puts "iDRAC MAC Address:".ljust(25) + (system_summary[:mac_address] || "Unknown").light_cyan
+        puts "License:".ljust(25) + system_summary[:license].light_cyan
         
         puts "=" * 50
       end
@@ -1184,13 +1105,8 @@ module IDRAC
     map "system:config" => :system_config
     def system_config
       with_idrac_client do |client|
-        response = client.authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$expand=*($levels=1)")
-        if response.status == 200
-          config = JSON.parse(response.body)
-          puts JSON.pretty_generate(config)
-        else
-          puts "Failed to retrieve system configuration: #{response.status}".red
-        end
+        config = client.get_system_config
+        puts JSON.pretty_generate(config)
       end
     end
 
@@ -1318,9 +1234,8 @@ module IDRAC
           # System info test
           puts "\n[TEST] System information".cyan.bold
           begin
-            response = client.authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
-            system_info = JSON.parse(response.body)
-            puts "✓ System info: #{system_info['Model']} (#{system_info['SKU']})".green
+            system_info = client.get_basic_system_info
+            puts "✓ System info: #{system_info[:model]} (#{system_info[:sku]})".green
             test_results["system_info"] = { status: "PASS", message: "Retrieved system information successfully" }
           rescue => e
             puts "✗ System info failed: #{e.message}".red
