@@ -9,25 +9,31 @@ module IDRAC
       
       if response.status == 200
         begin
-          data = parse_json(response.body)
+          data = JSON.parse(response.body)
           
-          media = data.Members.map do |m|
-            {
-              "id" => m.Id,
-              "name" => m.Name,
-              "media_types" => m.MediaTypes,
-              "connected" => m.Inserted,
-              "image" => m.Image,
-              "write_protected" => m.WriteProtected
+          media = data["Members"].map do |m|
+            if m["Inserted"]
+              puts "#{m["Name"]} #{m["ConnectedVia"]} #{m["Image"]}".green
+            else
+              puts "#{m["Name"]} #{m["ConnectedVia"]}".yellow
+            end
+            
+            action_path = m.dig("Actions", "#VirtualMedia.InsertMedia", "target")
+            
+            { 
+              device: m["Id"], 
+              inserted: m["Inserted"], 
+              image: m["Image"] || m["ConnectedVia"],
+              action_path: action_path
             }
           end
           
           return media
-        rescue => e
-          raise Error, "Failed to get virtual media status: #{e.message}"
+        rescue JSON::ParserError
+          raise Error, "Failed to parse virtual media response: #{response.body}"
         end
       else
-        raise Error, "Failed to get virtual media status. Status code: #{response.status}"
+        raise Error, "Failed to get virtual media. Status code: #{response.status}"
       end
     end
 

@@ -9,21 +9,21 @@ module IDRAC
       
       if response.status == 200
         begin
-          data = parse_json(response.body)
-          memory = data.Members.map do |m|
-            dimm_name = m.Name # e.g. DIMM A1
+          data = JSON.parse(response.body)
+          memory = data["Members"].map do |m|
+            dimm_name = m["Name"] # e.g. DIMM A1
             bank, index = /DIMM ([A-Z])(\d+)/.match(dimm_name).captures rescue [nil, nil]
             
-            puts "DIMM: #{m.Model} #{m.Name} > #{m.CapacityMiB}MiB > #{m.Status.Health} > #{m.OperatingSpeedMhz}MHz > #{m.PartNumber} / #{m.SerialNumber}"
+            puts "DIMM: #{m["Model"]} #{m["Name"]} > #{m["CapacityMiB"]}MiB > #{m["Status"]["Health"]} > #{m["OperatingSpeedMhz"]}MHz > #{m["PartNumber"]} / #{m["SerialNumber"]}"
             
             { 
-              "model" => m.Model, 
-              "name" => m.Name, 
-              "capacity_bytes" => m.CapacityMiB.to_i.megabyte, 
-              "health" => m.Status.Health ? m.Status.Health : "N/A", 
-              "speed_mhz" => m.OperatingSpeedMhz, 
-              "part_number" => m.PartNumber, 
-              "serial" => m.SerialNumber,
+              "model" => m["Model"], 
+              "name" => m["Name"], 
+              "capacity_bytes" => m["CapacityMiB"].to_i.megabyte, 
+              "health" => m["Status"]["Health"] ? m["Status"]["Health"] : "N/A", 
+              "speed_mhz" => m["OperatingSpeedMhz"], 
+              "part_number" => m["PartNumber"], 
+              "serial" => m["SerialNumber"],
               "bank" => bank,
               "index" => index.to_i
             }
@@ -44,20 +44,20 @@ module IDRAC
       
       if response.status == 200
         begin
-          data = parse_json(response.body)
+          data = JSON.parse(response.body)
           puts "Power Supplies".green
           
-          psus = data.PowerSupplies.map do |psu|
-            puts "PSU: #{psu.Name} > #{psu.PowerInputWatts}W > #{psu.Status.Health}"
+          psus = data["PowerSupplies"].map do |psu|
+            puts "PSU: #{psu["Name"]} > #{psu["PowerInputWatts"]}W > #{psu["Status"]["Health"]}"
             { 
-              "name" => psu.Name, 
-              "voltage" => psu.LineInputVoltage, 
-              "voltage_human" => psu.LineInputVoltageType, # AC240V
-              "watts"  => psu.PowerInputWatts,
-              "part"   => psu.PartNumber,
-              "model"  => psu.Model,
-              "serial" => psu.SerialNumber,
-              "status" => psu.Status.Health,
+              "name" => psu["Name"], 
+              "voltage" => psu["LineInputVoltage"], 
+              "voltage_human" => psu["LineInputVoltageType"], # AC240V
+              "watts"  => psu["PowerInputWatts"],
+              "part"   => psu["PartNumber"],
+              "model"  => psu["Model"],
+              "serial" => psu["SerialNumber"],
+              "status" => psu["Status"]["Health"],
             }
           end
           
@@ -80,15 +80,15 @@ module IDRAC
           response = authenticated_request(:get, "/redfish/v1/Chassis/System.Embedded.1/Thermal?$expand=*($levels=1)")
           
           if response.status == 200
-            data = parse_json(response.body)
+            data = JSON.parse(response.body)
             
-            fans = data.Fans.map do |fan|
-              puts "Fan: #{fan.Name} > #{fan.Reading} > #{fan.Status.Health}"
+            fans = data["Fans"].map do |fan|
+              puts "Fan: #{fan["Name"]} > #{fan["Reading"]} > #{fan["Status"]["Health"]}"
               { 
-                "name" => fan.Name, 
-                "rpm" => fan.Reading,
-                "serial" => fan.SerialNumber,
-                "status" => fan.Status.Health
+                "name" => fan["Name"], 
+                "rpm" => fan["Reading"],
+                "serial" => fan["SerialNumber"],
+                "status" => fan["Status"]["Health"]
               }
             end
             
@@ -96,7 +96,7 @@ module IDRAC
           elsif response.status.between?(400, 499)
             # Check if system is powered off
             power_response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$select=PowerState")
-            if power_response.status == 200 && parse_json(power_response.body).PowerState == "Off"
+            if power_response.status == 200 && JSON.parse(power_response.body)["PowerState"] == "Off"
               puts "WARN: System is off. Fans are not available.".yellow
               return []
             end
@@ -120,12 +120,12 @@ module IDRAC
       
       if response.status == 200
         begin
-          adapters_data = parse_json(response.body)
+          adapters_data = JSON.parse(response.body)
           
           # Determine iDRAC version for different port paths
           idrac_version_response = authenticated_request(:get, "/redfish/v1")
-          idrac_version_data = parse_json(idrac_version_response.body)
-          server = idrac_version_data.RedfishVersion || idrac_version_response.headers["server"]
+          idrac_version_data = JSON.parse(idrac_version_response.body)
+          server = idrac_version_data["RedfishVersion"] || idrac_version_response.headers["server"]
           
           is_idrac9 = case server.to_s.downcase
                       when /idrac\/9/
@@ -141,32 +141,32 @@ module IDRAC
           
           port_part = is_idrac9 ? 'Ports' : 'NetworkPorts'
           
-          nics = adapters_data.Members.map do |adapter|
-            path = "#{adapter['@odata.id'].split("v1/").last}/#{port_part}?$expand=*($levels=1)"
+          nics = adapters_data["Members"].map do |adapter|
+            path = "#{adapter["@odata.id"].split("v1/").last}/#{port_part}?$expand=*($levels=1)"
             ports_response = authenticated_request(:get, "/redfish/v1/#{path}")
             
             if ports_response.status == 200
-              ports_data = parse_json(ports_response.body)
+              ports_data = JSON.parse(ports_response.body)
               
-              ports = ports_data.Members.map do |nic|
+              ports = ports_data["Members"].map do |nic|
                 if is_idrac9
-                  link_speed_mbps = nic.CurrentSpeedGbps.to_i * 1000
-                  mac_addr = nic.Ethernet.AssociatedMACAddresses.first
-                  port_num = nic.PortId
-                  network_technology = nic.LinkNetworkTechnology
-                  link_status = nic.LinkStatus =~ /up/i ? "Up" : "Down"
+                  link_speed_mbps = nic['CurrentSpeedGbps'].to_i * 1000
+                  mac_addr = nic['Ethernet']['AssociatedMACAddresses'].first
+                  port_num = nic['PortId']
+                  network_technology = nic['LinkNetworkTechnology']
+                  link_status = nic['LinkStatus'] =~ /up/i ? "Up" : "Down"
                 else # iDRAC 8
-                  link_speed_mbps = nic.SupportedLinkCapabilities.first.LinkSpeedMbps
-                  mac_addr = nic.AssociatedNetworkAddresses.first
-                  port_num = nic.PhysicalPortNumber
-                  network_technology = nic.SupportedLinkCapabilities.first.LinkNetworkTechnology
-                  link_status = nic.LinkStatus
+                  link_speed_mbps = nic["SupportedLinkCapabilities"].first["LinkSpeedMbps"]
+                  mac_addr = nic["AssociatedNetworkAddresses"].first
+                  port_num = nic["PhysicalPortNumber"]
+                  network_technology = nic["SupportedLinkCapabilities"].first["LinkNetworkTechnology"]
+                  link_status = nic['LinkStatus']
                 end
                 
-                puts "NIC: #{nic.Id} > #{mac_addr} > #{link_status} > #{port_num} > #{link_speed_mbps}Mbps"
+                puts "NIC: #{nic["Id"]} > #{mac_addr} > #{link_status} > #{port_num} > #{link_speed_mbps}Mbps"
                 
                 { 
-                  "name" => nic.Id, 
+                  "name" => nic["Id"], 
                   "status" => link_status,
                   "mac" => mac_addr,
                   "port" => port_num,
@@ -176,21 +176,21 @@ module IDRAC
               end
               
               {
-                "name" => adapter.Id,
-                "manufacturer" => adapter.Manufacturer,
-                "model" => adapter.Model,
-                "part_number" => adapter.PartNumber,
-                "serial" => adapter.SerialNumber,
+                "name" => adapter["Id"],
+                "manufacturer" => adapter["Manufacturer"],
+                "model" => adapter["Model"],
+                "part_number" => adapter["PartNumber"],
+                "serial" => adapter["SerialNumber"],
                 "ports" => ports
               }
             else
               # Return adapter info without ports if we can't get port details
               {
-                "name" => adapter.Id,
-                "manufacturer" => adapter.Manufacturer,
-                "model" => adapter.Model,
-                "part_number" => adapter.PartNumber,
-                "serial" => adapter.SerialNumber,
+                "name" => adapter["Id"],
+                "manufacturer" => adapter["Manufacturer"],
+                "model" => adapter["Model"],
+                "part_number" => adapter["PartNumber"],
+                "serial" => adapter["SerialNumber"],
                 "ports" => []
               }
             end
@@ -211,17 +211,17 @@ module IDRAC
       
       if response.status == 200
         begin
-          data = parse_json(response.body)
+          data = JSON.parse(response.body)
           
           idrac = {
-            "name" => data.Id,
-            "status" => data.Status.Health == 'OK' ? 'Up' : 'Down',
-            "mac" => data.MACAddress,
-            "mask" => data.IPv4Addresses.first.SubnetMask,
-            "ipv4" => data.IPv4Addresses.first.Address,
-            "origin" => data.IPv4Addresses.first.AddressOrigin, # DHCP or Static
+            "name" => data["Id"],
+            "status" => data["Status"]["Health"] == 'OK' ? 'Up' : 'Down',
+            "mac" => data["MACAddress"],
+            "mask" => data["IPv4Addresses"].first["SubnetMask"],
+            "ipv4" => data["IPv4Addresses"].first["Address"],
+            "origin" => data["IPv4Addresses"].first["AddressOrigin"], # DHCP or Static
             "port" => nil,
-            "speed_mbps" => data.SpeedMbps,
+            "speed_mbps" => data["SpeedMbps"],
             "kind" => "ethernet"
           }
           
@@ -240,32 +240,32 @@ module IDRAC
       
       if response.status == 200
         begin
-          data = parse_json(response.body)
+          data = JSON.parse(response.body)
           
-          pci = data.Members.map do |stub|
-            manufacturer = stub.Manufacturer
+          pci = data["Members"].map do |stub|
+            manufacturer = stub["Manufacturer"]
             
             # Get PCIe function details if available
             pcie_function = nil
-            if stub.dig(:Links, :PCIeFunctions, 0, :'@odata.id')
-              pcie_function_path = stub.dig(:Links, :PCIeFunctions, 0, :'@odata.id').split("v1/").last
+            if stub.dig("Links", "PCIeFunctions", 0, "@odata.id")
+              pcie_function_path = stub.dig("Links", "PCIeFunctions", 0, "@odata.id").split("v1/").last
               function_response = authenticated_request(:get, "/redfish/v1/#{pcie_function_path}")
               
               if function_response.status == 200
-                pcie_function = parse_json(function_response.body)
+                pcie_function = JSON.parse(function_response.body)
               end
             end
             
             # Create device info with available data
             device_info = {
-              device_class: pcie_function ? pcie_function.DeviceClass : nil,
+              device_class: pcie_function ? pcie_function["DeviceClass"] : nil,
               manufacturer: manufacturer,
-              name: stub.Name,
-              description: stub.Description,
-              id: pcie_function ? pcie_function.Id : stub.Id,
-              slot_type: pcie_function ? pcie_function.dig(:Oem, :Dell, :DellPCIeFunction, :SlotType) : nil,
-              bus_width: pcie_function ? pcie_function.dig(:Oem, :Dell, :DellPCIeFunction, :DataBusWidth) : nil,
-              nic: pcie_function ? pcie_function.dig(:Links, :EthernetInterfaces, 0, :'@odata.id') : nil
+              name: stub["Name"],
+              description: stub["Description"],
+              id: pcie_function ? pcie_function["Id"] : stub["Id"],
+              slot_type: pcie_function ? pcie_function.dig("Oem", "Dell", "DellPCIeFunction", "SlotType") : nil,
+              bus_width: pcie_function ? pcie_function.dig("Oem", "Dell", "DellPCIeFunction", "DataBusWidth") : nil,
+              nic: pcie_function ? pcie_function.dig("Links", "EthernetInterfaces", 0, "@odata.id") : nil
             }
             
             puts "PCI Device: #{device_info[:name]} > #{device_info[:manufacturer]} > #{device_info[:device_class]} > #{device_info[:description]} > #{device_info[:id]}"
@@ -331,15 +331,15 @@ module IDRAC
       
       if response.status == 200
         begin
-          data = parse_json(response.body)
+          data = JSON.parse(response.body)
           
-          logs = data.Members.map do |log|
-            puts "#{log.Id} : #{log.Created} : #{log.Message} : #{log.Severity}".yellow
+          logs = data["Members"].map do |log|
+            puts "#{log['Id']} : #{log['Created']} : #{log['Message']} : #{log['Severity']}".yellow
             log
           end
           
           # Sort by creation date, newest first
-          return logs.sort_by { |log| log.Created }.reverse
+          return logs.sort_by { |log| log['Created'] }.reverse
         rescue JSON::ParserError
           raise Error, "Failed to parse system event logs response: #{response.body}"
         end
@@ -364,7 +364,7 @@ module IDRAC
         error_message = "Failed to clear System Event Logs. Status code: #{response.status}"
         
         begin
-          error_data = parse_json(response.body, false)
+          error_data = JSON.parse(response.body)
           error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
         rescue
           # Ignore JSON parsing errors

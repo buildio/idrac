@@ -1,5 +1,6 @@
 require 'json'
 require 'colorize'
+require 'recursive-open-struct'
 
 module IDRAC
   module Storage
@@ -9,24 +10,24 @@ module IDRAC
       controller_list = controllers
       
       puts "Controllers".green
-      controller_list.each { |c| puts "#{c[:name]} > #{c[:drives_count]}" }
+      controller_list.each { |c| puts "#{c.name} > #{c.drives_count}" }
       
       puts "Drives".green
       controller_list.each do |c|
-        puts "Storage: #{c[:name]} > #{c[:status]} > #{c[:drives_count]}"
+        puts "Storage: #{c.name} > #{c.status} > #{c.drives_count}"
       end
       
       # Find the controller with the most drives (usually the PERC)
-      controller_info = controller_list.max_by { |c| c[:drives_count] }
+      controller_info = controller_list.max_by { |c| c.drives_count }
       
-      if controller_info[:name] =~ /PERC/
-        puts "Found #{controller_info[:name]}".green
+      if controller_info.name =~ /PERC/
+        puts "Found #{controller_info.name}".green
       else
-        puts "Found #{controller_info[:name]} but continuing...".yellow
+        puts "Found #{controller_info.name} but continuing...".yellow
       end
       
       # Return the raw controller data
-      controller_info[:raw]
+      controller_info.raw
     end
 
     # Get all storage controllers and return them as an array
@@ -37,9 +38,9 @@ module IDRAC
         begin
           data = JSON.parse(response.body)
           
-          # Transform and return all controllers as an array of hashes with consistent keys
+          # Transform and return all controllers as an array of RecursiveOpenStruct objects with consistent keys
           controllers = data["Members"].map do |controller|
-            {
+            controller_data = {
               name: controller["Name"],
               model: controller["Model"],
               drives_count: controller["Drives"].size,
@@ -51,9 +52,11 @@ module IDRAC
               pci_slot: controller.dig("Oem", "Dell", "DellController", "PCISlot"),
               raw: controller
             }
+            
+            RecursiveOpenStruct.new(controller_data, recurse_over_arrays: true)
           end
           
-          return controllers.sort_by { |c| c[:name] }
+          return controllers.sort_by { |c| c.name }
         rescue JSON::ParserError
           raise Error, "Failed to parse controllers response: #{response.body}"
         end

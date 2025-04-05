@@ -7,7 +7,7 @@ require 'faraday/multipart'
 require 'base64'
 require 'uri'
 require 'colorize'
-require 'ostruct'
+require 'recursive-open-struct'
 # If dev, required debug
 require 'debug' if ENV['RUBY_ENV'] == 'development'
 
@@ -26,23 +26,6 @@ module IDRAC
         caller[1..3].each do |call|
           puts "    #{call}".light_yellow
         end
-      end
-    end
-  end
-
-  # Utility methods for the IDRAC module
-  module Util
-    # Recursively converts a hash to an OpenStruct
-    # @param obj [Hash, Array, Object] The object to convert
-    # @return [OpenStruct, Array, Object] The converted object
-    def self.to_ostruct(obj)
-      case obj
-      when Hash
-        OpenStruct.new(obj.transform_values { |val| to_ostruct(val) })
-      when Array
-        obj.map { |item| to_ostruct(item) }
-      else
-        obj
       end
     end
   end

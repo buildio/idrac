@@ -1,13 +1,14 @@
 PATH
   remote: .
   specs:
-    idrac (0.4.0)
+    idrac (0.3.4)
       base64 (~> 0.1, >= 0.1.0)
       colorize (~> 1.1)
       faraday (>= 2.7.0, < 2.8.0)
       faraday-multipart (>= 1.0.0, < 1.1.0)
       httparty (>= 0.21.0, < 0.22.0)
       nokogiri (>= 1.15.0, < 1.19.0)
+      recursive-open-struct (~> 1.1)
       thor (>= 1.2.0, < 1.4.0)
 
 GEM
@@ -64,6 +65,8 @@ GEM
     rake (13.0.6)
     rdoc (6.12.0)
       psych (>= 4.0.0)
+    recursive-open-struct (1.3.1)
+      ostruct
     reline (0.6.0)
       io-console (~> 0.5)
     rexml (3.4.1)
