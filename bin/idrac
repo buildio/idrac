@@ -557,10 +557,10 @@ module IDRAC
       with_idrac_client do |client|
         controller = client.controller
         puts "\nStorage Controller Summary:".green.bold
-        puts "Name: #{controller['Name']}".cyan
-        puts "Model: #{controller['Model']}".cyan
-        puts "Health: #{controller['Status']['Health']}".cyan
-        puts "Manufacturer: #{controller['Manufacturer']}".cyan
+        puts "Name: #{controller.name}".cyan
+        puts "Model: #{controller.model}".cyan
+        puts "Health: #{controller.status&.health || 'Unknown'}".cyan
+        puts "Manufacturer: #{controller.manufacturer}".cyan
         
         if client.controller_encryption_capable?(controller)
           puts "Encryption Capable: Yes".green
@@ -610,17 +610,17 @@ module IDRAC
         
         puts "\nPhysical Drives (#{drives.size}):".green.bold
         drives.each do |drive|
-          capacity_gb = drive[:capacity_bytes].to_f / (1024**3)
-          health_color = drive[:health] == "OK" ? :green : :red
+          capacity_gb = drive.capacity_bytes.to_f / (1024**3)
+          health_color = drive.health == "OK" ? :green : :red
           
-          puts "#{drive[:name]}:".bold
-          puts "  Model: #{drive[:model]}".cyan
-          puts "  Health: #{drive[:health].send(health_color)}"
+          puts "#{drive.name}:".bold
+          puts "  Model: #{drive.model}".cyan
+          puts "  Health: #{drive.health.send(health_color)}"
           puts "  Capacity: #{capacity_gb.round(2)} GB".cyan
-          puts "  Media Type: #{drive[:media_type]}".cyan
-          puts "  Serial: #{drive[:serial]}".cyan
-          if drive[:encryption_ability]
-            puts "  Encryption: #{drive[:encryption_ability]}".cyan
+          puts "  Media Type: #{drive.media_type}".cyan
+          puts "  Serial: #{drive.serial}".cyan
+          if drive.encryption_ability
+            puts "  Encryption: #{drive.encryption_ability}".cyan
           end
           puts ""
         end
@@ -675,7 +675,7 @@ module IDRAC
         confirmation = $stdin.gets.chomp.downcase
         
         if confirmation == 'y'
-          client.create_virtual_disk(controller['Id'], drives, name: options[:name], raid_type: options[:raid])
+          client.create_virtual_disk(controller.odata_Id, drives, name: options[:name], raid_type: options[:raid])
           puts "Volume created successfully".green
         else
           puts "Operation cancelled".yellow
@@ -763,7 +763,7 @@ module IDRAC
         # Get keyid if not provided
         keyid = options[:keyid] || "RAID-Key-#{Time.now.strftime('%Y%m%d')}"
         
-        client.enable_local_key_management(controller['Id'], passphrase: passphrase, keyid: keyid)
+        client.enable_local_key_management(controller.odata_id, passphrase: passphrase, keyid: keyid)
         puts "Encryption enabled successfully".green
       end
     end
@@ -784,7 +784,7 @@ module IDRAC
         confirmation = $stdin.gets.chomp
         
         if confirmation == 'DISABLE'
-          client.disable_local_key_management(controller['Id'])
+          client.disable_local_key_management(controller.odata_id)
           puts "Encryption disabled successfully".green
         else
           puts "Operation cancelled".yellow
@@ -1262,7 +1262,7 @@ module IDRAC
           puts "\n[TEST] Storage management".cyan.bold
           begin
             controller = client.controller
-            puts "✓ Storage controller: #{controller['Name']} (#{controller['Model']})".green
+            puts "✓ Storage controller: #{controller.name} (#{controller.model})".green
             
             drives = client.drives(controller)
             puts "✓ Found #{drives.size} physical drives".green
