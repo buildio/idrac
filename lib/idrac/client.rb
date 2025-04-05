@@ -286,6 +286,16 @@ module IDRAC
       web.capture_screenshot
     end
 
+    # Parse JSON string and convert to OpenStruct
+    # @param json [String] JSON string
+    # @param use_ostruct [Boolean] Whether to convert to OpenStruct (default: true)
+    # @return [OpenStruct, Hash] Parsed response
+    def parse_json(json, use_ostruct = true)
+      parsed = JSON.parse(json)
+      use_ostruct ? IDRAC::Util.to_ostruct(parsed) : parsed
+    end
+    
+    # Kept for backward compatibility 
     def base_url
       protocol = use_ssl ? 'https' : 'http'
       "#{protocol}://#{host}:#{port}"
@@ -294,8 +304,8 @@ module IDRAC
     def redfish_version
       response = authenticated_request(:get, "/redfish/v1")
       if response.status == 200
-        data = JSON.parse(response.body)
-        data["RedfishVersion"]
+        data = parse_json(response.body)
+        data.RedfishVersion
       else
         raise Error, "Failed to get Redfish version: #{response.status} - #{response.body}"
       end

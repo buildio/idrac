@@ -30,9 +30,9 @@ module IDRAC
           break
         when 409
           begin
-            error_data = JSON.parse(response.body)
-            if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"] &&
-               error_data["error"]["@Message.ExtendedInfo"].any? { |m| m["Message"] =~ /Server is already powered ON/ }
+            error_data = parse_json(response.body)
+            if error_data.error && error_data.error['@Message.ExtendedInfo'] &&
+               error_data.error['@Message.ExtendedInfo'].any? { |m| m.Message =~ /Server is already powered ON/ }
               puts "Server is already powered ON.".yellow
               return false
             else
@@ -84,9 +84,9 @@ module IDRAC
       when 409
         # Conflict -- Server is already off
         begin
-          error_data = JSON.parse(response.body)
-          if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"] &&
-             error_data["error"]["@Message.ExtendedInfo"].any? { |m| m["Message"] =~ /Server is already powered OFF/ }
+          error_data = parse_json(response.body)
+          if error_data.error && error_data.error['@Message.ExtendedInfo'] &&
+             error_data.error['@Message.ExtendedInfo'].any? { |m| m.Message =~ /Server is already powered OFF/ }
             puts "Server is already powered OFF.".yellow
             return false
           else
@@ -98,8 +98,8 @@ module IDRAC
       else
         error_message = "Failed to power off server. Status code: #{response.status}"
         begin
-          error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
+          error_data = parse_json(response.body)
+          error_message += ", Message: #{error_data.error.message}" if error_data.error && error_data.error.message
         rescue
           # Ignore JSON parsing errors
         end
@@ -137,8 +137,8 @@ module IDRAC
       else
         error_message = "Failed to reboot server. Status code: #{response.status}"
         begin
-          error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
+          error_data = parse_json(response.body)
+          error_message += ", Message: #{error_data.error.message}" if error_data.error && error_data.error.message
         rescue
           # Ignore JSON parsing errors
         end
@@ -156,8 +156,8 @@ module IDRAC
       
       if response.status == 200
         begin
-          system_data = JSON.parse(response.body)
-          return system_data["PowerState"]
+          system_data = parse_json(response.body)
+          return system_data.PowerState
         rescue JSON::ParserError
           raise Error, "Failed to parse power state response: #{response.body}"
         end
@@ -174,8 +174,8 @@ module IDRAC
       
       if response.status == 200
         begin
-          data = JSON.parse(response.body)
-          watts = data["PowerControl"][0]["PowerConsumedWatts"]
+          data = parse_json(response.body)
+          watts = data.PowerControl[0].PowerConsumedWatts
           # puts "Power usage: #{watts} watts".light_cyan
           return watts.to_f
         rescue JSON::ParserError
@@ -184,8 +184,8 @@ module IDRAC
       else
         error_message = "Failed to get power usage. Status code: #{response.status}"
         begin
-          error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
+          error_data = parse_json(response.body)
+          error_message += ", Message: #{error_data.error.message}" if error_data.error && error_data.error.message
         rescue
           # Ignore JSON parsing errors
         end
