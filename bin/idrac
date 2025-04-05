@@ -23,6 +23,8 @@ module IDRAC
     class_option :no_ssl, type: :boolean, default: false, desc: "Disable SSL"
     class_option :verify_ssl, type: :boolean, default: false, desc: "Enable SSL verification (not recommended for iDRAC's self-signed certificates)"
     class_option :auto_delete_sessions, type: :boolean, default: true, desc: "Automatically delete sessions when maximum sessions are reached"
+    class_option :retries, type: :numeric, default: 3, desc: "Number of retries for API calls"
+    class_option :retry_delay, type: :numeric, default: 1, desc: "Initial delay in seconds between retries (increases exponentially)"
     class_option :verbose, type: :boolean, default: false, aliases: '-v', desc: "Enable verbose output"
     class_option :very_verbose, type: :boolean, default: false, aliases: '-vv', desc: "Enable very verbose output with detailed headers and requests"
     class_option :debug, type: :boolean, default: false, aliases: '-vvv', desc: "Enable debug output with detailed stack traces and SSL info"
@@ -1044,10 +1046,10 @@ module IDRAC
           # Power tests - retry up to 3 times if authentication fails
           puts "\n[TEST] Power management".cyan.bold
           begin
-            power_state = with_retries(3) { client.get_power_state }
+            power_state = client.with_retries { client.get_power_state }
             puts "✓ Power state: #{power_state}".green
             
-            watts = with_retries(3) { client.get_power_usage_watts }
+            watts = client.with_retries { client.get_power_usage_watts }
             puts "✓ Power usage: #{watts} watts".green
             test_results["power"] = { status: "PASS", message: "Retrieved power information successfully" }
           rescue => e
@@ -1058,13 +1060,13 @@ module IDRAC
           # Storage tests
           puts "\n[TEST] Storage management".cyan.bold
           begin
-            controller = with_retries(3) { client.controller }
+            controller = client.with_retries { client.controller }
             puts "✓ Storage controller: #{controller['Name']} (#{controller['Model']})".green
             
-            drives = with_retries(3) { client.drives(controller) }
+            drives = client.with_retries { client.drives(controller) }
             puts "✓ Found #{drives.size} physical drives".green
             
-            volumes = with_retries(3) { client.volumes(controller) }
+            volumes = client.with_retries { client.volumes(controller) }
             puts "✓ Found #{volumes.size} virtual disks".green
             test_results["storage"] = { status: "PASS", message: "Retrieved storage information successfully" }
           rescue => e
@@ -1076,7 +1078,7 @@ module IDRAC
           puts "\n[TEST] System components".cyan.bold
           begin
             begin
-              memory = with_retries(3) { client.memory }
+              memory = client.with_retries { client.memory }
               puts "✓ Memory: #{client.total_memory_human(memory)}".green
               memory_test_status = "PASS"
               memory_test_message = "Retrieved memory information successfully"
@@ -1087,7 +1089,7 @@ module IDRAC
             end
             
             begin
-              psus = with_retries(3) { client.psus }
+              psus = client.with_retries { client.psus }
               puts "✓ Found #{psus.size} power supplies".green
               psu_test_status = "PASS"
               psu_test_message = "Retrieved PSU information successfully"
@@ -1098,7 +1100,7 @@ module IDRAC
             end
             
             begin
-              fans = with_retries(3) { client.fans }
+              fans = client.with_retries { client.fans }
               puts "✓ Found #{fans.size} fans".green
               fan_test_status = "PASS"
               fan_test_message = "Retrieved fan information successfully"
@@ -1109,7 +1111,7 @@ module IDRAC
             end
             
             begin
-              nics = with_retries(3) { client.nics }
+              nics = client.with_retries { client.nics }
               puts "✓ Found #{nics.size} network interfaces".green
               nic_test_status = "PASS"
               nic_test_message = "Retrieved NIC information successfully"
@@ -1131,7 +1133,7 @@ module IDRAC
           # Virtual media tests
           puts "\n[TEST] Virtual media".cyan.bold
           begin
-            media = with_retries(3) { client.virtual_media }
+            media = client.with_retries { client.virtual_media }
             puts "✓ Found #{media.size} virtual media devices".green
             test_results["virtual_media"] = { status: "PASS", message: "Retrieved virtual media information successfully" }
           rescue => e
@@ -1142,10 +1144,10 @@ module IDRAC
           # Boot management tests
           puts "\n[TEST] Boot management".cyan.bold
           begin
-            boot_options = with_retries(3) { client.get_bios_boot_options }
+            boot_options = client.with_retries { client.get_bios_boot_options }
             puts "✓ Retrieved BIOS boot options".green
             
-            boot_override = with_retries(3) { client.get_boot_source_override }
+            boot_override = client.with_retries { client.get_boot_source_override }
             puts "✓ Boot source override: #{boot_override}".green
             test_results["boot"] = { status: "PASS", message: "Retrieved boot information successfully" }
           rescue => e
@@ -1156,7 +1158,7 @@ module IDRAC
           # Jobs and tasks
           puts "\n[TEST] Jobs and tasks".cyan.bold
           begin
-            jobs = with_retries(3) { client.jobs }
+            jobs = client.with_retries { client.jobs }
             puts "✓ Retrieved job queue information".green
             test_results["jobs"] = { status: "PASS", message: "Retrieved job information successfully" }
           rescue => e
@@ -1197,26 +1199,6 @@ module IDRAC
         puts "=" * 80
         puts "OVERALL: #{pass_count} passed, #{fail_count} failed".send(fail_count == 0 ? :green : :yellow).bold
         puts "=" * 80
-      end
-    end
-    
-    # Helper method for retry logic
-    no_commands do
-      def with_retries(max_retries = 3, delay = 1)
-        retries = 0
-        begin
-          yield
-        rescue => e
-          retries += 1
-          if retries <= max_retries
-            puts "WARN: #{e.message}".yellow
-            puts "Retrying (#{retries}/#{max_retries})...".yellow
-            sleep delay * retries  # Exponential backoff
-            retry
-          else
-            raise e
-          end
-        end
       end
     end
     
@@ -1275,7 +1257,9 @@ module IDRAC
         port: options[:port],
         use_ssl: !options[:no_ssl],
         verify_ssl: options[:verify_ssl],
-        auto_delete_sessions: options[:auto_delete_sessions]
+        auto_delete_sessions: options[:auto_delete_sessions],
+        retry_count: options[:retries],
+        retry_delay: options[:retry_delay]
       )
     end
   end

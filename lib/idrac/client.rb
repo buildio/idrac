@@ -10,7 +10,7 @@ require 'colorize'
 module IDRAC
   class Client
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, :auto_delete_sessions, :session, :web
-    attr_accessor :direct_mode, :verbosity
+    attr_accessor :direct_mode, :verbosity, :retry_count, :retry_delay
     
     include PowerMethods
     include SessionMethods
@@ -22,7 +22,7 @@ module IDRAC
     include VirtualMediaMethods
     include BootManagementMethods
 
-    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true)
+    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true, retry_count: 3, retry_delay: 1)
       @host = host
       @username = username
       @password = password
@@ -32,6 +32,8 @@ module IDRAC
       @direct_mode = direct_mode
       @auto_delete_sessions = auto_delete_sessions
       @verbosity = 0
+      @retry_count = retry_count
+      @retry_delay = retry_delay
       
       # Initialize the session and web classes
       @session = Session.new(self)
@@ -83,9 +85,9 @@ module IDRAC
     # Send an authenticated request to the iDRAC
     def authenticated_request(method, path, options = {}, retry_count = 0)
       # Check retry count to prevent infinite recursion
-      if retry_count >= 3
+      if retry_count >= @retry_count
         debug "Maximum retry count reached", 1, :red
-        raise Error, "Failed to authenticate after multiple retries"
+        raise Error, "Failed to authenticate after #{@retry_count} retries"
       end
       
       # Form the full URL
@@ -279,6 +281,35 @@ module IDRAC
         data["RedfishVersion"]
       else
         raise Error, "Failed to get Redfish version: #{response.status} - #{response.body}"
+      end
+    end
+
+    # Execute a block with automatic retries
+    # @param max_retries [Integer] Maximum number of retry attempts
+    # @param initial_delay [Integer] Initial delay in seconds between retries (increases exponentially)
+    # @param error_classes [Array] Array of error classes to catch and retry
+    # @yield The block to execute with retries
+    # @return [Object] The result of the block
+    def with_retries(max_retries = nil, initial_delay = nil, error_classes = nil)
+      # Use instance variables if not specified
+      max_retries ||= @retry_count
+      initial_delay ||= @retry_delay
+      error_classes ||= [StandardError]
+      
+      retries = 0
+      begin
+        yield
+      rescue *error_classes => e
+        retries += 1
+        if retries <= max_retries
+          delay = initial_delay * (retries ** 1.5).to_i  # Exponential backoff
+          debug "RETRY: #{e.message} - Attempt #{retries}/#{max_retries}, waiting #{delay}s", 1, :yellow
+          sleep delay
+          retry
+        else
+          debug "MAX RETRIES REACHED: #{e.message} after #{max_retries} attempts", 1, :red
+          raise e
+        end
       end
     end
   end
