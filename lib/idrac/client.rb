@@ -302,6 +302,33 @@ module IDRAC
       end
     end
 
+    def get_firmware_version
+      response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          return data["FirmwareVersion"]
+        rescue JSON::ParserError
+          raise Error, "Failed to parse firmware version response: #{response.body}"
+        end
+      else
+        # Try again without the $select parameter for older firmware
+        response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1")
+        
+        if response.status == 200
+          begin
+            data = JSON.parse(response.body)
+            return data["FirmwareVersion"]
+          rescue JSON::ParserError
+            raise Error, "Failed to parse firmware version response: #{response.body}"
+          end
+        else
+          raise Error, "Failed to get firmware version. Status code: #{response.status}"
+        end
+      end
+    end
+
     # Execute a block with automatic retries
     # @param max_retries [Integer] Maximum number of retry attempts
     # @param initial_delay [Integer] Initial delay in seconds between retries (increases exponentially)
