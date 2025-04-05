@@ -846,15 +846,15 @@ module IDRAC
         
         puts "\nMemory Modules (#{memory.size}):".green.bold
         memory.each do |dimm|
-          capacity_gb = dimm["capacity_bytes"].to_f / (1024**3)
-          health_color = dimm["health"] == "OK" ? :green : :red
+          capacity_gb = dimm.capacity_bytes.to_f / (1024**3)
+          health_color = dimm.health == "OK" ? :green : :red
           
-          puts "#{dimm['name']}:".bold
-          puts "  Model: #{dimm['model']}".cyan
-          puts "  Health: #{dimm['health'].send(health_color)}"
+          puts "#{dimm.name}:".bold
+          puts "  Model: #{dimm.model}".cyan
+          puts "  Health: #{dimm.health.send(health_color)}"
           puts "  Capacity: #{capacity_gb.round(2)} GB".cyan
-          puts "  Speed: #{dimm['speed_mhz']} MHz".cyan
-          puts "  Serial: #{dimm['serial']}".cyan
+          puts "  Speed: #{dimm.speed_mhz} MHz".cyan
+          puts "  Serial: #{dimm.serial}".cyan
           puts ""
         end
         
@@ -871,14 +871,14 @@ module IDRAC
         
         puts "\nPower Supplies (#{psus.size}):".green.bold
         psus.each do |psu|
-          health_color = psu["status"] == "OK" ? :green : :red
+          health_color = psu.status == "OK" ? :green : :red
           
-          puts "#{psu['name']}:".bold
-          puts "  Model: #{psu['model']}".cyan
-          puts "  Health: #{psu['status'].send(health_color)}"
-          puts "  Input: #{psu['voltage']} V (#{psu['voltage_human']})".cyan
-          puts "  Output: #{psu['watts']} W".cyan
-          puts "  Serial: #{psu['serial']}".cyan
+          puts "#{psu.name}:".bold
+          puts "  Model: #{psu.model}".cyan
+          puts "  Health: #{psu.status.send(health_color)}"
+          puts "  Input: #{psu.voltage} V (#{psu.voltage_human})".cyan
+          puts "  Output: #{psu.watts} W".cyan
+          puts "  Serial: #{psu.serial}".cyan
           puts ""
         end
       end
@@ -897,11 +897,11 @@ module IDRAC
         
         puts "\nFans (#{fans.size}):".green.bold
         fans.each do |fan|
-          health_color = fan["status"] == "OK" ? :green : :red
+          health_color = fan.status == "OK" ? :green : :red
           
-          puts "#{fan['name']}:".bold
-          puts "  Health: #{fan['status'].send(health_color)}"
-          puts "  Speed: #{fan['rpm']} RPM".cyan
+          puts "#{fan.name}:".bold
+          puts "  Health: #{fan.status.send(health_color)}"
+          puts "  Speed: #{fan.rpm} RPM".cyan
           puts ""
         end
       end

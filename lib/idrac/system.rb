@@ -1,5 +1,6 @@
 require 'json'
 require 'colorize'
+require 'recursive-open-struct'
 
 module IDRAC
   module System
@@ -16,20 +17,22 @@ module IDRAC
             
             puts "DIMM: #{m["Model"]} #{m["Name"]} > #{m["CapacityMiB"]}MiB > #{m["Status"]["Health"]} > #{m["OperatingSpeedMhz"]}MHz > #{m["PartNumber"]} / #{m["SerialNumber"]}"
             
-            { 
-              "model" => m["Model"], 
-              "name" => m["Name"], 
-              "capacity_bytes" => m["CapacityMiB"].to_i.megabyte, 
-              "health" => m["Status"]["Health"] ? m["Status"]["Health"] : "N/A", 
-              "speed_mhz" => m["OperatingSpeedMhz"], 
-              "part_number" => m["PartNumber"], 
-              "serial" => m["SerialNumber"],
-              "bank" => bank,
-              "index" => index.to_i
+            memory_data = { 
+              model: m["Model"], 
+              name: m["Name"], 
+              capacity_bytes: m["CapacityMiB"].to_i.megabyte, 
+              health: m["Status"]["Health"] ? m["Status"]["Health"] : "N/A", 
+              speed_mhz: m["OperatingSpeedMhz"], 
+              part_number: m["PartNumber"], 
+              serial: m["SerialNumber"],
+              bank: bank,
+              index: index.to_i
             }
+            
+            RecursiveOpenStruct.new(memory_data, recurse_over_arrays: true)
           end
           
-          return memory.sort_by { |a| [a["bank"] || "Z", a["index"] || 999] }
+          return memory.sort_by { |m| [m.bank || "Z", m.index || 999] }
         rescue JSON::ParserError
           raise Error, "Failed to parse memory response: #{response.body}"
         end
@@ -49,16 +52,18 @@ module IDRAC
           
           psus = data["PowerSupplies"].map do |psu|
             puts "PSU: #{psu["Name"]} > #{psu["PowerInputWatts"]}W > #{psu["Status"]["Health"]}"
-            { 
-              "name" => psu["Name"], 
-              "voltage" => psu["LineInputVoltage"], 
-              "voltage_human" => psu["LineInputVoltageType"], # AC240V
-              "watts"  => psu["PowerInputWatts"],
-              "part"   => psu["PartNumber"],
-              "model"  => psu["Model"],
-              "serial" => psu["SerialNumber"],
-              "status" => psu["Status"]["Health"],
+            psu_data = { 
+              name: psu["Name"], 
+              voltage: psu["LineInputVoltage"], 
+              voltage_human: psu["LineInputVoltageType"], # AC240V
+              watts: psu["PowerInputWatts"],
+              part: psu["PartNumber"],
+              model: psu["Model"],
+              serial: psu["SerialNumber"],
+              status: psu["Status"]["Health"],
             }
+            
+            RecursiveOpenStruct.new(psu_data, recurse_over_arrays: true)
           end
           
           return psus
@@ -84,12 +89,14 @@ module IDRAC
             
             fans = data["Fans"].map do |fan|
               puts "Fan: #{fan["Name"]} > #{fan["Reading"]} > #{fan["Status"]["Health"]}"
-              { 
-                "name" => fan["Name"], 
-                "rpm" => fan["Reading"],
-                "serial" => fan["SerialNumber"],
-                "status" => fan["Status"]["Health"]
+              fan_data = { 
+                name: fan["Name"], 
+                rpm: fan["Reading"],
+                serial: fan["SerialNumber"],
+                status: fan["Status"]["Health"]
               }
+              
+              RecursiveOpenStruct.new(fan_data, recurse_over_arrays: true)
             end
             
             return fans
@@ -376,7 +383,7 @@ module IDRAC
 
     # Get total memory in human-readable format
     def total_memory_human(memory_data)
-      total_memory = memory_data.sum { |m| m['capacity_bytes'] }
+      total_memory = memory_data.sum { |m| m.capacity_bytes }
       "%0.2f GB" % (total_memory.to_f / 1.gigabyte)
     end
   end
