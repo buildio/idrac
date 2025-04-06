@@ -293,15 +293,15 @@ module IDRAC
     def nics_to_pci(nics, pci_devices)
       # Filter for Mellanox network controllers
       mellanox_pci = pci_devices.select do |dev| 
-        dev[:device_class] =~ /NetworkController/ && dev[:manufacturer] =~ /Mellanox/
+        dev['device_class'] =~ /NetworkController/ && dev['manufacturer'] =~ /Mellanox/
       end
       
       # Create mapping of NIC names to PCI IDs
       mapping = {}
       mellanox_pci.each do |dev|
-        if dev[:nic] && dev[:nic] =~ /.*\/([^\/\-]+-\d+)/
+        if dev['nic'] && dev['nic'] =~ /.*\/([^\/\-]+-\d+)/
           nic = $1  # e.g. NIC.Slot.1-1
-          if dev[:id] =~ /^(\d+)-\d+-\d/
+          if dev['id'] =~ /^(\d+)-\d+-\d/
             pci_bus = $1  # e.g. 59
             mapping[nic] = pci_bus
           end
@@ -332,6 +332,23 @@ module IDRAC
       return nics_with_pci
     end
 
+    # Kind of like a NIC, but serves a different purpose.
+    def idrac_interface
+      response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/iDRAC.Embedded.1%23NIC.1")
+      idrac_data = JSON.parse(response.body)
+      idrac = {
+        "name"   => idrac_data["Id"],
+        "status" => idrac_data["Status"]["Health"] == 'OK' ? 'Up' : 'Down',
+        "mac"    => idrac_data["MACAddress"],
+        "mask"   => idrac_data["IPv4Addresses"].first["SubnetMask"],
+        "ipv4"   => idrac_data["IPv4Addresses"].first["Address"],
+        "origin" => idrac_data["IPv4Addresses"].first["AddressOrigin"], # DHCP or Static
+        "port"   => nil,
+        "speed_mbps" => idrac_data["SpeedMbps"],
+        "kind"   => "ethernet"
+      }
+      RecursiveOpenStruct.new(idrac, recurse_over_arrays: true)
+    end
     # Get system identification information
     def system_info
       response = authenticated_request(:get, "/redfish/v1")

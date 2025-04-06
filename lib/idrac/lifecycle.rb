@@ -148,14 +148,21 @@ module IDRAC
     
     # Get the system event logs
     def get_system_event_logs
-      path = 'Managers/iDRAC.Embedded.1/Logs/Sel?$expand=*($levels=1)'
+      path = '/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Sel?$expand=*($levels=1)'
       
       response = authenticated_request(:get, path)
       
       if response.status == 200
         begin
-          logs_data = JSON.parse(response.body)
-          return logs_data
+          data = JSON.parse(response.body)['Members'].map do |entry|
+              { 
+                id: entry['Id'],
+                created: entry['Created'],
+                message: entry['Message'],
+                severity: entry['Severity']
+              }
+            end
+          return data # RecursiveOpenStruct.new(data, recurse_over_arrays: true)
         rescue JSON::ParserError
           raise Error, "Failed to parse system event logs response: #{response.body}"
         end
@@ -166,7 +173,7 @@ module IDRAC
     
     # Clear the system event logs
     def clear_system_event_logs!
-      path = 'Managers/iDRAC.Embedded.1/LogServices/Sel/Actions/LogService.ClearLog'
+      path = '/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Actions/LogService.ClearLog'
       
       response = authenticated_request(:post, path, body: {}.to_json, headers: { 'Content-Type' => 'application/json' })
       

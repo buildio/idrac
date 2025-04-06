@@ -581,17 +581,17 @@ module IDRAC
         puts "-" * 80
         
         controllers.each do |controller|
-          puts "Controller: #{controller[:name]}".cyan.bold
-          puts "  Model:           #{controller[:model]}"
-          puts "  Status:          #{controller[:status]}"
-          puts "  Drives:          #{controller[:drives_count]}"
-          puts "  Firmware:        #{controller[:firmware_version]}"
-          puts "  Type:            #{controller[:controller_type]}"
-          puts "  PCI Slot:        #{controller[:pci_slot]}"
+          puts "Controller: #{controller.name}".cyan.bold
+          puts "  Model:           #{controller.model}"
+          puts "  Status:          #{controller.status}"
+          puts "  Drives:          #{controller.drives_count}"
+          puts "  Firmware:        #{controller.firmware_version}"
+          puts "  Type:            #{controller.controller_type}"
+          puts "  PCI Slot:        #{controller.pci_slot}"
           
-          if controller[:encryption_capability]
-            puts "  Encryption:      #{controller[:encryption_capability]}"
-            puts "  Encryption Mode: #{controller[:encryption_mode] || 'Disabled'}"
+          if controller.encryption_capability
+            puts "  Encryption:      #{controller.encryption_capability}"
+            puts "  Encryption Mode: #{controller.encryption_mode || 'Disabled'}"
           end
           
           puts
@@ -675,7 +675,7 @@ module IDRAC
         confirmation = $stdin.gets.chomp.downcase
         
         if confirmation == 'y'
-          client.create_virtual_disk(controller.odata_Id, drives, name: options[:name], raid_type: options[:raid])
+          client.create_virtual_disk(controller.odata_id, drives, name: options[:name], raid_type: options[:raid])
           puts "Volume created successfully".green
         else
           puts "Operation cancelled".yellow

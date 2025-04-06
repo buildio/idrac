@@ -3,21 +3,16 @@ require 'colorize'
 
 module IDRAC
   module Jobs
-    # Get a list of jobs
+    # Summarize jobs
     def jobs
       response = authenticated_request(:get, '/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)')
       
       if response.status == 200
         begin
           jobs_data = JSON.parse(response.body)
-          puts "Jobs: #{jobs_data['Members'].count}"
-          if jobs_data['Members'].count > 0
-            puts "Job IDs:"
-            jobs_data["Members"].each do |job|
-              puts "  #{job['Id']}"
-            end
-          end
-          return jobs_data
+          { completed_count:  jobs_data["Members"].select { |j| j["JobState"] == "Completed" }.count,    
+            incomplete_count: jobs_data["Members"].select { |j| j["JobState"] != "Completed" }.count,
+            total_count:      jobs_data["Members"].count }
         rescue JSON::ParserError
           raise Error, "Failed to parse jobs response: #{response.body}"
         end
