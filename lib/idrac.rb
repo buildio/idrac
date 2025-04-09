@@ -8,6 +8,8 @@ require 'base64'
 require 'uri'
 require 'colorize'
 require 'recursive-open-struct'
+require 'active_support'
+require 'active_support/core_ext'
 # If dev, required debug
 require 'debug' if ENV['RUBY_ENV'] == 'development'
 
@@ -38,7 +40,6 @@ module IDRAC
 end
 
 require 'idrac/version'
-require 'idrac/core_ext'
 require 'idrac/error'
 require 'idrac/web'
 require 'idrac/firmware_catalog'

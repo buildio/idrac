@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe "Core Extensions" do
+RSpec.describe "ActiveSupport Extensions" do
   describe "Numeric Extensions" do
     describe "byte-related extensions" do
       it "provides correct byte conversions" do
@@ -27,6 +27,16 @@ RSpec.describe "Core Extensions" do
         expect(1.hour).to eq(60 * 60)
         expect(1.day).to eq(24 * 60 * 60)
         expect(1.week).to eq(7 * 24 * 60 * 60)
+      end
+      
+      it "provides time calculations with ago and from_now" do
+        # These methods should now work with ActiveSupport
+        expect(1.hour.ago).to be_a(Time)
+        expect(2.days.from_now).to be_a(Time)
+        
+        # Basic checks that these are working as expected
+        expect(1.hour.ago).to be < Time.now
+        expect(1.hour.from_now).to be > Time.now
       end
     end
   end
@@ -59,6 +69,10 @@ RSpec.describe "Core Extensions" do
 
     it "returns false for non-empty hashes" do
       expect({key: 'value'}.blank?).to be false
+    end
+    
+    it "returns true for false value (current behavior)" do
+      expect(false.blank?).to be true
     end
   end
 end 

@@ -42,6 +42,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "base64", "~> 0.1", ">= 0.1.0"
   spec.add_dependency "colorize", "~> 1.1"
   spec.add_dependency "recursive-open-struct", "~> 1.1"
+  spec.add_dependency "activesupport", ">= 6.0", "< 8.0"
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.4", ">= 2.4.0"
