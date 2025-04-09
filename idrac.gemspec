@@ -33,22 +33,22 @@ Gem::Specification.new do |spec|
   spec.executables = ["idrac"]
   spec.require_paths = ["lib"]
 
-  # Dependencies - Only specifying minimum versions
-  spec.add_dependency "httparty", ">= 0.21.0"
-  spec.add_dependency "nokogiri", ">= 1.15.0"
-  spec.add_dependency "faraday", ">= 2.7.0"
-  spec.add_dependency "faraday-multipart", ">= 1.0.0"
-  spec.add_dependency "thor", ">= 1.2.0"
-  spec.add_dependency "base64", ">= 0.1.0"
-  spec.add_dependency "colorize", ">= 1.1.0"
-  spec.add_dependency "recursive-open-struct", ">= 1.1.0"
-  spec.add_dependency "activesupport", ">= 6.0"
+  # Dependencies - Using semantic versioning recommendations
+  spec.add_dependency "httparty", "~> 0.21", ">= 0.21.0"
+  spec.add_dependency "nokogiri", "~> 1.15", ">= 1.15.0"
+  spec.add_dependency "faraday", "~> 2.7", ">= 2.7.0"
+  spec.add_dependency "faraday-multipart", "~> 1.0", ">= 1.0.0"
+  spec.add_dependency "thor", "~> 1.2", ">= 1.2.0"
+  spec.add_dependency "base64", "~> 0.1", ">= 0.1.0"
+  spec.add_dependency "colorize", "~> 1.1", ">= 1.1.0"
+  spec.add_dependency "recursive-open-struct", "~> 1.1", ">= 1.1.0"
+  spec.add_dependency "activesupport", "~> 6.0"
 
   # Development dependencies
-  spec.add_development_dependency "bundler", ">= 2.4.0"
-  spec.add_development_dependency "rake", ">= 13.0.0"
-  spec.add_development_dependency "rspec", ">= 3.12.0"
-  spec.add_development_dependency "debug", ">= 1.8.0"
+  spec.add_development_dependency "bundler", "~> 2.4", ">= 2.4.0"
+  spec.add_development_dependency "rake", "~> 13.0", ">= 13.0.0"
+  spec.add_development_dependency "rspec", "~> 3.12", ">= 3.12.0"
+  spec.add_development_dependency "debug", "~> 1.8", ">= 1.8.0"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
