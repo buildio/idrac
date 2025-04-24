@@ -7,7 +7,6 @@ require 'faraday/multipart'
 require 'base64'
 require 'uri'
 require 'colorize'
-require 'recursive-open-struct'
 require 'active_support'
 require 'active_support/core_ext'
 # If dev, required debug

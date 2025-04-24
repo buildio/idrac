@@ -41,7 +41,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "thor", "~> 1.2", ">= 1.2.0"
   spec.add_dependency "base64", "~> 0.1", ">= 0.1.0"
   spec.add_dependency "colorize", "~> 1.1", ">= 1.1.0"
-  spec.add_dependency "recursive-open-struct", "~> 1.1", ">= 1.1.0"
   spec.add_dependency "activesupport", "~> 6.0"
 
   # Development dependencies
