@@ -171,23 +171,26 @@ client.clear_lifecycle!
 # Clear System Event Logs
 client.clear_system_event_logs!
 
-# Working with RecursiveOpenStruct objects
-# Many methods return data as RecursiveOpenStruct objects for easier property access
+# Working with hash objects
+# Methods return data as Ruby hashes with string keys for consistent access
+
+# Working with system components
+# Methods return data as Ruby hashes with string keys for consistent access
 
 # Get memory information
 memory_modules = client.memory
 memory_modules.each do |dimm|
-  # Access properties directly as methods
-  puts "#{dimm.name}: #{dimm.capacity_bytes / (1024**3)}GB, Speed: #{dimm.speed_mhz}MHz"
+  # Access properties via string keys
+  puts "#{dimm["name"]}: #{dimm["capacity_bytes"] / (1024**3)}GB, Speed: #{dimm["speed_mhz"]}MHz"
 end
 
 # Get storage information
 controller = client.controller
 volumes = client.volumes(controller)
 volumes.each do |volume|
-  # Access properties via dot notation
-  puts "#{volume.name} (#{volume.raid_level}): #{volume.capacity_bytes / (1024**3)}GB"
-  puts "  Health: #{volume.health}, FastPath: #{volume.fastpath}"
+  # Access properties via string keys
+  puts "#{volume["name"]} (#{volume["raid_level"]}): #{volume["capacity_bytes"] / (1024**3)}GB"
+  puts "  Health: #{volume["health"]}, FastPath: #{volume["fastpath"]}"
 end
 
 # Create a client with auto_delete_sessions disabled
