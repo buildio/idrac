@@ -27,7 +27,7 @@ RSpec.describe IDRAC::License do
       allow(license_instance).to receive(:debug)
 
       expected_details = JSON.parse(license_details_response.body)
-      expect(license_instance.license_info).to eq(RecursiveOpenStruct.new(expected_details, recurse_over_arrays: true))
+      expect(license_instance.license_info).to eq(expected_details)
     end
   end
 
@@ -40,11 +40,9 @@ RSpec.describe IDRAC::License do
       allow(license_instance).to receive(:authenticated_request).and_return(license_details_response)
       allow(license_instance).to receive(:debug)
       
-      # Return RecursiveOpenStruct instead of Hash
+      # Return hash
       license_data = JSON.parse(license_details_response.body)
-      allow(license_instance).to receive(:license_info).and_return(
-        RecursiveOpenStruct.new(license_data, recurse_over_arrays: true)
-      )
+      allow(license_instance).to receive(:license_info).and_return(license_data)
 
       expect(license_instance.license_version).to eq(9)
     end
@@ -56,9 +54,9 @@ RSpec.describe IDRAC::License do
       allow(license_instance).to receive(:client).and_return(client)
       allow(license_instance).to receive(:debug)
       
-      # Return RecursiveOpenStruct instead of Hash
+      # Return a hash
       allow(license_instance).to receive(:license_info).and_return(
-        RecursiveOpenStruct.new({"Description" => "Some other license"}, recurse_over_arrays: true)
+        {"Description" => "Some other license"}
       )
 
       expect(license_instance.license_version).to be_nil
