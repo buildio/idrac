@@ -918,6 +918,27 @@ module IDRAC
       end
     end
 
+    desc "system_pci_devices", "Get PCI device information"
+    map "system:pci-devices" => :system_pci_devices
+    map "system:pci:devices" => :system_pci_devices
+    def system_pci_devices
+      with_idrac_client do |client|
+        pci_devices = client.pci_devices
+        
+        puts "\nPCI Devices (#{pci_devices.size}):".green.bold
+        pci_devices.each do |device|
+          puts "#{device["name"]}:".bold
+          puts "  Manufacturer: #{device["manufacturer"]}".cyan if device["manufacturer"]
+          puts "  Device Class: #{device["device_class"]}".cyan if device["device_class"]
+          puts "  Description: #{device["description"]}".cyan if device["description"]
+          puts "  ID: #{device["id"]}".cyan if device["id"]
+          puts "  Slot Type: #{device["slot_type"]}".cyan if device["slot_type"]
+          puts "  Bus Width: #{device["bus_width"]}".cyan if device["bus_width"]
+          puts ""
+        end
+      end
+    end
+
     desc "system_idrac_network", "Get iDRAC network configuration"
     map "system:idrac_network" => :system_idrac_network
     def system_idrac_network
@@ -1085,16 +1106,16 @@ module IDRAC
       with_idrac_client do |client|
         info = client.system_info
         
-        if info.is_dell
+        if info["is_dell"]
           puts "Dell iDRAC System:".green.bold
-          puts "  Service Tag: #{info.service_tag}".cyan
-          puts "  Model: #{info.model}".cyan
-          puts "  iDRAC Version: #{info.idrac_version}".cyan
-          puts "  Firmware Version: #{info.firmware_version}".cyan
+          puts "  Service Tag: #{info["service_tag"]}".cyan
+          puts "  Model: #{info["model"]}".cyan
+          puts "  iDRAC Version: #{info["idrac_version"]}".cyan
+          puts "  Firmware Version: #{info["firmware_version"]}".cyan
         else
           puts "Not a Dell iDRAC system".yellow
-          puts "  Product: #{info.product}".cyan
-          if info.is_ancient_dell
+          puts "  Product: #{info["product"]}".cyan
+          if info["is_ancient_dell"]
             puts "  Ancient Dell System detected. Update firmware.".yellow
           end
         end
