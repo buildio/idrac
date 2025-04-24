@@ -1,7 +1,7 @@
 module IDRAC
   module License
     # Gets the license information from the iDRAC
-    # @return [RecursiveOpenStruct] License details
+    # @return [Hash] License details
     def license_info
       response = authenticated_request(:get, "/redfish/v1/LicenseService/Licenses")
       if response.status != 200
@@ -32,7 +32,7 @@ module IDRAC
       license_details = JSON.parse(license_response.body)
       debug "License details: #{license_details}", 2
 
-      return RecursiveOpenStruct.new(license_details, recurse_over_arrays: true)
+      return license_details
     end
 
     # Extracts the iDRAC version from the license description
@@ -43,15 +43,15 @@ module IDRAC
 
       # Check the Description field, which often contains the version
       # Example: "iDRAC9 Enterprise License"
-      if license.Description && license.Description.match(/iDRAC(\d+)/i)
-        version = license.Description.match(/iDRAC(\d+)/i)[1].to_i
+      if license["Description"]&.match(/iDRAC(\d+)/i)
+        version = license["Description"].match(/iDRAC(\d+)/i)[1].to_i
         debug "Found license version from Description: #{version}", 1
         return version
       end
 
       # Try alternative fields if Description didn't work
-      if license.Name && license.Name.match(/iDRAC(\d+)/i)
-        version = license.Name.match(/iDRAC(\d+)/i)[1].to_i
+      if license["Name"]&.match(/iDRAC(\d+)/i)
+        version = license["Name"].match(/iDRAC(\d+)/i)[1].to_i
         debug "Found license version from Name: #{version}", 1
         return version
       end

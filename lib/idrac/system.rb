@@ -1,6 +1,5 @@
 require 'json'
 require 'colorize'
-require 'recursive-open-struct'
 
 module IDRAC
   module System
@@ -11,28 +10,25 @@ module IDRAC
       if response.status == 200
         begin
           data = JSON.parse(response.body)
+          
           memory = data["Members"].map do |m|
             dimm_name = m["Name"] # e.g. DIMM A1
-            bank, index = /DIMM ([A-Z])(\d+)/.match(dimm_name).captures rescue [nil, nil]
+            bank, index = /DIMM ([A-Z])(\d+)/.match(dimm_name).captures
             
-            puts "DIMM: #{m["Model"]} #{m["Name"]} > #{m["CapacityMiB"]}MiB > #{m["Status"]["Health"]} > #{m["OperatingSpeedMhz"]}MHz > #{m["PartNumber"]} / #{m["SerialNumber"]}"
-            
-            memory_data = { 
-              model: m["Model"], 
-              name: m["Name"], 
-              capacity_bytes: m["CapacityMiB"].to_i.megabyte, 
-              health: m["Status"]["Health"] ? m["Status"]["Health"] : "N/A", 
-              speed_mhz: m["OperatingSpeedMhz"], 
-              part_number: m["PartNumber"], 
-              serial: m["SerialNumber"],
-              bank: bank,
-              index: index.to_i
+            {
+              "model" => m["Model"], 
+              "name" => m["Name"], 
+              "capacity_bytes" => m["CapacityMiB"].to_i * 1024 * 1024, 
+              "health" => m.dig("Status","Health") || "N/A", 
+              "speed_mhz" => m["OperatingSpeedMhz"], 
+              "part_number" => m["PartNumber"], 
+              "serial" => m["SerialNumber"],
+              "bank" => bank,
+              "index" => index.to_i
             }
-            
-            RecursiveOpenStruct.new(memory_data, recurse_over_arrays: true)
           end
           
-          return memory.sort_by { |m| [m.bank || "Z", m.index || 999] }
+          return memory.sort_by { |m| [m["bank"] || "Z", m["index"] || 999] }
         rescue JSON::ParserError
           raise Error, "Failed to parse memory response: #{response.body}"
         end
@@ -51,19 +47,17 @@ module IDRAC
           puts "Power Supplies".green
           
           psus = data["PowerSupplies"].map do |psu|
-            puts "PSU: #{psu["Name"]} > #{psu["PowerInputWatts"]}W > #{psu["Status"]["Health"]}"
-            psu_data = { 
-              name: psu["Name"], 
-              voltage: psu["LineInputVoltage"], 
-              voltage_human: psu["LineInputVoltageType"], # AC240V
-              watts: psu["PowerInputWatts"],
-              part: psu["PartNumber"],
-              model: psu["Model"],
-              serial: psu["SerialNumber"],
-              status: psu["Status"]["Health"],
+            puts "PSU: #{psu["Name"]} > #{psu["PowerInputWatts"]}W > #{psu.dig("Status", "Health")}"
+            {
+              "name" => psu["Name"], 
+              "voltage" => psu["LineInputVoltage"], 
+              "voltage_human" => psu["LineInputVoltageType"], # AC240V
+              "watts" => psu["PowerInputWatts"],
+              "part" => psu["PartNumber"],
+              "model" => psu["Model"],
+              "serial" => psu["SerialNumber"],
+              "status" => psu.dig("Status", "Health")
             }
-            
-            RecursiveOpenStruct.new(psu_data, recurse_over_arrays: true)
           end
           
           return psus
@@ -88,15 +82,13 @@ module IDRAC
             data = JSON.parse(response.body)
             
             fans = data["Fans"].map do |fan|
-              puts "Fan: #{fan["Name"]} > #{fan["Reading"]} > #{fan["Status"]["Health"]}"
-              fan_data = { 
-                name: fan["Name"], 
-                rpm: fan["Reading"],
-                serial: fan["SerialNumber"],
-                status: fan["Status"]["Health"]
+              puts "Fan: #{fan["Name"]} > #{fan["Reading"]} > #{fan.dig("Status", "Health")}"
+              {
+                "name" => fan["Name"], 
+                "rpm" => fan["Reading"],
+                "serial" => fan["SerialNumber"],
+                "status" => fan.dig("Status", "Health")
               }
-              
-              RecursiveOpenStruct.new(fan_data, recurse_over_arrays: true)
             end
             
             return fans
@@ -222,7 +214,7 @@ module IDRAC
           
           idrac = {
             "name" => data["Id"],
-            "status" => data["Status"]["Health"] == 'OK' ? 'Up' : 'Down',
+            "status" => data.dig("Status", "Health") == 'OK' ? 'Up' : 'Down',
             "mac" => data["MACAddress"],
             "mask" => data["IPv4Addresses"].first["SubnetMask"],
             "ipv4" => data["IPv4Addresses"].first["Address"],
@@ -336,9 +328,9 @@ module IDRAC
     def idrac_interface
       response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/iDRAC.Embedded.1%23NIC.1")
       idrac_data = JSON.parse(response.body)
-      idrac = {
+      {
         "name"   => idrac_data["Id"],
-        "status" => idrac_data["Status"]["Health"] == 'OK' ? 'Up' : 'Down',
+        "status" => idrac_data.dig("Status", "Health") == 'OK' ? 'Up' : 'Down',
         "mac"    => idrac_data["MACAddress"],
         "mask"   => idrac_data["IPv4Addresses"].first["SubnetMask"],
         "ipv4"   => idrac_data["IPv4Addresses"].first["Address"],
@@ -347,7 +339,6 @@ module IDRAC
         "speed_mbps" => idrac_data["SpeedMbps"],
         "kind"   => "ethernet"
       }
-      RecursiveOpenStruct.new(idrac, recurse_over_arrays: true)
     end
     # Get system identification information
     def system_info
@@ -359,42 +350,42 @@ module IDRAC
           
           # Initialize return hash with defaults
           info = {
-            is_dell: false,
-            is_ancient_dell: false,
-            product: data["Product"] || "Unknown",
-            service_tag: nil,
-            model: nil,
-            idrac_version: data["RedfishVersion"],
-            firmware_version: nil
+            "is_dell" => false,
+            "is_ancient_dell" => false,
+            "product" => data["Product"] || "Unknown",
+            "service_tag" => nil,
+            "model" => nil,
+            "idrac_version" => data["RedfishVersion"],
+            "firmware_version" => nil
           }
           
           # Check if it's a Dell iDRAC
           if data["Product"] == "Integrated Dell Remote Access Controller"
-            info[:is_dell] = true
+            info["is_dell"] = true
             
             # Get service tag from Dell OEM data
-            info[:service_tag] = data.dig("Oem", "Dell", "ServiceTag")
+            info["service_tag"] = data.dig("Oem", "Dell", "ServiceTag")
             
             # Get firmware version - try both common locations
-            info[:firmware_version] = data["FirmwareVersion"] || data.dig("Oem", "Dell", "FirmwareVersion")
+            info["firmware_version"] = data["FirmwareVersion"] || data.dig("Oem", "Dell", "FirmwareVersion")
             
             # Get additional system information
             system_response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
             if system_response.status == 200
               system_data = JSON.parse(system_response.body)
-              info[:model] = system_data["Model"]
+              info["model"] = system_data["Model"]
             end
           
-            return RecursiveOpenStruct.new(info, recurse_over_arrays: true)
+            return info
           else
             # Try to handle ancient Dell models where Product is null or non-standard
             if data["Product"].nil? || data.dig("Oem", "Dell")
-              info[:is_ancient_dell] = true
-              return RecursiveOpenStruct.new(info, recurse_over_arrays: true)
+              info["is_ancient_dell"] = true
+              return info
             end
           end
           
-          return RecursiveOpenStruct.new(info, recurse_over_arrays: true)
+          return info
         rescue JSON::ParserError
           raise Error, "Failed to parse system information: #{response.body}"
         end
@@ -412,14 +403,14 @@ module IDRAC
           data = JSON.parse(response.body)
           
           summary = {
-            count: data.dig("ProcessorSummary", "Count"),
-            model: data.dig("ProcessorSummary", "Model"),
-            cores: data.dig("ProcessorSummary", "CoreCount"),
-            threads: data.dig("ProcessorSummary", "LogicalProcessorCount"),
-            status: data.dig("ProcessorSummary", "Status", "Health")
+            "count" => data.dig("ProcessorSummary", "Count"),
+            "model" => data.dig("ProcessorSummary", "Model"),
+            "cores" => data.dig("ProcessorSummary", "CoreCount"),
+            "threads" => data.dig("ProcessorSummary", "LogicalProcessorCount"),
+            "status" => data.dig("ProcessorSummary", "Status", "Health")
           }
           
-          return RecursiveOpenStruct.new(summary, recurse_over_arrays: true)
+          return summary
         rescue JSON::ParserError
           raise Error, "Failed to parse processor information: #{response.body}"
         end
@@ -437,14 +428,14 @@ module IDRAC
           data = JSON.parse(response.body)
           
           health = {
-            overall: data.dig("Status", "HealthRollup"),
-            system: data.dig("Status", "Health"),
-            processor: data.dig("ProcessorSummary", "Status", "Health"),
-            memory: data.dig("MemorySummary", "Status", "Health"),
-            storage: data.dig("Storage", "Status", "Health")
+            "overall" => data.dig("Status", "HealthRollup"),
+            "system" => data.dig("Status", "Health"),
+            "processor" => data.dig("ProcessorSummary", "Status", "Health"),
+            "memory" => data.dig("MemorySummary", "Status", "Health"),
+            "storage" => data.dig("Storage", "Status", "Health")
           }
           
-          return RecursiveOpenStruct.new(health, recurse_over_arrays: true)
+          return health
         rescue JSON::ParserError
           raise Error, "Failed to parse system health information: #{response.body}"
         end
