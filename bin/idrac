@@ -437,8 +437,8 @@ module IDRAC
         
         # Storage
         { name: "Storage Controller", method: -> (c) { c.controller } },
-        { name: "Physical Drives", method: -> (c) { controller = c.controller; c.drives(controller) } },
-        { name: "Virtual Disks", method: -> (c) { controller = c.controller; c.volumes(controller) } },
+        { name: "Physical Drives", method: -> (c) { controller = c.controller; c.drives(controller["@odata.id"]) } },
+        { name: "Virtual Disks", method: -> (c) { controller = c.controller; c.volumes(controller["@odata.id"]) } },
         
         # System components
         { name: "Memory Info", method: -> (c) { c.memory } },
@@ -553,14 +553,29 @@ module IDRAC
     # Storage commands
     desc "storage_controller", "Get storage controller information"
     map "storage:controller" => :storage_controller
+    method_option :name_pattern, type: :string, desc: "Filter controllers by name pattern (defaults to PERC)"
+    method_option :prefer_most_drives_by_count, type: :boolean, default: false, desc: "Prefer controller with the most drives"
+    method_option :prefer_most_drives_by_size, type: :boolean, default: false, desc: "Prefer controller with the largest total drive capacity"
     def storage_controller
       with_idrac_client do |client|
-        controller = client.controller
+        find_controller_args = {}
+        find_controller_args[:name_pattern] = options[:name_pattern] if options[:name_pattern]
+        find_controller_args[:prefer_most_drives_by_count] = options[:prefer_most_drives_by_count]
+        find_controller_args[:prefer_most_drives_by_size] = options[:prefer_most_drives_by_size]
+        
+        controller = client.find_controller(**find_controller_args)
+        
+        if !controller
+          puts "No storage controllers found".red
+          return
+        end
+        
         puts "\nStorage Controller Summary:".green.bold
-        puts "Name: #{controller.name}".cyan
-        puts "Model: #{controller.model}".cyan
-        puts "Health: #{controller.status&.health || 'Unknown'}".cyan
-        puts "Manufacturer: #{controller.manufacturer}".cyan
+        puts "Name: #{controller["name"]}".cyan
+        puts "Model: #{controller["model"]}".cyan
+        puts "Health: #{controller["status"] || 'Unknown'}".cyan
+        puts "Manufacturer: #{controller["manufacturer"]}".cyan
+        puts "Drives: #{controller["drives_count"]}".cyan
         
         if client.controller_encryption_capable?(controller)
           puts "Encryption Capable: Yes".green
@@ -581,17 +596,17 @@ module IDRAC
         puts "-" * 80
         
         controllers.each do |controller|
-          puts "Controller: #{controller.name}".cyan.bold
-          puts "  Model:           #{controller.model}"
-          puts "  Status:          #{controller.status}"
-          puts "  Drives:          #{controller.drives_count}"
-          puts "  Firmware:        #{controller.firmware_version}"
-          puts "  Type:            #{controller.controller_type}"
-          puts "  PCI Slot:        #{controller.pci_slot}"
+          puts "Controller: #{controller["name"]}".cyan.bold
+          puts "  Model:           #{controller["model"]}"
+          puts "  Status:          #{controller["status"]}"
+          puts "  Drives:          #{controller["drives_count"]}"
+          puts "  Firmware:        #{controller["firmware_version"]}"
+          puts "  Type:            #{controller["controller_type"]}"
+          puts "  PCI Slot:        #{controller["pci_slot"]}"
           
-          if controller.encryption_capability
-            puts "  Encryption:      #{controller.encryption_capability}"
-            puts "  Encryption Mode: #{controller.encryption_mode || 'Disabled'}"
+          if controller["encryption_capability"]
+            puts "  Encryption:      #{controller["encryption_capability"]}"
+            puts "  Encryption Mode: #{controller["encryption_mode"] || 'Disabled'}"
           end
           
           puts
@@ -601,26 +616,43 @@ module IDRAC
       end
     end
 
-    desc "storage_drives", "Get physical drive information"
+    desc "storage_drives", "Get physical drive information across all controllers"
     map "storage:drives" => :storage_drives
+    method_option :name_pattern, type: :string, desc: "Filter controllers by name pattern (defaults to PERC)"
+    method_option :prefer_most_drives_by_count, type: :boolean, default: false, desc: "Prefer controller with more drives"
+    method_option :prefer_most_drives_by_size, type: :boolean, default: false, desc: "Prefer controller with the largest total drive capacity"
     def storage_drives
       with_idrac_client do |client|
-        controller = client.controller
-        drives = client.drives(controller)
+        find_controller_args = {}
+        find_controller_args[:name_pattern] = options[:name_pattern] if options[:name_pattern]
+        find_controller_args[:prefer_most_drives_by_count] = options[:prefer_most_drives_by_count]
+        find_controller_args[:prefer_most_drives_by_size] = options[:prefer_most_drives_by_size]
+        
+        controller = client.find_controller(**find_controller_args)
+        
+        if !controller
+          puts "No storage controllers found".red
+          return
+        end
+        
+        drives = client.drives(controller["@odata.id"])
         
         puts "\nPhysical Drives (#{drives.size}):".green.bold
         drives.each do |drive|
-          capacity_gb = drive.capacity_bytes.to_f / (1024**3)
-          health_color = drive.health == "OK" ? :green : :red
+          capacity_gb = drive["capacity_bytes"].to_f / (1024**3)
+          health_color = drive["health"] == "OK" ? :green : :red
           
-          puts "#{drive.name}:".bold
-          puts "  Model: #{drive.model}".cyan
-          puts "  Health: #{drive.health.send(health_color)}"
+          puts "#{drive["name"]}:".bold
+          puts "  Model: #{drive["model"]}".cyan
+          puts "  Health: #{drive["health"].send(health_color)}"
           puts "  Capacity: #{capacity_gb.round(2)} GB".cyan
-          puts "  Media Type: #{drive.media_type}".cyan
-          puts "  Serial: #{drive.serial}".cyan
-          if drive.encryption_ability
-            puts "  Encryption: #{drive.encryption_ability}".cyan
+          puts "  Media Type: #{drive["media_type"]}".cyan
+          if drive["life_left_percent"]
+            puts "  Life Left: #{drive["life_left_percent"]}%".cyan
+          end
+          puts "  Serial: #{drive["serial"]}".cyan
+          if drive["encryption_ability"]
+            puts "  Encryption: #{drive["encryption_ability"]}".cyan
           end
           puts ""
         end
@@ -629,53 +661,85 @@ module IDRAC
 
     desc "storage_volumes", "Get virtual disk information"
     map "storage:volumes" => :storage_volumes
+    method_option :name_pattern, type: :string, desc: "Filter controllers by name pattern (defaults to PERC)"
+    method_option :prefer_most_drives_by_count, type: :boolean, default: false, desc: "Prefer controller with the most drives"
+    method_option :prefer_most_drives_by_size, type: :boolean, default: false, desc: "Prefer controller with the largest total drive capacity"
     def storage_volumes
       with_idrac_client do |client|
-        controller = client.controller
-        volumes = client.volumes(controller)
+        find_controller_args = {}
+        find_controller_args[:name_pattern] = options[:name_pattern] if options[:name_pattern]
+        find_controller_args[:prefer_most_drives_by_count] = options[:prefer_most_drives_by_count]
+        find_controller_args[:prefer_most_drives_by_size] = options[:prefer_most_drives_by_size]
+        
+        controller = client.find_controller(**find_controller_args)
+        
+        if !controller
+          puts "No storage controllers found".red
+          return
+        end
+        
+        volumes = client.volumes(controller["@odata.id"])
         
         puts "\nVirtual Disks (#{volumes.size}):".green.bold
         volumes.each do |volume|
-          capacity_gb = volume.capacity_bytes.to_f / (1024**3)
-          health_color = volume.health == "OK" ? :green : :yellow
+          capacity_gb = volume["capacity_bytes"].to_f / (1024**3)
+          health_color = volume["health"] == "OK" ? :green : :yellow
           
-          puts "#{volume.name}:".bold
-          puts "  RAID Type: #{volume.raid_level || volume.volume_type}".cyan
-          puts "  Health: #{volume.health.send(health_color)}"
+          puts "#{volume["name"]}:".bold
+          puts "  RAID Type: #{volume["raid_level"] || volume["volume_type"]}".cyan
+          puts "  Health: #{volume["health"].send(health_color)}"
           puts "  Capacity: #{capacity_gb.round(2)} GB".cyan
-          puts "  Stripe Size: #{volume.stripe_size}".cyan
-          puts "  Read Cache: #{volume.read_cache_policy}".cyan
-          puts "  Write Cache: #{volume.write_cache_policy}".cyan
-          puts "  FastPath: #{volume.fastpath == 'enabled' ? 'Enabled'.green : 'Disabled'.yellow}"
-          puts "  Encrypted: #{volume.encrypted ? 'Yes'.green : 'No'.yellow}" if volume.encrypted != nil
+          puts "  Stripe Size: #{volume["stripe_size"]}".cyan
+          puts "  Read Cache: #{volume["read_cache_policy"]}".cyan
+          puts "  Write Cache: #{volume["write_cache_policy"]}".cyan
+          puts "  FastPath: #{volume["fastpath"] == 'enabled' ? 'Enabled'.green : 'Disabled'.yellow}"
+          puts "  Encrypted: #{volume["encrypted"] ? 'Yes'.green : 'No'.yellow}" if volume["encrypted"] != nil
           
-          if volume.progress
-            puts "  Progress: #{volume.progress}%".cyan
-            puts "  Operation: #{volume.message}".cyan
+          if volume["progress"]
+            puts "  Progress: #{volume["progress"]}%".cyan
+            puts "  Operation: #{volume["message"]}".cyan
           end
           puts ""
         end
       end
     end
 
-    desc "storage_create_volume", "Create a new virtual disk"
+    desc "storage_create_volume", "Create a new virtual disk, requires a controller"
     map "storage:create_volume" => :storage_create_volume
+    map "storage:create:volume" => :storage_create_volume
     method_option :name, type: :string, default: "vssd0", desc: "Volume name"
     method_option :raid, type: :string, default: "RAID5", desc: "RAID type (RAID0, RAID1, RAID5, RAID6, RAID10)"
+    method_option :y, type: :boolean, default: false, desc: "Automatically confirm operation without prompting"
+    # TODO: Require a controller
     def storage_create_volume
       with_idrac_client do |client|
-        controller = client.controller
-        drives = client.drives(controller)
+        # Use find_controller instead of controller
+        controller = client.find_controller
         
-        # Confirm with the user before proceeding
+        if !controller
+          puts "No storage controllers found".red
+          return
+        end
+        
+        # Print system identification information
+        print_system_identification(client, "storage")
+        
+        drives = client.drives(controller["@odata.id"])
+        
+        # Confirm with the user before proceeding, unless -y is specified
         puts "This will create a new #{options[:raid]} volume named '#{options[:name]}' using #{drives.size} drives.".yellow
         puts "All data on these drives will be lost!".red.bold
         
-        print "Do you want to continue? (y/n): "
-        confirmation = $stdin.gets.chomp.downcase
+        if options[:y]
+          puts "Automatically confirming operation (-y flag provided)".yellow
+          confirmation = 'y'
+        else
+          print "Do you want to continue? (y/n): "
+          confirmation = $stdin.gets.chomp.downcase
+        end
         
         if confirmation == 'y'
-          client.create_virtual_disk(controller.odata_id, drives, name: options[:name], raid_type: options[:raid])
+          client.create_virtual_disk(controller_id: controller["@odata.id"], drives: drives, name: options[:name], raid_type: options[:raid])
           puts "Volume created successfully".green
         else
           puts "Operation cancelled".yellow
@@ -685,45 +749,52 @@ module IDRAC
 
     desc "storage_delete_volume", "Delete a virtual disk"
     map "storage:delete_volume" => :storage_delete_volume
+    method_option :y, type: :boolean, default: false, desc: "Automatically confirm operation without prompting"
     def storage_delete_volume
       with_idrac_client do |client|
-        controller = client.controller
-        volumes = client.volumes(controller)
+        # Use find_controller instead of controller
+        controller = client.find_controller
+        
+        if !controller
+          puts "No storage controllers found".red
+          return
+        end
+        
+        # Print system identification information
+        print_system_identification(client, "storage")
+        
+        volumes = client.volumes(controller["@odata.id"])
         
         if volumes.empty?
-          puts "No volumes found to delete".yellow
+          puts "No volumes found".red
           return
         end
         
-        puts "Available volumes:".green
-        volumes.each_with_index do |vol, idx|
-          puts "#{idx+1}. #{vol.name} (#{vol.raid_level || vol.volume_type}, #{(vol.capacity_bytes.to_f / (1024**3)).round(2)} GB)"
-        end
+        volume_to_delete = volumes.find { |v| v["Id"] == options[:id] }
         
-        print "Enter the number of the volume to delete (or 'q' to quit): "
-        input = $stdin.gets.chomp
-        
-        if input.downcase == 'q'
-          puts "Operation cancelled".yellow
+        if volume_to_delete.nil?
+          volume_ids = volumes.map { |v| v["Id"] }.join(", ")
+          puts "Volume with ID #{options[:id]} not found".red
+          puts "Available volume IDs: #{volume_ids}".yellow
           return
         end
         
-        index = input.to_i - 1
-        if index >= 0 && index < volumes.size
-          volume = volumes[index]
-          
-          puts "You are about to delete '#{volume.name}'. All data will be lost!".red.bold
-          print "Type the volume name to confirm deletion: "
-          confirm = $stdin.gets.chomp
-          
-          if confirm == volume[:name]
-            client.delete_volume(volume.data_id)
-            puts "Volume deleted successfully".green
-          else
-            puts "Volume name did not match. Operation cancelled".yellow
-          end
+        puts "This will delete volume '#{volume_to_delete["Name"]}' (ID: #{volume_to_delete["Id"]})".yellow
+        puts "All data on this volume will be lost!".red.bold
+        
+        if options[:y]
+          puts "Automatically confirming operation (-y flag provided)".yellow
+          confirmation = 'y'
         else
-          puts "Invalid selection".red
+          print "Do you want to continue? (y/n): "
+          confirmation = $stdin.gets.chomp.downcase
+        end
+        
+        if confirmation == 'y'
+          client.delete_virtual_disk(volume_to_delete["@odata.id"])
+          puts "Volume deleted successfully".green
+        else
+          puts "Operation cancelled".yellow
         end
       end
     end
@@ -732,10 +803,19 @@ module IDRAC
     map "storage:encryption_enable" => :storage_encryption_enable
     method_option :passphrase, type: :string, desc: "Encryption passphrase"
     method_option :keyid, type: :string, desc: "Key identifier"
+    method_option :y, type: :boolean, default: false, desc: "Automatically confirm operation without prompting"
     def storage_encryption_enable
       with_idrac_client do |client|
-        controller = client.controller
-        drives = client.drives(controller)
+        controller = client.find_controller
+        
+        if !controller
+          puts "No storage controllers found".red
+          return
+        end
+        
+        print_system_identification(client, "storage encryption")
+        
+        drives = client.drives(controller["@odata.id"])
         
         if !client.controller_encryption_capable?(controller)
           puts "This controller does not support encryption".red
@@ -755,6 +835,10 @@ module IDRAC
         # Get passphrase if not provided
         passphrase = options[:passphrase]
         if passphrase.nil?
+          if options[:y]
+            puts "Error: With -y flag, you must provide a passphrase with --passphrase".red
+            return
+          end
           print "Enter encryption passphrase (min 8 characters): "
           passphrase = $stdin.noecho(&:gets).chomp
           puts
@@ -763,16 +847,38 @@ module IDRAC
         # Get keyid if not provided
         keyid = options[:keyid] || "RAID-Key-#{Time.now.strftime('%Y%m%d')}"
         
-        client.enable_local_key_management(controller.odata_id, passphrase: passphrase, keyid: keyid)
+        if options[:y]
+          puts "Automatically confirming operation (-y flag provided)".yellow
+        else
+          puts "About to enable encryption using key ID: #{keyid}".yellow
+          print "Do you want to continue? (y/n): "
+          confirmation = $stdin.gets.chomp.downcase
+          if confirmation != 'y'
+            puts "Operation cancelled".yellow
+            return
+          end
+        end
+        
+        client.enable_local_key_management(controller_id: controller["@odata.id"], passphrase: passphrase, key_id: keyid)
         puts "Encryption enabled successfully".green
       end
     end
 
     desc "storage_encryption_disable", "Disable Self-Encrypting Drive (SED) support"
     map "storage:encryption_disable" => :storage_encryption_disable
+    method_option :y, type: :boolean, default: false, desc: "Automatically confirm operation without prompting"
     def storage_encryption_disable
       with_idrac_client do |client|
-        controller = client.controller
+        controller = client.find_controller
+        
+        if !controller
+          puts "No storage controllers found".red
+          return
+        end
+        
+        print_system_identification(client, "storage encryption")
+        
+        drives = client.drives(controller["@odata.id"])
         
         if !client.controller_encryption_enabled?(controller)
           puts "Encryption is not enabled on this controller".yellow
@@ -780,11 +886,17 @@ module IDRAC
         end
         
         puts "WARNING: Disabling encryption may prevent access to encrypted data!".red.bold
-        print "Type 'DISABLE' to confirm: "
-        confirmation = $stdin.gets.chomp
+        
+        if options[:y]
+          puts "Automatically confirming operation (-y flag provided)".yellow
+          confirmation = 'DISABLE'
+        else
+          print "Type 'DISABLE' to confirm: "
+          confirmation = $stdin.gets.chomp
+        end
         
         if confirmation == 'DISABLE'
-          client.disable_local_key_management(controller.odata_id)
+          client.disable_local_key_management(controller["@odata.id"])
           puts "Encryption disabled successfully".green
         else
           puts "Operation cancelled".yellow
@@ -1085,10 +1197,66 @@ module IDRAC
 
     desc "boot_power_optimization", "Configure BIOS for OS-controlled power management"
     map "boot:power_optimization" => :boot_power_optimization
+    map "boot:power:optimization" => :boot_power_optimization
     def boot_power_optimization
       with_idrac_client do |client|
         client.set_bios_os_power_control
         puts "BIOS configured for OS power management optimization".green
+      end
+    end
+
+    desc "boot_disable_option", "Disable a specific boot option (e.g., NIC.PxeDevice.1-1)"
+    map "boot:disable_option" => :boot_disable_option
+    map "boot:disable:option" => :boot_disable_option
+    method_option :name, type: :string, required: true, desc: "Name of the boot option to disable"
+    def boot_disable_option
+      with_idrac_client do |client|
+        client.disable_boot_option(options[:name])
+      end
+    end
+
+    desc "boot_set_order", "Set boot order to include only specified devices (excluding others)"
+    map "boot:set_order" => :boot_set_order
+    def boot_set_order
+      with_idrac_client do |client|
+        boot_options = client.get_bios_boot_options
+        return unless boot_options
+        
+        # Select just the RAID device, excluding PXE and other devices
+        raid_device = boot_options[:boot_options].find { |option| option.include?("RAID") }
+        
+        if raid_device
+          puts "Setting boot order to only include #{raid_device}".green
+          
+          # Create a simplistic payload that includes only the RAID device
+          # This will effectively disable all other boot options
+          scp = {
+            "SystemConfiguration": {
+              "Components": [
+                {
+                  "FQDD": "BIOS.Setup.1-1",
+                  "Attributes": [
+                    {
+                      "Name": "SetBootOrderEn",
+                      "Value": raid_device,
+                      "Set On Import": "True"
+                    },
+                    {
+                      "Name": "UefiBootSeq",
+                      "Value": raid_device,
+                      "Set On Import": "True"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          
+          client.import_system_configuration(scp)
+          puts "Boot order configured. System reboot required for changes to take effect.".green
+        else
+          puts "No RAID device found in boot options".red
+        end
       end
     end
 
@@ -1282,13 +1450,13 @@ module IDRAC
           # Storage tests
           puts "\n[TEST] Storage management".cyan.bold
           begin
-            controller = client.controller
-            puts "✓ Storage controller: #{controller.name} (#{controller.model})".green
+            controller = client.find_controller
+            puts "✓ Storage controller: #{controller["name"]} (#{controller["model"]})".green
             
-            drives = client.drives(controller)
+            drives = client.drives(controller["@odata.id"])
             puts "✓ Found #{drives.size} physical drives".green
             
-            volumes = client.volumes(controller)
+            volumes = client.volumes(controller["@odata.id"])
             puts "✓ Found #{volumes.size} virtual disks".green
             test_results["storage"] = { status: "PASS", message: "Retrieved storage information successfully" }
           rescue => e
@@ -1424,6 +1592,50 @@ module IDRAC
       end
     end
     
+    desc "storage_raid_status", "Get storage RAID status"
+    map "storage:raid_status" => :storage_raid_status
+    def storage_raid_status
+      with_idrac_client do |client|
+        # Print system identification information
+        print_system_identification(client, "storage", false)
+        
+        controller = client.find_controller
+        
+        if !controller
+          puts "No storage controllers found".red
+          return
+        end
+        
+        puts "Storage Controller: #{controller["Name"]} (#{controller["Model"]})".green
+        
+        # Disks
+        disks = client.drives(controller["@odata.id"])
+        
+        puts "\nPhysical Disks (#{disks.size}):"
+        if disks.empty?
+          puts "  No physical disks found".yellow
+        else
+          disks.each do |disk|
+            status_color = disk["MediaType"] == "SSD" ? :green : :blue
+            capacity = disk["CapacityBytes"] ? "#{disk["CapacityBytes"] / (1024**3)} GB" : "Unknown"
+            puts "  #{disk["Id"] || disk["name"] || "Unknown"}: #{disk["Name"] || disk["name"] || "Unknown"} (#{disk["MediaType"] || "Unknown"}, #{capacity})".send(status_color)
+          end
+        end
+        
+        # Volumes
+        volumes = client.volumes(controller["@odata.id"])
+        
+        puts "\nVirtual Disks (#{volumes.size}):"
+        if volumes.empty?
+          puts "  No virtual disks found".yellow
+        else
+          volumes.each do |vol|
+            puts "  #{vol["Id"]}: #{vol["Name"]} (#{vol["RAIDType"]}, #{vol["CapacityBytes"] / (1024**3)} GB)".green
+          end
+        end
+      end
+    end
+    
     private
 
     def with_idrac_client
@@ -1483,6 +1695,51 @@ module IDRAC
         retry_count: options[:retries],
         retry_delay: options[:retry_delay]
       )
+    end
+    
+    # Get system identification information (service tag, model, iDRAC IP)
+    # @param client [IDRAC::Client] The iDRAC client
+    # @return [Hash] System identification information
+    def get_system_identification(client)
+      # Get system information
+      system_info = client.get_basic_system_info rescue { model: "Unknown Model", sku: "Unknown" }
+      
+      # Get iDRAC network info
+      begin
+        idrac_net = client.idrac_network
+        idrac_ip = idrac_net["ipv4"]
+      rescue
+        idrac_ip = "Unknown IP"
+      end
+      
+      {
+        service_tag: system_info[:sku],
+        model: system_info[:model],
+        idrac_ip: idrac_ip
+      }
+    end
+    
+    # Print system identification information
+    # @param client [IDRAC::Client] The iDRAC client
+    # @param component_type [String] The type of operation (e.g., "storage", "encryption")
+    # @param require_confirmation [Boolean] Whether to require confirmation
+    # @return [Hash] System identification information
+    def print_system_identification(client, component_type, require_confirmation = true)
+      system_id = get_system_identification(client)
+      
+      # Display system context
+      puts "\nWARNING: About to modify #{component_type} on:".red.bold
+      puts "  Service Tag: #{system_id[:service_tag]}".yellow
+      puts "  Dell Model:  #{system_id[:model]}".yellow
+      puts "  iDRAC IP:    #{system_id[:idrac_ip]}".yellow
+      puts
+      
+      # Require confirmation if needed
+      if require_confirmation && !options[:y]
+        exit unless yes?("Continue? (y/n) ")
+      end
+      
+      system_id
     end
   end
 end

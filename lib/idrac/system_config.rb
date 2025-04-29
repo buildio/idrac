@@ -3,6 +3,85 @@ require 'colorize'
 
 module IDRAC
   module SystemConfig
+    # This assigns the iDRAC IP to be a STATIC IP.
+    def set_idrac_ip(new_ip:, new_gw:, new_nm:, vnc_password: "calvin")
+      scp = get_system_configuration_profile(target: "iDRAC")
+      pp scp
+      ## We want to access the iDRAC web server even when IPs don't match (and they won't when we port forward local host):
+      set_scp_attribute(scp, "WebServer.1#HostHeaderCheck", "Disabled")
+      ## We want VirtualMedia to be enabled so we can mount ISOs: set_scp_attribute(scp, "VirtualMedia.1#Enable", "Enabled")
+      set_scp_attribute(scp, "VirtualMedia.1#EncryptEnable", "Disabled")
+      ## We want to access VNC Server on 5901 for screenshots and without SSL:
+      set_scp_attribute(scp, "VNCServer.1#Enable", "Enabled")
+      set_scp_attribute(scp, "VNCServer.1#Port", "5901")
+      set_scp_attribute(scp, "VNCServer.1#SSLEncryptionBitLength", "Disabled")
+      # And password calvin
+      set_scp_attribute(scp, "VNCServer.1#Password", vnc_password)
+      # Disable DHCP on management NIC
+      set_scp_attribute(scp, "IPv4.1#DHCPEnable", "Disabled")
+      if drac_license_version.to_i == 8
+        # We want to use HTML for the virtual console
+        set_scp_attribute(scp, "VirtualConsole.1#PluginType", "HTML5")
+        # We want static IP for the iDRAC
+        set_scp_attribute(scp, "IPv4.1#Address", new_ip)
+        set_scp_attribute(scp, "IPv4.1#Gateway", new_gw)
+        set_scp_attribute(scp, "IPv4.1#Netmask", new_nm)
+      elsif drac_license_version.to_i == 9
+        # We want static IP for the iDRAC
+        set_scp_attribute(scp, "IPv4Static.1#Address", new_ip)
+        set_scp_attribute(scp, "IPv4Static.1#Gateway", new_gw)
+        set_scp_attribute(scp, "IPv4Static.1#Netmask", new_nm)
+        # {"Name"=>"SerialCapture.1#Enable", "Value"=>"Disabled", "Set On Import"=>"True", "Comment"=>"Read and Write"},
+      else
+        raise "Unknown iDRAC version"
+      end
+      while true
+        res = self.post(path: "Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration", params: {"ImportBuffer": scp.to_json, "ShareParameters": {"Target": "iDRAC"}})
+        # A successful JOB will have a location header with a job id.
+        # We can get a busy message instead if we've sent too many iDRAC jobs back-to-back, so we check for that here.
+        if res[:headers]["location"].present?
+          # We have a job id, so we're good to go.
+          break
+        else
+          # Depending on iDRAC version content-length may be present or not.
+          # res[:headers]["content-length"].blank?
+          msg = res['body']['error']['@Message.ExtendedInfo'].first['Message']
+          details = res['body']['error']['@Message.ExtendedInfo'].first['Resolution']
+          # msg     => "A job operation is already running. Retry the operation after the existing job is completed."
+          # details => "Wait until the running job is completed or delete the scheduled job and retry the operation."
+          if details =~ /Wait until the running job is completed/
+            sleep 10
+          else
+            Rails.logger.warn msg+details
+            raise "failed configuring static ip, message: #{msg}, details: #{details}"
+          end
+        end
+      end
+      job_id = res[:headers]["location"].split("/").last
+      sleep 3
+
+      tries = 0; task = nil
+      ### Now need to use the new IP...
+      while (task == nil) || task["TaskState"] == "Running"
+        begin
+          task = self.get(path: "TaskService/Tasks/#{job_id}")["body"]
+        rescue Infra::Device::Error::NothingAtIPAndPort
+          # This is expected, as the iDRAC is rebooting... wait a little extra.
+          sleep 6
+        end
+        sleep 6
+        raise "failed configuring static ip... likely machine's new IP was in conflict or iDRAC slow to connect on that IP" if (tries+=1) > 20
+      end
+      unless task["TaskState"] == "Completed" && task["TaskStatus"] == "OK"
+        msg  = task['Messages'].first['Message'] rescue "N/A"
+        attr = task['Messages'].first['Oem']['Dell']['Name'] rescue "N/A"
+        raise "failed configuring #{msg} : #{attr}, taskstate: #{task["TaskState"]}, taskstatus: #{task["TaskStatus"]}"
+      end
+      # Finally, let's update our configuration to reflect the new port:
+      self.idrac
+      return true
+    end
+
     # Get the system configuration profile for a given target (e.g. "RAID")
     def get_system_configuration_profile(target: "RAID")
       tries = 0

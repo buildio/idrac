@@ -124,6 +124,13 @@ module IDRAC
       login unless @session_id
       
       puts "Rebooting server...".light_cyan
+
+      # Check current power state first
+      current_state = get_power_state rescue "Unknown"
+      if current_state == "Off"
+        puts "Server is currently off, powering on instead of rebooting".yellow
+        return power_on
+      end
       
       # Send reboot command (Reset with ResetType=ForceRestart)
       path = "/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -134,17 +141,42 @@ module IDRAC
       if response.status >= 200 && response.status < 300
         puts "Server reboot command sent successfully".green
         return true
-      else
-        error_message = "Failed to reboot server. Status code: #{response.status}"
+      elsif response.status == 409
         begin
           error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-        rescue
-          # Ignore JSON parsing errors
+          puts "Received conflict (409) error from iDRAC: #{error_data.inspect}"
+          # Try gracefulRestart as an alternative
+          puts "Trying GracefulRestart instead...".yellow
+          payload = { "ResetType" => "GracefulRestart" }
+          response = authenticated_request(:post, path, body: payload.to_json, headers: { 'Content-Type' => 'application/json' })
+          
+          if response.status >= 200 && response.status < 300
+            puts "Server graceful reboot command sent successfully".green
+            return true
+          else
+            error_message = "Failed to gracefully reboot server. Status code: #{response.status}"
+            begin
+              error_data = JSON.parse(response.body)
+              error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
+            rescue
+              # Ignore JSON parsing errors
+            end
+            raise Error, error_message
+          end
+        rescue JSON::ParserError
+          # Fall through to the error message below
         end
-        
-        raise Error, error_message
       end
+      
+      error_message = "Failed to reboot server. Status code: #{response.status}"
+      begin
+        error_data = JSON.parse(response.body)
+        error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
+      rescue
+        # Ignore JSON parsing errors
+      end
+      
+      raise Error, error_message
     end
     
     def get_power_state

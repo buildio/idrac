@@ -3,32 +3,6 @@ require 'colorize'
 
 module IDRAC
   module Storage
-    # Get storage controllers information
-    def controller
-      # Use the controllers method to get all controllers
-      controller_list = controllers
-      
-      puts "Controllers".green
-      controller_list.each { |c| puts "#{c["name"]} > #{c["drives_count"]}" }
-      
-      puts "Drives".green
-      controller_list.each do |c|
-        puts "Storage: #{c["name"]} > #{c["status"]} > #{c["drives_count"]}"
-      end
-      
-      # Find the controller with the most drives (usually the PERC)
-      controller_info = controller_list.max_by { |c| c["drives_count"] }
-      
-      if controller_info["name"] =~ /PERC/
-        puts "Found #{controller_info["name"]}".green
-      else
-        puts "Found #{controller_info["name"]} but continuing...".yellow
-      end
-      
-      # Return the raw controller data
-      controller_info["raw"]
-    end
-
     # Get all storage controllers and return them as an array
     def controllers
       response = authenticated_request(:get, '/redfish/v1/Systems/System.Embedded.1/Storage?$expand=*($levels=1)')
@@ -50,7 +24,6 @@ module IDRAC
               "controller_type" => controller.dig("Oem", "Dell", "DellController", "ControllerType"),
               "pci_slot" => controller.dig("Oem", "Dell", "DellController", "PCISlot"),
               "raw" => controller,
-              "volumes_odata_id" => controller.dig("Volumes", "@odata.id"),
               "@odata.id" => controller["@odata.id"]
             }
           end
@@ -64,17 +37,73 @@ module IDRAC
       end
     end
 
-    # Get information about physical drives
-    def drives(controller)
-      raise Error, "Controller not provided" unless controller
+    # Find the best controller based on preference flags
+    # @param name_pattern [String] Regex pattern to match controller name (defaults to "PERC")
+    # @param prefer_most_drives_by_count [Boolean] Prefer controllers with more drives
+    # @param prefer_most_drives_by_size [Boolean] Prefer controllers with larger total drive capacity
+    # @return [Hash] The selected controller
+    def find_controller(name_pattern: "PERC", prefer_most_drives_by_count: false, prefer_most_drives_by_size: false)
+      all_controllers = controllers
+      return nil if all_controllers.empty?
       
-      odata_id_path = controller["@odata.id"] || controller["odata_id"]
-      controller_path = odata_id_path.split("v1/").last
+      # Filter by name pattern if provided
+      if name_pattern
+        pattern_matches = all_controllers.select { |c| c["name"] && c["name"].include?(name_pattern) }
+        return pattern_matches.first if pattern_matches.any?
+      end
+      
+      selected_controller = nil
+      
+      # If we prefer controllers by drive count
+      if prefer_most_drives_by_count
+        selected_controller = all_controllers.max_by { |c| c["drives_count"] || 0 }
+      end
+      
+      # If we prefer controllers by total drive size
+      if prefer_most_drives_by_size && !selected_controller
+        # We need to calculate total drive size for each controller
+        controller_with_most_capacity = nil
+        max_capacity = -1
+        
+        all_controllers.each do |controller|
+          # Get the drives for this controller
+          controller_drives = begin
+            drives(controller["@odata.id"])
+          rescue
+            [] # If we can't get drives, assume empty
+          end
+          
+          # Calculate total capacity
+          total_capacity = controller_drives.sum { |d| d["capacity_bytes"] || 0 }
+          
+          if total_capacity > max_capacity
+            max_capacity = total_capacity
+            controller_with_most_capacity = controller
+          end
+        end
+        
+        selected_controller = controller_with_most_capacity if controller_with_most_capacity
+      end
+      
+      # Default to first controller if no preferences matched
+      selected_controller || all_controllers.first
+    end
+
+    # Get information about physical drives
+    def drives(controller_id) # expects @odata.id as string
+      raise Error, "Controller ID not provided" unless controller_id
+      raise Error, "Expected controller ID string, got #{controller_id.class}" unless controller_id.is_a?(String)
+      
+      controller_path = controller_id.split("v1/").last
       response = authenticated_request(:get, "/redfish/v1/#{controller_path}?$expand=*($levels=1)")
       
       if response.status == 200
         begin
           data = JSON.parse(response.body)
+          
+          # Debug dump of drive data - this happens with -vv or -vvv
+          dump_drive_data(data["Drives"])
+          
           drives = data["Drives"].map do |body|
             serial = body["SerialNumber"] 
             serial = body["Identifiers"].first["DurableName"] if serial.blank?
@@ -107,16 +136,35 @@ module IDRAC
       end
     end
 
+    # Helper method to display drive data in raw format
+    def dump_drive_data(drives)
+      
+      self.debug "\n===== RAW DRIVE API DATA =====".green.bold
+      drives.each_with_index do |drive, index|
+        self.debug "\nDrive #{index + 1}: #{drive["Name"]}".cyan.bold
+        self.debug "PredictedMediaLifeLeftPercent: #{drive["PredictedMediaLifeLeftPercent"].inspect}".yellow
+        
+        # Show other wear-related fields if they exist
+        wear_fields = drive.keys.select { |k| k.to_s =~ /wear|life|health|predict/i }
+        wear_fields.each do |field|
+          self.debug "#{field}: #{drive[field].inspect}".yellow unless field == "PredictedMediaLifeLeftPercent"
+        end
+        
+        # Show all data for full debug (verbosity level 3 / -vvv)
+        self.debug "\nAll Drive Data:".light_magenta.bold
+        self.debug JSON.pretty_generate(drive)
+      end
+      self.debug "\n===== END RAW DRIVE DATA =====\n".green.bold
+    end
+
     # Get information about virtual disk volumes
-    def volumes(controller)
-      raise Error, "Controller not provided" unless controller
+    def volumes(controller_id) # expects @odata.id as string
+      raise Error, "Controller ID not provided" unless controller_id
+      raise Error, "Expected controller ID string, got #{controller_id.class}" unless controller_id.is_a?(String)
       
       puts "Volumes (e.g. Arrays)".green
       
-      odata_id_path = controller["volumes_odata_id"]
-      if odata_id_path.nil?
-        raise Error, "No volumes_odata_id found in controller data. Make sure the controller is properly initialized."
-      end
+      odata_id_path = controller_id + "/Volumes"
       response = authenticated_request(:get, "#{odata_id_path}?$expand=*($levels=1)")
       
       if response.status == 200
@@ -215,13 +263,25 @@ module IDRAC
     end
 
     # Create a new virtual disk with RAID5 and FastPath optimizations
-    def create_virtual_disk(controller_id, drives, name: "vssd0", raid_type: "RAID5")
+    def create_virtual_disk(controller_id:, drives:, name: "vssd0", raid_type: "RAID5", encrypt: true)
       # Check firmware version to determine which API to use
       firmware_version = get_firmware_version.split(".")[0,2].join.to_i
       
+      # Format drives for the payload - convert each drive to a reference object with @odata.id
+      drive_refs = drives.map do |d| 
+        # Check if the drive is already in the correct format
+        if d.is_a?(Hash) && d["@odata.id"]
+          { "@odata.id" => d["@odata.id"] }
+        else
+          # In case it's the raw ID string
+          { "@odata.id" => d.to_s }
+        end
+      end
+      
       # [FastPath optimization for SSDs](https://www.dell.com/support/manuals/en-us/perc-h755/perc11_ug/fastpath?guid=guid-a9e90946-a41f-48ab-88f1-9ce514b4c414&lang=en-us)
       payload = {
-        "Drives": drives.map { |d| { "@odata.id": d["@odata.id"] } },
+        # The Redfish API requires links format for drives
+        "Links": { "Drives": drive_refs },
         "Name": name,
         "OptimumIOSizeBytes": 64 * 1024,
         "Oem": { "Dell": { "DellVolume": { "DiskCachePolicy": "Enabled" } } },
@@ -245,11 +305,11 @@ module IDRAC
         payload["VolumeType"] = "StripedWithParity" if raid_type == "RAID5"
         payload["VolumeType"] = "SpannedDisks" if raid_type == "RAID0"
       end
+      payload["Encrypted"] = true if encrypt
       
-      url = "Systems/System.Embedded.1/Storage/#{controller_id}/Volumes"
       response = authenticated_request(
         :post, 
-        "/redfish/v1/#{url}", 
+        "#{controller_id}/Volumes",
         body: payload.to_json, 
         headers: { 'Content-Type': 'application/json' }
       )
@@ -269,9 +329,22 @@ module IDRAC
         
         begin
           error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-        rescue
-          # Ignore JSON parsing errors
+          # Log the complete response for debugging
+          puts "Error Response: #{response.body}"
+          
+          # Check if ExtendedInfo is present for more details
+          if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"]
+            extended_info = error_data["error"]["@Message.ExtendedInfo"]
+            error_message += "\nExtended Info:"
+            extended_info.each_with_index do |info, idx|
+              error_message += "\n  #{idx+1}. #{info['Message'] || info['message']}"
+            end
+          elsif error_data["error"] && error_data["error"]["message"]
+            error_message += ", Message: #{error_data['error']['message']}"
+          end
+        rescue => e
+          # If JSON parsing fails, include the raw response
+          error_message += "\nRaw response: #{response.body}"
         end
         
         raise Error, error_message
@@ -279,11 +352,11 @@ module IDRAC
     end
 
     # Enable Self-Encrypting Drive support on controller
-    def enable_local_key_management(controller_id, passphrase: "Secure123!", keyid: "RAID-Key-2023")
+    def enable_local_key_management(controller_id:, passphrase: "Secure123!", key_id: "RAID-Key-2023")
       payload = { 
         "TargetFQDD": controller_id, 
         "Key": passphrase, 
-        "Keyid": keyid 
+        "Keyid": key_id 
       }
       
       response = authenticated_request(

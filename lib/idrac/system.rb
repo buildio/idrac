@@ -606,7 +606,7 @@ module IDRAC
 
     # Get total memory in human-readable format
     def total_memory_human(memory_data)
-      total_memory = memory_data.sum { |m| m.capacity_bytes }
+      total_memory = memory_data.sum { |m| m["capacity_bytes"] }
       "%0.2f GB" % (total_memory.to_f / 1.gigabyte)
     end
 
