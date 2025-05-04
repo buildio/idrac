@@ -78,32 +78,10 @@ module IDRAC
       
       response = authenticated_request(:post, path, body: payload.to_json, headers: { 'Content-Type' => 'application/json' })
       
-      case response.status
-      when 200, 204
-        puts "Server power off command sent successfully".green
-      when 409
-        # Conflict -- Server is already off
-        begin
-          error_data = JSON.parse(response.body)
-          if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"] &&
-             error_data["error"]["@Message.ExtendedInfo"].any? { |m| m["Message"] =~ /Server is already powered OFF/ }
-            puts "Server is already powered OFF.".yellow
-            return false
-          else
-            raise Error, "Failed to power off: #{error_data.inspect}"
-          end
-        rescue JSON::ParserError
-          raise Error, "Failed to power off with status 409: #{response.body}"
-        end
+      if response.status == 409
+        puts "Server is already powered OFF.".yellow
       else
-        error_message = "Failed to power off server. Status code: #{response.status}"
-        begin
-          error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-        rescue
-          # Ignore JSON parsing errors
-        end
-        raise Error, error_message
+        handle_response(response)
       end
       
       # Wait for power state change if requested
@@ -142,41 +120,17 @@ module IDRAC
         puts "Server reboot command sent successfully".green
         return true
       elsif response.status == 409
-        begin
-          error_data = JSON.parse(response.body)
-          puts "Received conflict (409) error from iDRAC: #{error_data.inspect}"
-          # Try gracefulRestart as an alternative
-          puts "Trying GracefulRestart instead...".yellow
-          payload = { "ResetType" => "GracefulRestart" }
-          response = authenticated_request(:post, path, body: payload.to_json, headers: { 'Content-Type' => 'application/json' })
-          
-          if response.status >= 200 && response.status < 300
-            puts "Server graceful reboot command sent successfully".green
-            return true
-          else
-            error_message = "Failed to gracefully reboot server. Status code: #{response.status}"
-            begin
-              error_data = JSON.parse(response.body)
-              error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-            rescue
-              # Ignore JSON parsing errors
-            end
-            raise Error, error_message
-          end
-        rescue JSON::ParserError
-          # Fall through to the error message below
-        end
+        error_data = JSON.parse(response.body) rescue nil
+        puts "Received conflict (409) error from iDRAC: #{error_data.inspect}"
+        # Try gracefulRestart as an alternative
+        puts "Trying GracefulRestart instead...".yellow
+        payload = { "ResetType" => "GracefulRestart" }
+        response = authenticated_request(:post, path, body: payload.to_json, headers: { 'Content-Type' => 'application/json' })
+        
+        handle_response(response)
+      else
+        raise Error, "Failed to reboot server. Status code: #{response.status}"
       end
-      
-      error_message = "Failed to reboot server. Status code: #{response.status}"
-      begin
-        error_data = JSON.parse(response.body)
-        error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-      rescue
-        # Ignore JSON parsing errors
-      end
-      
-      raise Error, error_message
     end
     
     def get_power_state
@@ -186,16 +140,7 @@ module IDRAC
       # Get system information
       response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$select=PowerState")
       
-      if response.status == 200
-        begin
-          system_data = JSON.parse(response.body)
-          return system_data["PowerState"]
-        rescue JSON::ParserError
-          raise Error, "Failed to parse power state response: #{response.body}"
-        end
-      else
-        raise Error, "Failed to get power state. Status code: #{response.status}"
-      end
+      JSON.parse(handle_response(response))&.dig("PowerState")
     end
     
     def get_power_usage_watts
@@ -204,25 +149,7 @@ module IDRAC
       
       response = authenticated_request(:get, "/redfish/v1/Chassis/System.Embedded.1/Power")
       
-      if response.status == 200
-        begin
-          data = JSON.parse(response.body)
-          watts = data["PowerControl"][0]["PowerConsumedWatts"]
-          # puts "Power usage: #{watts} watts".light_cyan
-          return watts.to_f
-        rescue JSON::ParserError
-          raise Error, "Failed to parse power usage response: #{response.body}"
-        end
-      else
-        error_message = "Failed to get power usage. Status code: #{response.status}"
-        begin
-          error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-        rescue
-          # Ignore JSON parsing errors
-        end
-        raise Error, error_message
-      end
+      JSON.parse(handle_response(response))&.dig("PowerControl", 0, "PowerConsumedWatts")&.to_f
     end
     
     private

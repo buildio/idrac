@@ -121,78 +121,110 @@ module IDRAC
         begin
           adapters_data = JSON.parse(response.body)
           
-          # Determine iDRAC version for different port paths
-          idrac_version_response = authenticated_request(:get, "/redfish/v1")
-          idrac_version_data = JSON.parse(idrac_version_response.body)
-          server = idrac_version_data["RedfishVersion"] || idrac_version_response.headers["server"]
+          # Try to get network configuration from SCP for IP addresses
+          nic_ip_map = {}
           
-          is_idrac9 = case server.to_s.downcase
-                      when /idrac\/9/
-                        true
-                      when /idrac\/8/
-                        false
-                      when /appweb\/4.5/
-                        false
-                      else
-                        # Default to newer format for unknown versions
-                        true
-                      end
-          
-          port_part = is_idrac9 ? 'Ports' : 'NetworkPorts'
-          
-          nics = adapters_data["Members"].map do |adapter|
-            path = "#{adapter["@odata.id"].split("v1/").last}/#{port_part}?$expand=*($levels=1)"
-            ports_response = authenticated_request(:get, "/redfish/v1/#{path}")
-            
-            if ports_response.status == 200
-              ports_data = JSON.parse(ports_response.body)
-              
-              ports = ports_data["Members"].map do |nic|
-                if is_idrac9
-                  link_speed_mbps = nic['CurrentSpeedGbps'].to_i * 1000
-                  mac_addr = nic['Ethernet']['AssociatedMACAddresses'].first
-                  port_num = nic['PortId']
-                  network_technology = nic['LinkNetworkTechnology']
-                  link_status = nic['LinkStatus'] =~ /up/i ? "Up" : "Down"
-                else # iDRAC 8
-                  link_speed_mbps = nic["SupportedLinkCapabilities"].first["LinkSpeedMbps"]
-                  mac_addr = nic["AssociatedNetworkAddresses"].first
-                  port_num = nic["PhysicalPortNumber"]
-                  network_technology = nic["SupportedLinkCapabilities"].first["LinkNetworkTechnology"]
-                  link_status = nic['LinkStatus']
+          # Try to get IP data from SCP
+          begin
+            scp_data = get_system_configuration_profile(target: "NIC")
+            if scp_data && scp_data["SystemConfiguration"] && scp_data["SystemConfiguration"]["Components"]
+              scp_data["SystemConfiguration"]["Components"].each do |component|
+                next unless component["FQDD"] =~ /NIC\.|BCM57/ # Match NIC components
+
+                # Extract IP configuration if available
+                ip_attrs = component["Attributes"]&.select { |attr| attr["Name"] =~ /IPAddress|IPv4Address|IPV4Address/ }
+                mac_attrs = component["Attributes"]&.select { |attr| attr["Name"] =~ /MACAddress/ }
+                
+                if ip_attrs&.any? && mac_attrs&.any?
+                  mac = mac_attrs.first["Value"]
+                  ip = ip_attrs.first["Value"]
+                  nic_ip_map[mac&.upcase] = ip unless ip.nil? || ip.empty? || ip == "0.0.0.0"
                 end
-                
-                puts "NIC: #{nic["Id"]} > #{mac_addr} > #{link_status} > #{port_num} > #{link_speed_mbps}Mbps"
-                
-                { 
-                  "name" => nic["Id"], 
-                  "status" => link_status,
-                  "mac" => mac_addr,
-                  "port" => port_num,
-                  "speed_mbps" => link_speed_mbps,
-                  "kind" => network_technology&.downcase
-                }
               end
-              
-              {
-                "name" => adapter["Id"],
-                "manufacturer" => adapter["Manufacturer"],
-                "model" => adapter["Model"],
-                "part_number" => adapter["PartNumber"],
-                "serial" => adapter["SerialNumber"],
-                "ports" => ports
-              }
-            else
-              # Return adapter info without ports if we can't get port details
-              {
-                "name" => adapter["Id"],
-                "manufacturer" => adapter["Manufacturer"],
-                "model" => adapter["Model"],
-                "part_number" => adapter["PartNumber"],
-                "serial" => adapter["SerialNumber"],
-                "ports" => []
-              }
             end
+          rescue => e
+            # Ignore errors, just continue
+          end
+          
+          # Try to get static IP configuration from iDRAC
+          begin
+            idrac_net = idrac_network
+            if idrac_net && idrac_net["mac"] && idrac_net["ipv4"]
+              nic_ip_map[idrac_net["mac"].upcase] = idrac_net["ipv4"]
+            end
+          rescue => e
+            # Ignore errors, just continue
+          end
+          
+          nics = []
+          
+          # Process each network adapter
+          adapters_data["Members"].each do |adapter|
+            # Get basic adapter info
+            adapter_info = {
+              "name" => adapter["Id"],
+              "manufacturer" => adapter["Manufacturer"],
+              "model" => adapter["Model"],
+              "part_number" => adapter["PartNumber"],
+              "serial" => adapter["SerialNumber"],
+              "ports" => []
+            }
+            
+            # Try each port type in order of preference
+            ["NetworkPorts", "Ports"].each do |port_type|
+              ports_path = "#{adapter["@odata.id"].split("v1/").last}/#{port_type}?$expand=*($levels=1)"
+              
+              begin
+                ports_response = authenticated_request(:get, "/redfish/v1/#{ports_path}")
+                
+                if ports_response.status == 200
+                  ports_data = JSON.parse(ports_response.body)
+                  
+                  if ports_data["Members"] && ports_data["Members"].any?
+                    # Process each port
+                    adapter_info["ports"] = ports_data["Members"].map do |port|
+                      # Extract port info based on port type
+                      if port_type == "NetworkPorts"
+                        # NetworkPorts style (usually iDRAC 8)
+                        mac_addr = port["AssociatedNetworkAddresses"]&.first
+                        link_speed_mbps = port.dig("SupportedLinkCapabilities", 0, "LinkSpeedMbps") || 0
+                        port_num = port["PhysicalPortNumber"]
+                        link_status = port["LinkStatus"]
+                      else
+                        # Ports style (usually iDRAC 9)
+                        mac_addr = port.dig("Ethernet", "AssociatedMACAddresses", 0)
+                        link_speed_mbps = port["CurrentSpeedGbps"] ? (port["CurrentSpeedGbps"].to_i * 1000) : 0
+                        port_num = port["PortId"]
+                        link_status = port["LinkStatus"] =~ /up/i ? "Up" : "Down"
+                      end
+                      
+                      # Get IP address from our mapping
+                      ip_address = nic_ip_map[mac_addr&.upcase]
+                      
+                      puts "NIC: #{port["Id"]} > #{mac_addr} > #{link_status} > #{port_num} > #{link_speed_mbps}Mbps > #{ip_address || 'No IP'}"
+                      
+                      {
+                        "name" => port["Id"],
+                        "status" => link_status,
+                        "mac" => mac_addr,
+                        "ip_address" => ip_address,
+                        "port" => port_num,
+                        "speed_mbps" => link_speed_mbps,
+                        "kind" => port_type == "NetworkPorts" ? "ethernet" : "port"
+                      }
+                    end
+                    
+                    # If we found ports, no need to try the other endpoint
+                    break
+                  end
+                end
+              rescue => e
+                # Ignore errors and try the next port type
+              end
+            end
+            
+            # Add adapter to our list
+            nics << adapter_info
           end
           
           return nics
@@ -206,30 +238,72 @@ module IDRAC
 
     # Get iDRAC network information
     def idrac_network
-      response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/iDRAC.Embedded.1%23NIC.1")
+      # First try to get the EthernetInterfaces collection to get the correct path
+      collection_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces")
       
-      if response.status == 200
+      if collection_response.status == 200
         begin
-          data = JSON.parse(response.body)
+          collection_data = JSON.parse(collection_response.body)
           
-          idrac = {
-            "name" => data["Id"],
-            "status" => data.dig("Status", "Health") == 'OK' ? 'Up' : 'Down',
-            "mac" => data["MACAddress"],
-            "mask" => data["IPv4Addresses"].first["SubnetMask"],
-            "ipv4" => data["IPv4Addresses"].first["Address"],
-            "origin" => data["IPv4Addresses"].first["AddressOrigin"], # DHCP or Static
-            "port" => nil,
-            "speed_mbps" => data["SpeedMbps"],
-            "kind" => "ethernet"
-          }
-          
-          return idrac
+          if collection_data["Members"] && collection_data["Members"].any?
+            # Use the first interface found
+            interface_path = collection_data["Members"][0]["@odata.id"]
+            debug "Using interface path: #{interface_path}", 2
+            
+            response = authenticated_request(:get, interface_path)
+            
+            if response.status == 200
+              data = JSON.parse(response.body)
+              
+              idrac = {
+                "name" => data["Id"],
+                "status" => data.dig("Status", "Health") == 'OK' ? 'Up' : 'Down',
+                "mac" => data["MACAddress"],
+                "mask" => data["IPv4Addresses"].first["SubnetMask"],
+                "ipv4" => data["IPv4Addresses"].first["Address"],
+                "origin" => data["IPv4Addresses"].first["AddressOrigin"], # DHCP or Static
+                "port" => nil,
+                "speed_mbps" => data["SpeedMbps"],
+                "kind" => "ethernet"
+              }
+              
+              return idrac
+            else
+              raise Error, "Failed to get iDRAC network. Status code: #{response.status}"
+            end
+          else
+            raise Error, "No Ethernet interfaces found"
+          end
         rescue JSON::ParserError
-          raise Error, "Failed to parse iDRAC network response: #{response.body}"
+          raise Error, "Failed to parse iDRAC network response: #{collection_response.body}"
         end
       else
-        raise Error, "Failed to get iDRAC network. Status code: #{response.status}"
+        # Fallback to the old hard-coded path for backwards compatibility
+        response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/iDRAC.Embedded.1%23NIC.1")
+        
+        if response.status == 200
+          begin
+            data = JSON.parse(response.body)
+            
+            idrac = {
+              "name" => data["Id"],
+              "status" => data.dig("Status", "Health") == 'OK' ? 'Up' : 'Down',
+              "mac" => data["MACAddress"],
+              "mask" => data["IPv4Addresses"].first["SubnetMask"],
+              "ipv4" => data["IPv4Addresses"].first["Address"],
+              "origin" => data["IPv4Addresses"].first["AddressOrigin"], # DHCP or Static
+              "port" => nil,
+              "speed_mbps" => data["SpeedMbps"],
+              "kind" => "ethernet"
+            }
+            
+            return idrac
+          rescue JSON::ParserError
+            raise Error, "Failed to parse iDRAC network response: #{response.body}"
+          end
+        else
+          raise Error, "Failed to get iDRAC network. Status code: #{response.status}"
+        end
       end
     end
 
@@ -437,6 +511,38 @@ module IDRAC
 
     # Kind of like a NIC, but serves a different purpose.
     def idrac_interface
+      # First try to get the EthernetInterfaces collection to get the correct path
+      collection_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces")
+      
+      if collection_response.status == 200
+        collection_data = JSON.parse(collection_response.body)
+        
+        if collection_data["Members"] && collection_data["Members"].any?
+          # Use the first interface found
+          interface_path = collection_data["Members"][0]["@odata.id"]
+          debug "Using interface path: #{interface_path}", 2
+          
+          response = authenticated_request(:get, interface_path)
+          
+          if response.status == 200
+            idrac_data = JSON.parse(response.body)
+            
+            return {
+              "name"   => idrac_data["Id"],
+              "status" => idrac_data.dig("Status", "Health") == 'OK' ? 'Up' : 'Down',
+              "mac"    => idrac_data["MACAddress"],
+              "mask"   => idrac_data["IPv4Addresses"].first["SubnetMask"],
+              "ipv4"   => idrac_data["IPv4Addresses"].first["Address"],
+              "origin" => idrac_data["IPv4Addresses"].first["AddressOrigin"], # DHCP or Static
+              "port"   => nil,
+              "speed_mbps" => idrac_data["SpeedMbps"],
+              "kind"   => "ethernet"
+            }
+          end
+        end
+      end
+      
+      # Fallback to the old hard-coded path
       response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/iDRAC.Embedded.1%23NIC.1")
       idrac_data = JSON.parse(response.body)
       {
@@ -451,6 +557,7 @@ module IDRAC
         "kind"   => "ethernet"
       }
     end
+
     # Get system identification information
     def system_info
       response = authenticated_request(:get, "/redfish/v1")
@@ -631,63 +738,53 @@ module IDRAC
       idrac_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1")
       idrac_info = JSON.parse(idrac_response.body)
       
-      # Get network information
-      network_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/NIC.1")
-      network_info = JSON.parse(network_response.body)
+      # Initialize network info values to Unknown
+      ip_address = "Unknown"
+      mac_address = "Unknown"
+      
+      # Try to get network information
+      begin
+        # First, get the EthernetInterfaces collection to find available interfaces
+        eth_collection_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces")
+        
+        if eth_collection_response.status == 200
+          eth_collection = JSON.parse(eth_collection_response.body)
+          
+          if eth_collection["Members"] && eth_collection["Members"].any?
+            # Use the first interface found
+            first_eth = eth_collection["Members"][0]["@odata.id"]
+            debug "Found network interface: #{first_eth}", 2
+            
+            first_eth_response = authenticated_request(:get, first_eth)
+            if first_eth_response.status == 200
+              first_eth_info = JSON.parse(first_eth_response.body)
+              ip_address = first_eth_info.dig("IPv4Addresses", 0, "Address") || "Unknown"
+              mac_address = first_eth_info.dig("MACAddress") || "Unknown"
+              debug "Network info - IP: #{ip_address}, MAC: #{mac_address}", 2
+            end
+          end
+        end
+      rescue => e
+        debug "Failed to get network info: #{e.message}", 1, :yellow
+        # Failed to get network info, leave as Unknown
+      end
       
       # Initialize license_type to Unknown
       license_type = "Unknown"
       license_description = nil
       
-      # Try to get license information using DMTF standard method
-      begin
-        license_response = authenticated_request(:get, "/redfish/v1/LicenseService/Licenses")
-        license_info = JSON.parse(license_response.body)
-        
-        # Extract license type if licenses are found
-        if license_info["Members"] && !license_info["Members"].empty?
-          license_entry_response = authenticated_request(:get, license_info["Members"][0]["@odata.id"])
-          license_entry = JSON.parse(license_entry_response.body)
-          
-          # Get license type from EntitlementId or LicenseType
-          if license_entry["EntitlementId"] && license_entry["EntitlementId"].include?("Enterprise")
-            license_type = "Enterprise"
-          elsif license_entry["LicenseType"]
-            license_type = license_entry["LicenseType"]
-          end
-          
-          # Get license description if available
-          license_description = license_entry["Description"] if license_entry["Description"]
-        end
-      rescue => e
-        # If DMTF method fails, try Dell OEM method
-        begin
-          dell_license_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenses")
-          dell_license_info = JSON.parse(dell_license_response.body)
-          
-          # Extract license type if licenses are found
-          if dell_license_info["Members"] && !dell_license_info["Members"].empty?
-            dell_license_entry_response = authenticated_request(:get, dell_license_info["Members"][0]["@odata.id"])
-            dell_license_entry = JSON.parse(dell_license_entry_response.body)
-            
-            # Get license type from LicenseType or Description
-            if dell_license_entry["LicenseType"]
-              license_type = dell_license_entry["LicenseType"]
-            elsif dell_license_entry["Description"] && dell_license_entry["Description"].include?("Enterprise")
-              license_type = "Enterprise"
-            end
-            
-            # Get license description if available
-            license_description = dell_license_entry["Description"] if dell_license_entry["Description"]
-          end
-        rescue => e2
-          # License information not available
-        end
+      # Try to get license information (new approach that works with iDRAC 8 too)
+      license_info = license_info() rescue nil
+      license_version = license_version() rescue nil
+      
+      if license_info
+        license_type = license_info["LicenseType"] || "Unknown"
+        license_description = license_info["Description"]
       end
       
       # Format the license display string
       license_display = license_type
-      if license_description
+      if license_description && license_type != "Unknown"
         license_display = "#{license_type} (#{license_description})"
       end
 
@@ -701,8 +798,8 @@ module IDRAC
         service_tag: system_info["SKU"],
         bios_version: system_info.dig("BiosVersion"),
         idrac_firmware: idrac_info.dig("FirmwareVersion"),
-        ip_address: network_info.dig("IPv4Addresses", 0, "Address"),
-        mac_address: network_info.dig("MACAddress"),
+        ip_address: ip_address,
+        mac_address: mac_address,
         license: license_display
       }
     end

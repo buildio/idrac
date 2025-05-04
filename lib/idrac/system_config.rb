@@ -57,131 +57,116 @@ module IDRAC
           end
         end
       end
-      job_id = res[:headers]["location"].split("/").last
+      
+      # Allow some time for the iDRAC to prepare before checking the task status
       sleep 3
-
-      tries = 0; task = nil
-      ### Now need to use the new IP...
-      while (task == nil) || task["TaskState"] == "Running"
-        begin
-          task = self.get(path: "TaskService/Tasks/#{job_id}")["body"]
-        rescue Infra::Device::Error::NothingAtIPAndPort
-          # This is expected, as the iDRAC is rebooting... wait a little extra.
-          sleep 6
-        end
-        sleep 6
-        raise "failed configuring static ip... likely machine's new IP was in conflict or iDRAC slow to connect on that IP" if (tries+=1) > 20
+      
+      # Use handle_location to monitor task progress
+      result = handle_location(res[:headers]["location"])
+      
+      # Check if the operation succeeded
+      if result[:status] != :success
+        # Extract error details if available
+        message = result[:messages].first rescue "N/A" 
+        error = result[:error] || "Unknown error"
+        raise "Failed configuring static IP: #{message} - #{error}"
       end
-      unless task["TaskState"] == "Completed" && task["TaskStatus"] == "OK"
-        msg  = task['Messages'].first['Message'] rescue "N/A"
-        attr = task['Messages'].first['Oem']['Dell']['Name'] rescue "N/A"
-        raise "failed configuring #{msg} : #{attr}, taskstate: #{task["TaskState"]}, taskstatus: #{task["TaskStatus"]}"
-      end
+      
       # Finally, let's update our configuration to reflect the new port:
       self.idrac
       return true
     end
 
+    # Wait for a task to complete
+    def wait_for_task(task_id)
+      task = nil
+      
+      begin
+        loop do
+          task_response = authenticated_request(:get, "/redfish/v1/TaskService/Tasks/#{task_id}")
+          
+          case task_response.status
+            # 200-299
+          when 200..299
+            task = JSON.parse(task_response.body)
+
+            if task["TaskState"] != "Running"
+              break
+            end
+            
+            # Extract percentage complete if available
+            percent_complete = nil
+            if task["Oem"] && task["Oem"]["Dell"] && task["Oem"]["Dell"]["PercentComplete"]
+              percent_complete = task["Oem"]["Dell"]["PercentComplete"]
+              debug "Task progress: #{percent_complete}% complete", 1
+            end
+            
+            debug "Waiting for task to complete...: #{task["TaskState"]} #{task["TaskStatus"]}", 1
+            sleep 5
+          else
+            return { 
+              status: :failed, 
+              error: "Failed to check task status: #{task_response.status} - #{task_response.body}" 
+            }
+          end
+        end
+        
+        # Check final task state
+        if task["TaskState"] == "Completed" && task["TaskStatus"] == "OK"
+          debugger
+          return { status: :success }
+        elsif task["SystemConfiguration"] # SystemConfigurationProfile requests yield a 202 with a SystemConfiguration key
+          return task
+        else
+          # For debugging purposes
+          debug task.inspect, 1, :yellow
+          
+          # Extract any messages from the response
+          messages = []
+          if task["Messages"] && task["Messages"].is_a?(Array)
+            messages = task["Messages"].map { |m| m["Message"] }.compact
+          end
+          
+          return { 
+            status: :failed, 
+            task_state: task["TaskState"], 
+            task_status: task["TaskStatus"],
+            messages: messages,
+            error: messages.first || "Task failed with state: #{task["TaskState"]}"
+          }
+        end
+      rescue => e
+        debugger
+        return { status: :error, error: "Exception monitoring task: #{e.message}" }
+      end
+    end
+
+    # Handle location header and determine whether to use wait_for_job or wait_for_task
+    def handle_location(location)
+      return nil if location.nil? || location.empty?
+      
+      # Extract the ID from the location
+      id = location.split("/").last
+      
+      # Determine if it's a task or job based on the URL pattern
+      if location.include?("/TaskService/Tasks/")
+        wait_for_task(id)
+      else
+        # Assuming it's a job
+        wait_for_job(id)
+      end
+    end
+
     # Get the system configuration profile for a given target (e.g. "RAID")
     def get_system_configuration_profile(target: "RAID")
-      tries = 0
-      location = nil
-      started_at = Time.now
-      
-      while location.nil?
-        debug "Exporting System Configuration try #{tries+=1}..."
-        
-        response = authenticated_request(:post, 
-          "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration", 
-          body: {"ExportFormat": "JSON", "ShareParameters":{"Target": target}}.to_json,
-          headers: {"Content-Type" => "application/json"}
-        )
-
-        if response.status == 400
-          debug "Failed exporting system configuration: #{response.body}", 1, :red
-          raise Error, "Failed exporting system configuration profile"
-        elsif response.status.between?(401, 599)
-          debug "Failed exporting system configuration: #{response.body}", 1, :red
-          
-          # Parse error response
-          error_data = JSON.parse(response.body) rescue nil
-          
-          if error_data && error_data["error"] && error_data["error"]["@Message.ExtendedInfo"]
-            message_info = error_data["error"]["@Message.ExtendedInfo"]
-            
-            # Check for specific error conditions
-            if message_info.any? { |m| m["Message"] =~ /existing configuration job is already in progress/ }
-              debug "Existing configuration job is already in progress, retrying...", 1, :yellow
-              sleep 30
-            elsif message_info.any? { |m| m["Message"] =~ /job operation is already running/ }
-              debug "Existing job operation is already in progress, retrying...", 1, :yellow
-              sleep 60
-            else
-              # Detailed error info for debugging
-              debug "*" * 80, 1, :red
-              debug "Headers: #{response.headers.inspect}", 1, :red
-              debug "Body: #{response.body}", 1, :yellow
-              
-              # Extract the first error message if available
-              error_message = message_info.first["Message"] rescue "Unknown error"
-              debug "Error: #{error_message}", 1, :red
-              
-              raise Error, "Failed to export SCP: #{error_message}"
-            end
-          else
-            raise Error, "Failed to export SCP with status #{response.status}"
-          end
-        else
-          # Success path - extract location header
-          location = response.headers["location"]
-          
-          if location.nil? || location.empty?
-            raise Error, "Empty location header in response: #{response.headers.inspect}"
-          end
-        end
-
-        # Progress reporting
-        minutes_elapsed = ((Time.now - started_at).to_f / 60).to_i
-        debug "Waiting for export to complete... #{minutes_elapsed} minutes", 1, :yellow
-        
-        # Exponential backoff
-        sleep 2**[tries, 6].min # Cap at 64 seconds
-        
-        if tries > 10
-          raise Error, "Failed exporting SCP after #{tries} tries, location: #{location}"
-        end
-      end
-
-      # Extract job ID from location
-      job_id = location.split("/").last
-      
-      # Poll for job completion
-      job_complete = false
-      scp = nil
-      
-      while !job_complete
-        job_response = authenticated_request(:get, "/redfish/v1/TaskService/Tasks/#{job_id}")
-        
-        if job_response.status == 200
-          job_data = JSON.parse(job_response.body)
-          
-          if ["Running", "Pending", "New"].include?(job_data["TaskState"])
-            debug "Job status: #{job_data["TaskState"]}, waiting...", 2
-            sleep 3
-          else
-            job_complete = true
-            scp = job_data
-            
-            # Verify we have the system configuration data
-            unless scp["SystemConfiguration"]
-              raise Error, "Failed exporting SCP, taskstate: #{scp["TaskState"]}, taskstatus: #{scp["TaskStatus"]}"
-            end
-          end
-        else
-          raise Error, "Failed to check job status: #{job_response.status} - #{job_response.body}"
-        end
-      end
-      
+      debug "Exporting System Configuration..."
+      response = authenticated_request(:post, 
+        "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration", 
+        body: {"ExportFormat": "JSON", "ShareParameters":{"Target": target}}.to_json,
+        headers: {"Content-Type" => "application/json"}
+      )
+      scp = handle_location(response.headers["location"])
+      raise(Error, "Failed exporting SCP, taskstate: #{scp["TaskState"]}, taskstatus: #{scp["TaskStatus"]}") unless scp["SystemConfiguration"]
       return scp
     end
 
@@ -286,61 +271,21 @@ module IDRAC
         return { status: :failed, error: "Failed importing SCP: #{response.body}" }
       end
       
-      # Get the job location
-      job_location = response.headers["location"]
-      if job_location.nil? || job_location.empty?
-        debug response.inspect, 1, :blue
-        return { status: :failed, error: "Failed importing SCP... invalid iDRAC response" }
-      end
-      
-      # Extract job ID and monitor the task
-      job_id = job_location.split("/").last
-      task = nil
-      
-      begin
-        loop do
-          task_response = authenticated_request(:get, "/redfish/v1/TaskService/Tasks/#{job_id}")
-          
-          if task_response.status == 200
-            task = JSON.parse(task_response.body)
-            
-            if task["TaskState"] != "Running"
-              break
-            end
-            
-            debug "Waiting for task to complete...: #{task["TaskState"]} #{task["TaskStatus"]}", 1
-            sleep 5
-          else
-            return { 
-              status: :failed, 
-              error: "Failed to check task status: #{task_response.status} - #{task_response.body}" 
-            }
-          end
+      return handle_location(response.headers["location"])
+    end
+
+    # This puts the SCP into a format that can be used by reasonable Ruby code.
+    # It's a hash of FQDDs to attributes.
+    def usable_scp(scp)
+      # { "FQDD1" => { "Name" => "Value" }, "FQDD2" => { "Name" => "Value" } }
+      scp.dig("SystemConfiguration", "Components").inject({}) do |acc, component|
+        fqdd = component["FQDD"]
+        attributes = component["Attributes"]
+        acc[fqdd] = attributes.inject({}) do |attr_acc, attr|
+          attr_acc[attr["Name"]] = attr["Value"]
+          attr_acc
         end
-        
-        # Check final task state
-        if task["TaskState"] == "Completed" && task["TaskStatus"] == "OK"
-          return { status: :success }
-        else
-          # For debugging purposes
-          debug task.inspect, 1, :yellow
-          
-          # Extract any messages from the response
-          messages = []
-          if task["Messages"] && task["Messages"].is_a?(Array)
-            messages = task["Messages"].map { |m| m["Message"] }.compact
-          end
-          
-          return { 
-            status: :failed, 
-            task_state: task["TaskState"], 
-            task_status: task["TaskStatus"],
-            messages: messages,
-            error: messages.first || "Task failed with state: #{task["TaskState"]}"
-          }
-        end
-      rescue => e
-        return { status: :error, error: "Exception monitoring task: #{e.message}" }
+        acc
       end
     end
 

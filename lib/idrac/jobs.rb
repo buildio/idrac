@@ -28,8 +28,8 @@ module IDRAC
       if response.status == 200
         begin
           jobs_data = JSON.parse(response.body)
-          jobs_data["Members"].each do |job| 
-            puts "#{job['Id']} : #{job['JobState']} > #{job['Message']}" 
+          jobs_data["Members"].each.with_index do |job, i | 
+            puts "#{job['Id']} : #{job['JobState']} > #{job['Message']} <#{job['CompletionTime']}> [#{i+1}/#{jobs_data["Members"].count}]" 
           end
           return jobs_data
         rescue JSON::ParserError
@@ -44,6 +44,7 @@ module IDRAC
     def clear_jobs!
       # Get list of jobs
       jobs_response = authenticated_request(:get, '/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)')
+      handle_response(jobs_response)
       
       if jobs_response.status == 200
         begin
@@ -52,7 +53,7 @@ module IDRAC
           
           # Delete each job individually
           members.each.with_index do |job, i|
-            puts "Removing #{job['Id']} [#{i+1}/#{members.count}]"
+            puts "Removing #{job['Id']} : #{job['JobState']} > #{job['Message']} [#{i+1}/#{members.count}]".yellow
             delete_response = authenticated_request(:delete, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{job['Id']}")
             
             unless delete_response.status.between?(200, 299)
@@ -89,7 +90,7 @@ module IDRAC
         # Monitor LC status until it's Ready
         puts "Waiting for LC status to be Ready..."
         
-        retries = 12  # ~2 minutes with 10s sleep
+        retries = 60  # ~10 minutes with 10s sleep
         while retries > 0
           lc_response = authenticated_request(
             :post, 
@@ -163,12 +164,15 @@ module IDRAC
             case job_state
             when "Completed"
               puts "Job completed successfully".green
+              puts "CompletionTime: #{job_data['CompletionTime']}".green if job_data['CompletionTime']
               return job_data
             when "Failed"
               puts "Job failed: #{job_data['Message']}".red
+              puts "CompletionTime: #{job_data['CompletionTime']}".red if job_data['CompletionTime'] 
               raise Error, "Job failed: #{job_data['Message']}"
             when "CompletedWithErrors"
               puts "Job completed with errors: #{job_data['Message']}".yellow
+              puts "CompletionTime: #{job_data['CompletionTime']}".yellow if job_data['CompletionTime']
               return job_data
             end
             

@@ -16,6 +16,7 @@ A Ruby client for the Dell iDRAC API. This gem provides a command-line interface
 - Lifecycle log and System Event Log (SEL) management
 - Lifecycle Controller status management
 - Return values as RecursiveOpenStruct objects for convenient attribute access
+- Reset iDRAC functionality
 
 ## Installation
 
@@ -81,6 +82,9 @@ idrac lifecycle:clear --host=192.168.1.100
 
 # System Event Log (SEL) Commands
 idrac sel:clear --host=192.168.1.100 
+
+# Reset iDRAC
+idrac reset --host=192.168.1.100
 ```
 
 All commands automatically handle session expiration by re-authenticating when necessary, ensuring that long-running operations like firmware updates complete successfully even if the iDRAC session times out.
@@ -138,6 +142,10 @@ end
 # Update firmware
 job_id = firmware.update('/path/to/firmware.exe', wait: true)
 puts "Update completed with job ID: #{job_id}"
+
+# Reset iDRAC
+reset_successful = client.reset!
+puts "iDRAC reset #{reset_successful ? 'completed successfully' : 'failed'}"
 
 # Job management
 jobs = client.jobs
@@ -209,6 +217,11 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
 ## Changelog
+
+### Version 0.7.2
+- **Added iDRAC Reset Functionality**: New `reset!` method to gracefully restart the iDRAC controller
+- Added CLI command `idrac reset` to restart iDRAC from the command line
+- Improved error handling and reconnection logic during iDRAC restart
 
 ### Version 0.1.40
 - **Enhanced Return Values**: Methods that return system components now provide RecursiveOpenStruct objects

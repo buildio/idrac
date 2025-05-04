@@ -121,7 +121,8 @@ module IDRAC
     map "lifecycle:status" => :lifecycle_status
     def lifecycle_status
       with_idrac_client do |client|
-        client.get_lifecycle_status
+        status = client.get_lifecycle_status
+        puts "Lifecycle Controller is #{status ? 'Enabled'.green : 'Disabled'.red}"
       end
     end
     
@@ -335,6 +336,75 @@ module IDRAC
       end
     end
     
+    desc "sessions_show", "Show active iDRAC sessions"
+    map "sessions:show" => :sessions_show
+    def sessions_show
+      with_idrac_client do |client|
+        begin
+          sessions_url = client.session.send(:determine_session_endpoint)
+          puts "Retrieving sessions from: #{sessions_url}".light_yellow if options[:debug]
+          
+          response = client.authenticated_request(:get, sessions_url)
+          
+          if response.status == 200
+            sessions_data = JSON.parse(response.body)
+            if sessions_data['Members'] && sessions_data['Members'].any?
+              puts "Active iDRAC Sessions: #{sessions_data['Members'].count}".green.bold
+              
+              # Get details for each session
+              sessions_data['Members'].each_with_index do |session, index|
+                session_url = session['@odata.id']
+                puts "Retrieving session details from: #{session_url}".light_yellow if options[:debug]
+                
+                session_response = client.authenticated_request(:get, session_url)
+                
+                if session_response.status == 200
+                  session_detail = JSON.parse(session_response.body)
+                  puts "Session #{index + 1}:".light_cyan
+                  puts "  ID: #{session_detail['Id']}".light_cyan
+                  puts "  Username: #{session_detail['UserName']}".light_cyan
+                  puts "  Created: #{session_detail['Created']}".light_cyan
+                else
+                  puts "Session #{index + 1}: Unable to retrieve details (Status: #{session_response.status})".light_red
+                end
+              end
+            else
+              puts "No active sessions found".yellow
+            end
+          else
+            puts "Failed to retrieve sessions. Status code: #{response.status}".red
+            puts "Error response: #{response.body[0..200]}...".light_red if response.body && !response.body.empty?
+          end
+        rescue Faraday::ConnectionFailed => e
+          puts "Connection to iDRAC failed: #{e.message}".red
+        rescue JSON::ParserError => e
+          puts "Failed to parse iDRAC response: #{e.message}".red
+        rescue => e
+          puts "Error: #{e.message}".red
+        end
+      end
+    end
+    
+    desc "sessions_clear", "Clear all iDRAC sessions"
+    map "sessions:clear" => :sessions_clear
+    def sessions_clear
+      with_idrac_client do |client|
+        begin
+          puts "Attempting to clear all iDRAC sessions...".yellow
+          if client.session.force_clear_sessions
+            puts "Successfully cleared all iDRAC sessions".green
+          else
+            puts "Failed to clear iDRAC sessions".red
+            puts "You may need to manually delete sessions through the iDRAC web interface".yellow
+          end
+        rescue Faraday::ConnectionFailed => e
+          puts "Connection to iDRAC failed: #{e.message}".red
+        rescue => e
+          puts "Error: #{e.message}".red
+        end
+      end
+    end
+    
     desc "power_state", "Get current server power state"
     map "power:state" => :power_state
     def power_state
@@ -384,11 +454,11 @@ module IDRAC
         license = client.license_info
         if license
           puts "\nLicense Information:".green.bold
-          puts "Description: #{license.Description}".cyan
-          puts "License Type: #{license.LicenseType}".cyan
+          puts "Description: #{license["Description"]}".cyan
+          puts "License Type: #{license["LicenseType"]}".cyan
           puts "License Version: #{client.license_version || 'Unknown'}".cyan
-          puts "Removable: #{license.Removable}".cyan
-          puts "Status: #{license&.Status&.Health || 'Unknown'}".cyan
+          puts "Removable: #{license["Removable"]}".cyan
+          puts "Status: #{license["Status"] && license["Status"]["Health"] || 'Unknown'}".cyan
         else
           puts "No license information available".yellow
         end
@@ -710,7 +780,6 @@ module IDRAC
     method_option :name, type: :string, default: "vssd0", desc: "Volume name"
     method_option :raid, type: :string, default: "RAID5", desc: "RAID type (RAID0, RAID1, RAID5, RAID6, RAID10)"
     method_option :y, type: :boolean, default: false, desc: "Automatically confirm operation without prompting"
-    # TODO: Require a controller
     def storage_create_volume
       with_idrac_client do |client|
         # Use find_controller instead of controller
@@ -1017,6 +1086,7 @@ module IDRAC
               puts "    #{port['name']}:".bold
               puts "      Status: #{port['status'].send(status_color)}"
               puts "      MAC: #{port['mac']}".cyan
+              puts "      IP Address: #{port['ip_address'] || 'Not assigned'}".cyan
               puts "      Speed: #{port['speed_mbps']} Mbps".cyan
               if port['pci']
                 puts "      PCI Bus: #{port['pci']}".cyan
@@ -1202,61 +1272,6 @@ module IDRAC
       with_idrac_client do |client|
         client.set_bios_os_power_control
         puts "BIOS configured for OS power management optimization".green
-      end
-    end
-
-    desc "boot_disable_option", "Disable a specific boot option (e.g., NIC.PxeDevice.1-1)"
-    map "boot:disable_option" => :boot_disable_option
-    map "boot:disable:option" => :boot_disable_option
-    method_option :name, type: :string, required: true, desc: "Name of the boot option to disable"
-    def boot_disable_option
-      with_idrac_client do |client|
-        client.disable_boot_option(options[:name])
-      end
-    end
-
-    desc "boot_set_order", "Set boot order to include only specified devices (excluding others)"
-    map "boot:set_order" => :boot_set_order
-    def boot_set_order
-      with_idrac_client do |client|
-        boot_options = client.get_bios_boot_options
-        return unless boot_options
-        
-        # Select just the RAID device, excluding PXE and other devices
-        raid_device = boot_options[:boot_options].find { |option| option.include?("RAID") }
-        
-        if raid_device
-          puts "Setting boot order to only include #{raid_device}".green
-          
-          # Create a simplistic payload that includes only the RAID device
-          # This will effectively disable all other boot options
-          scp = {
-            "SystemConfiguration": {
-              "Components": [
-                {
-                  "FQDD": "BIOS.Setup.1-1",
-                  "Attributes": [
-                    {
-                      "Name": "SetBootOrderEn",
-                      "Value": raid_device,
-                      "Set On Import": "True"
-                    },
-                    {
-                      "Name": "UefiBootSeq",
-                      "Value": raid_device,
-                      "Set On Import": "True"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-          
-          client.import_system_configuration(scp)
-          puts "Boot order configured. System reboot required for changes to take effect.".green
-        else
-          puts "No RAID device found in boot options".red
-        end
       end
     end
 
@@ -1633,6 +1648,15 @@ module IDRAC
             puts "  #{vol["Id"]}: #{vol["Name"]} (#{vol["RAIDType"]}, #{vol["CapacityBytes"] / (1024**3)} GB)".green
           end
         end
+      end
+    end
+    
+    desc "idrac_reset", "Reset the iDRAC controller (graceful restart)"
+    map "idrac:reset" => :idrac_reset
+    def idrac_reset
+      with_idrac_client do |client|
+        result = client.reset!
+        puts result ? "iDRAC reset completed successfully" : "iDRAC reset failed"
       end
     end
     

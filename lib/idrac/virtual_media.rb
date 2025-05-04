@@ -12,8 +12,20 @@ module IDRAC
           data = JSON.parse(response.body)
           
           media = data["Members"].map do |m|
-            if m["Inserted"]
-              puts "#{m["Name"]} #{m["ConnectedVia"]} #{m["Image"]}".green
+            # Check if media is inserted based on multiple indicators
+            is_inserted = m["Inserted"] || 
+                          (!m["Image"].nil? && !m["Image"].empty?) || 
+                          (m["ConnectedVia"] && m["ConnectedVia"] != "NotConnected") ||
+                          (m["ImageName"] && !m["ImageName"].empty?)
+              
+            # Indicate which field is used for this iDRAC version and print it
+            puts "ImageName is used for this iDRAC version".yellow if m["ImageName"]
+            puts "Image is used for this iDRAC version".yellow if m["Image"]
+            puts "ConnectedVia is used for this iDRAC version".yellow if m["ConnectedVia"]
+            puts "Inserted is used for this iDRAC version".yellow if m["Inserted"]
+
+            if is_inserted
+              puts "#{m["Name"]} #{m["ConnectedVia"]} #{m["Image"] || m["ImageName"]}".green
             else
               puts "#{m["Name"]} #{m["ConnectedVia"]}".yellow
             end
@@ -22,8 +34,8 @@ module IDRAC
             
             { 
               device: m["Id"], 
-              inserted: m["Inserted"], 
-              image: m["Image"] || m["ConnectedVia"],
+              inserted: is_inserted, 
+              image: m["Image"] || m["ImageName"] || m["ConnectedVia"],
               action_path: action_path
             }
           end
@@ -64,31 +76,9 @@ module IDRAC
         body: {}.to_json,
         headers: { 'Content-Type': 'application/json' }
       )
-      
-      case response.status
-      when 200..299
-        sleep 5 # Wait for ejection to complete
-        puts "Ejected #{media_to_eject[:device]}".green
-        return true
-      when 500..599
-        # Check if the error is "No Virtual Media devices are currently connected"
-        begin
-          error_data = JSON.parse(response.body)
-          if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"] &&
-             error_data["error"]["@Message.ExtendedInfo"].any? { |m| m["Message"] =~ /No Virtual Media devices are currently connected/ }
-            puts "No Virtual Media devices are currently connected".yellow
-            return false
-          end
-        rescue JSON::ParserError
-          # Ignore parsing errors
-        end
-        
-        puts "Failed to eject media: #{response.status}".red
-        return false
-      else
-        puts "Unexpected response code: #{response.status}".red
-        return false
-      end
+
+      handle_response(response)
+      response.status.between?(200, 299)
     end
 
     # Insert virtual media (ISO)

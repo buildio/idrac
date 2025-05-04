@@ -170,6 +170,17 @@ module IDRAC
       if response.status == 200
         begin
           data = JSON.parse(response.body)
+          
+          # Check if we need SCP data (older firmware)
+          scp_data = nil
+          controller_fqdd = controller_id.split("/").last
+          
+          # Get SCP data if needed (older firmware won't have these OEM attributes)
+          if data["Members"].any? && 
+             data["Members"].first&.dig("Oem", "Dell", "DellVirtualDisk", "WriteCachePolicy").nil?
+            scp_data = get_system_configuration_profile(target: "RAID")
+          end
+          
           volumes = data["Members"].map do |vol|
             drives = vol["Links"]["Drives"]
             volume_data = { 
@@ -177,14 +188,51 @@ module IDRAC
               "capacity_bytes" => vol["CapacityBytes"], 
               "volume_type" => vol["VolumeType"],
               "drives" => drives,
-              "write_cache_policy" => vol.dig("Oem", "Dell", "DellVirtualDisk", "WriteCachePolicy"),
-              "read_cache_policy" => vol.dig("Oem", "Dell", "DellVirtualDisk", "ReadCachePolicy"),
-              "stripe_size" => vol.dig("Oem", "Dell", "DellVirtualDisk", "StripeSize"),
               "raid_level" => vol["RAIDType"],
               "encrypted" => vol["Encrypted"],
-              "lock_status" => vol.dig("Oem", "Dell", "DellVirtualDisk", "LockStatus"),
               "@odata.id" => vol["@odata.id"]
             }
+            
+            # Try to get cache policies from OEM data first (newer firmware)
+            volume_data["write_cache_policy"] = vol.dig("Oem", "Dell", "DellVirtualDisk", "WriteCachePolicy")
+            volume_data["read_cache_policy"] = vol.dig("Oem", "Dell", "DellVirtualDisk", "ReadCachePolicy")
+            volume_data["stripe_size"] = vol.dig("Oem", "Dell", "DellVirtualDisk", "StripeSize")
+            volume_data["lock_status"] = vol.dig("Oem", "Dell", "DellVirtualDisk", "LockStatus")
+            
+            # If we have SCP data and missing some policies, look them up from SCP
+            if scp_data && (volume_data["write_cache_policy"].nil? || 
+                            volume_data["read_cache_policy"].nil? || 
+                            volume_data["stripe_size"].nil?)
+              
+              # Find controller component in SCP
+              controller_comp = scp_data.dig("SystemConfiguration", "Components")&.find do |comp|
+                comp["FQDD"] == controller_fqdd
+              end
+              
+              if controller_comp
+                # Try to find the matching virtual disk
+                # Format is typically "Disk.Virtual.X:RAID...."
+                vd_name = vol["Id"] || vol["Name"]
+                vd_comp = controller_comp["Components"]&.find do |comp|
+                  comp["FQDD"] =~ /Disk\.Virtual\.\d+:#{controller_fqdd}/
+                end
+                
+                if vd_comp && vd_comp["Attributes"]
+                  # Extract values from SCP
+                  write_policy = vd_comp["Attributes"].find { |a| a["Name"] == "RAIDdefaultWritePolicy" }
+                  read_policy = vd_comp["Attributes"].find { |a| a["Name"] == "RAIDdefaultReadPolicy" }
+                  stripe = vd_comp["Attributes"].find { |a| a["Name"] == "StripeSize" }
+                  lock_status = vd_comp["Attributes"].find { |a| a["Name"] == "LockStatus" }
+                  raid_level = vd_comp["Attributes"].find { |a| a["Name"] == "RAIDTypes" }
+                  
+                  volume_data["write_cache_policy"] ||= write_policy&.dig("Value")
+                  volume_data["read_cache_policy"] ||= read_policy&.dig("Value")
+                  volume_data["stripe_size"] ||= stripe&.dig("Value")
+                  volume_data["lock_status"] ||= lock_status&.dig("Value")
+                  volume_data["raid_level"] ||= raid_level&.dig("Value")
+                end
+              end
+            end
             
             # Check FastPath settings
             volume_data["fastpath"] = fastpath_good?(volume_data)
@@ -204,7 +252,6 @@ module IDRAC
               volume_data["message"] = nil
             end
             
-            # Return the hash directly
             volume_data
           end
           
@@ -220,11 +267,18 @@ module IDRAC
     # Check if FastPath is properly configured for a volume
     def fastpath_good?(volume)
       return "disabled" unless volume
-      
-      # Modern firmware check handled by caller
+
+      # Note for older firmware, the stripe size is misreported as 128KB when it is actually 64KB (seen through the DELL Web UI), so ignore that:
+      firmware_version = get_firmware_version.split(".")[0,2].join.to_i
+      if firmware_version < 440
+        stripe_size = "64KB"
+      else
+        stripe_size = volume["stripe_size"]
+      end
+
       if volume["write_cache_policy"] == "WriteThrough" && 
          volume["read_cache_policy"] == "NoReadAhead" && 
-         volume["stripe_size"] == "64KB"
+         stripe_size == "64KB"
         return "enabled"
       else
         return "disabled"
@@ -237,117 +291,150 @@ module IDRAC
       puts "Deleting volume: #{path}"
       
       response = authenticated_request(:delete, "/redfish/v1/#{path}")
-      
-      if response.status.between?(200, 299)
-        puts "Delete volume request sent".green
-        
-        # Check if we need to wait for a job
-        if response.headers["location"]
-          job_id = response.headers["location"].split("/").last
-          wait_for_job(job_id)
-        end
-        
-        return true
-      else
-        error_message = "Failed to delete volume. Status code: #{response.status}"
-        
-        begin
-          error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-        rescue
-          # Ignore JSON parsing errors
-        end
-        
-        raise Error, error_message
-      end
+
+      handle_response(response)
     end
 
     # Create a new virtual disk with RAID5 and FastPath optimizations
     def create_virtual_disk(controller_id:, drives:, name: "vssd0", raid_type: "RAID5", encrypt: true)
-      # Check firmware version to determine which API to use
+      raise "Drives must be an array of @odata.id strings" unless drives.all? { |d| d.is_a?(String) }
+      
+      # Get firmware version to determine approach
       firmware_version = get_firmware_version.split(".")[0,2].join.to_i
       
-      # Format drives for the payload - convert each drive to a reference object with @odata.id
-      drive_refs = drives.map do |d| 
-        # Check if the drive is already in the correct format
-        if d.is_a?(Hash) && d["@odata.id"]
-          { "@odata.id" => d["@odata.id"] }
-        else
-          # In case it's the raw ID string
-          { "@odata.id" => d.to_s }
-        end
+      # For older iDRAC firmware, use SCP method instead of API
+      if firmware_version < 440
+        return create_virtual_disk_scp(
+          controller_id: controller_id,
+          drives: drives,
+          name: name,
+          raid_type: raid_type,
+          encrypt: encrypt
+        )
       end
+      
+      # For newer firmware, use Redfish API
+      drive_refs = drives.map { |d| { "@odata.id" => d.to_s } }
       
       # [FastPath optimization for SSDs](https://www.dell.com/support/manuals/en-us/perc-h755/perc11_ug/fastpath?guid=guid-a9e90946-a41f-48ab-88f1-9ce514b4c414&lang=en-us)
       payload = {
-        # The Redfish API requires links format for drives
-        "Links": { "Drives": drive_refs },
-        "Name": name,
-        "OptimumIOSizeBytes": 64 * 1024,
-        "Oem": { "Dell": { "DellVolume": { "DiskCachePolicy": "Enabled" } } },
-        "ReadCachePolicy": "Off", # "NoReadAhead"
-        "WriteCachePolicy": "WriteThrough"
+        "Links" => { "Drives" => drive_refs },
+        "Name" => name,
+        "OptimumIOSizeBytes" => 64 * 1024,
+        "Oem" => { "Dell" => { "DellVolume" => { "DiskCachePolicy" => "Enabled" } } },
+        "ReadCachePolicy" => "Off", # "NoReadAhead"
+        "WriteCachePolicy" => "WriteThrough"
       }
       
-      # If the firmware < 440, we need a different approach
-      if firmware_version >= 440
-        # For modern firmware
-        if drives.size < 3 && raid_type == "RAID5"
-          puts "*************************************************".red
-          puts "* WARNING: Less than 3 drives. Selecting RAID0. *".red
-          puts "*************************************************".red
-          payload["RAIDType"] = "RAID0"
-        else
-          payload["RAIDType"] = raid_type
-        end
+      # For modern firmware
+      if drives.size < 3 && raid_type == "RAID5"
+        debug "Less than 3 drives. Selecting RAID0.", 1, :red
+        payload["RAIDType"] = "RAID0"
       else
-        # For older firmware
-        payload["VolumeType"] = "StripedWithParity" if raid_type == "RAID5"
-        payload["VolumeType"] = "SpannedDisks" if raid_type == "RAID0"
+        payload["RAIDType"] = raid_type
       end
+      
       payload["Encrypted"] = true if encrypt
       
       response = authenticated_request(
         :post, 
         "#{controller_id}/Volumes",
         body: payload.to_json, 
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type' => 'application/json' }
       )
       
-      if response.status.between?(200, 299)
-        puts "Virtual disk creation started".green
-        
-        # Check if we need to wait for a job
-        if response.headers["location"]
-          job_id = response.headers["location"].split("/").last
-          wait_for_job(job_id)
+      handle_response(response)
+    end
+
+
+    ########################################################
+    # System Configuration Profile - based VSSD0
+    #   This is required for older DELL iDRAC that
+    #   doesn't support the POST method with cache policies
+    #   nor encryption. 
+    #   When we remove 630/730's, we can remove this.
+    ########################################################
+    # We want one volume -- vssd0, RAID5, NO READ AHEAD, WRITE THROUGH, 64K STRIPE, ALL DISKS
+    # All we are doing here is manually setting WriteThrough. The rest is set correctly from
+    # the create_vssd0_post method.
+    # [FastPath](https://www.dell.com/support/manuals/en-us/poweredge-r7525/perc11_ug/fastpath?guid=guid-a9e90946-a41f-48ab-88f1-9ce514b4c414&lang=en-us)
+    # The PERC 11 series of cards support FastPath. To enable FastPath on a virtual disk, the
+    # cache policies of the RAID controller must be set to **write-through and no read ahead**.
+    # This enables FastPath to use the proper data path through the controller based on command 
+    # (read/write), I/O size, and RAID type. For optimal solid-state drive performance, 
+    # create virtual disks with **strip size of 64 KB**.
+    # Rest from:
+    # https://github.com/dell/iDRAC-Redfish-Scripting/blob/cc88a3db1bfb6cb5c6eea938ea6da67a84fb1dad/Redfish%20Python/CreateVirtualDiskREDFISH.py
+    # Create a RAID virtual disk using SCP for older iDRAC firmware
+    def create_virtual_disk_scp(controller_id:, drives:, name: "vssd0", raid_type: "RAID5", encrypt: true)
+      # Extract the controller FQDD from controller_id
+      controller_fqdd = controller_id.split("/").last
+      
+      # Get drive IDs in the required format
+      drive_ids = drives.map do |drive_path|
+        # Extract the disk FQDD from @odata.id
+        drive_id = drive_path.split("/").last
+        if drive_id.include?(":") # Already in FQDD format
+          drive_id
+        else
+          # Need to convert to FQDD format
+          "Disk.Bay.#{drive_id}:#{controller_fqdd}"
         end
-        
-        return true
+      end
+      
+      debugger
+      # Map RAID type to proper format
+      raid_level = case raid_type
+                   when "RAID0" then "0"
+                   when "RAID1" then "1"
+                   when "RAID5" then "5"
+                   when "RAID6" then "6"
+                   when "RAID10" then "10"
+                   else raid_type.gsub("RAID", "")
+                   end
+      
+      # Create the virtual disk component
+      vd_component = {
+        "FQDD" => "Disk.Virtual.0:#{controller_fqdd}",
+        "Attributes" => [
+          { "Name" => "RAIDaction", "Value" => "Create", "Set On Import" => "True" },
+          { "Name" => "Name", "Value" => name, "Set On Import" => "True" },
+          { "Name" => "RAIDTypes", "Value" => "RAID #{raid_level}", "Set On Import" => "True" },
+          { "Name" => "StripeSize", "Value" => "64KB", "Set On Import" => "True" }, # 64KB needed for FastPath
+          { "Name" => "RAIDdefaultWritePolicy", "Value" => "WriteThrough", "Set On Import" => "True" },
+          { "Name" => "RAIDdefaultReadPolicy", "Value" => "NoReadAhead", "Set On Import" => "True" },
+          { "Name" => "DiskCachePolicy", "Value" => "Enabled", "Set On Import" => "True" }
+        ]
+      }
+      
+      # Add encryption if requested
+      if encrypt
+        vd_component["Attributes"] << { "Name" => "LockStatus", "Value" => "Unlocked", "Set On Import" => "True" }
+      end
+      
+      # Add the include physical disks
+      drive_ids.each do |disk_id|
+        vd_component["Attributes"] << { 
+          "Name" => "IncludedPhysicalDiskID", 
+          "Value" => disk_id, 
+          "Set On Import" => "True" 
+        }
+      end
+      
+      # Create an SCP with the controller component that contains the VD component
+      controller_component = {
+        "FQDD" => controller_fqdd,
+        "Components" => [vd_component]
+      }
+      
+      # Apply the SCP
+      scp = { "SystemConfiguration" => { "Components" => [controller_component] } }
+      result = set_system_configuration_profile(scp, target: "RAID", reboot: false)
+      
+      if result[:status] == :success
+        return { status: :success, job_id: result[:job_id] }
       else
-        error_message = "Failed to create virtual disk. Status code: #{response.status}"
-        
-        begin
-          error_data = JSON.parse(response.body)
-          # Log the complete response for debugging
-          puts "Error Response: #{response.body}"
-          
-          # Check if ExtendedInfo is present for more details
-          if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"]
-            extended_info = error_data["error"]["@Message.ExtendedInfo"]
-            error_message += "\nExtended Info:"
-            extended_info.each_with_index do |info, idx|
-              error_message += "\n  #{idx+1}. #{info['Message'] || info['message']}"
-            end
-          elsif error_data["error"] && error_data["error"]["message"]
-            error_message += ", Message: #{error_data['error']['message']}"
-          end
-        rescue => e
-          # If JSON parsing fails, include the raw response
-          error_message += "\nRaw response: #{response.body}"
-        end
-        
-        raise Error, error_message
+        raise Error, "Failed to create virtual disk: #{result[:error] || 'Unknown error'}"
       end
     end
 

@@ -95,31 +95,7 @@ module IDRAC
               headers: { 'Content-Type': 'application/json' }
             )
             
-            if response.status.between?(200, 299)
-              puts "UEFI boot mode set. A system reboot is required for changes to take effect.".green
-              
-              # Check for job creation
-              if response.headers["Location"]
-                job_id = response.headers["Location"].split("/").last
-                wait_for_job(job_id)
-              end
-              
-              return true
-            else
-              error_message = "Failed to set UEFI boot mode. Status code: #{response.status}"
-              
-              begin
-                error_data = JSON.parse(response.body)
-                if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"]
-                  error_info = error_data["error"]["@Message.ExtendedInfo"].first
-                  error_message += ", Message: #{error_info['Message']}"
-                end
-              rescue
-                # Ignore JSON parsing errors
-              end
-              
-              raise Error, error_message
-            end
+            wait_for_job(response.headers["location"])
           end
         rescue JSON::ParserError
           raise Error, "Failed to parse BIOS response: #{response.body}"
@@ -273,7 +249,7 @@ module IDRAC
     # Different approach for iDRAC 8 vs 9
     def override_boot_source
       # For now try with all iDRAC versions
-      if self.idrac_license_version.to_i == 9
+      if self.license_version.to_i == 9
         set_boot_order_hd_first()
         set_one_time_virtual_media_boot()
       else
@@ -348,6 +324,60 @@ module IDRAC
       })
     end
     
+    # Check if BIOS error prompt is disabled
+    def bios_error_prompt_disabled?
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/Bios")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          if data["Attributes"] && data["Attributes"].has_key?("ErrPrompt")
+            return data["Attributes"]["ErrPrompt"] == "Disabled"
+          else
+            debug "ErrPrompt attribute not found in BIOS settings", 1, :yellow
+            return false
+          end
+        rescue JSON::ParserError
+          debug "Failed to parse BIOS response", 0, :red
+          return false
+        end
+      else
+        debug "Failed to get BIOS information. Status code: #{response.status}", 0, :red
+        return false
+      end
+    end
+
+    def bios_hdd_placeholder_enabled?
+      case self.license_version.to_i
+      when 8
+        # scp = usable_scp(get_system_configuration_profile(target: "BIOS"))
+        # scp["BIOS.Setup.1-1"]["HddPlaceholder"] == "Enabled"
+        true
+      else
+        response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/Bios")
+        json = JSON.parse(response.body)
+        raise "Error reading HddPlaceholder setup" if json&.dig('SystemConfiguration').blank?
+        json["Attributes"]["HddPlaceholder"] == "Enabled"
+      end
+    end
+
+    def bios_os_power_control_enabled?
+      case self.license_version.to_i
+      when 8
+        scp = usable_scp(get_system_configuration_profile(target: "BIOS"))
+        scp["BIOS.Setup.1-1"]["ProcCStates"] == "Enabled" &&
+          scp["BIOS.Setup.1-1"]["SysProfile"] == "PerfPerWattOptimizedOs" &&
+          scp["BIOS.Setup.1-1"]["ProcPwrPerf"] == "OsDbpm"
+      else
+        response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/Bios")
+        json = JSON.parse(response.body)
+        raise "Error reading PowerControl setup" if json&.dig('SystemConfiguration').blank?
+        json["Attributes"]["ProcCStates"] == "Enabled" &&
+          json["Attributes"]["SysProfile"] == "PerfPerWattOptimizedOs" &&
+          json["Attributes"]["ProcPwrPerf"] == "OsDbpm"
+      end
+    end
+    
     # Get iDRAC version - needed for boot management differences
     def get_idrac_version
       response = authenticated_request(:get, "/redfish/v1")
@@ -415,7 +445,6 @@ module IDRAC
           "Target": target
         }
       }
-      
       # Configure shutdown behavior
       params["ShutdownType"] = "Forced"
       params["HostPowerState"] = reboot ? "On" : "Off"
@@ -427,148 +456,9 @@ module IDRAC
         headers: { 'Content-Type': 'application/json' }
       )
       
-      if response.status.between?(200, 299)
-        # Check if we need to wait for a job
-        if response.headers["location"]
-          job_id = response.headers["location"].split("/").last
-          
-          job = wait_for_job(job_id)
-          
-          # Check for task completion status
-          if job["TaskState"] == "Completed" && job["TaskStatus"] == "OK"
-            puts "System configuration imported successfully".green
-            return true
-          else
-            # If there's an error message with a line number, surface it
-            error_message = "Failed to import system configuration"
-            
-            if job["Messages"]
-              job["Messages"].each do |m|
-                puts "#{m["Message"]} (#{m["Severity"]})".red
-                
-                # Check for line number in error message
-                if m["Message"] =~ /line (\d+)/
-                  line_num = $1.to_i
-                  lines = JSON.pretty_generate(scp).split("\n")
-                  puts "Error near line #{line_num}:".red
-                  ((line_num-3)..(line_num+1)).each do |ln|
-                    puts "#{ln}: #{lines[ln-1]}" if ln > 0 && ln <= lines.length
-                  end
-                end
-              end
-            end
-            
-            raise Error, error_message
-          end
-        else
-          puts "System configuration import started, but no job ID was returned".yellow
-          return true
-        end
-      else
-        error_message = "Failed to import system configuration. Status code: #{response.status}"
-        
-        begin
-          error_data = JSON.parse(response.body)
-          if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"]
-            error_info = error_data["error"]["@Message.ExtendedInfo"].first
-            error_message += ", Message: #{error_info['Message']}"
-          end
-        rescue
-          # Ignore JSON parsing errors
-        end
-        
-        raise Error, error_message
-      end
-    end
-
-    # Disable a specific boot option by name (e.g., NIC.PxeDevice.1-1)
-    def disable_boot_option(boot_option_name)
-      # First check if the boot option exists by using the Dell OEM extension API
-      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellBootSources")
-      
-      if response.status == 200
-        begin
-          data = JSON.parse(response.body)
-          
-          if data["Attributes"].nil? || data["Attributes"]["UefiBootSeq"].nil?
-            puts "Unable to find UEFI boot sequence information".red
-            return false
-          end
-          
-          # Get current boot sequence and find our target
-          boot_seq = data["Attributes"]["UefiBootSeq"]
-          target_entry = boot_seq.find { |seq| seq["Name"] == boot_option_name }
-          
-          if target_entry.nil?
-            raise Error, "Boot option '#{boot_option_name}' not found"
-          end
-          
-          # If already disabled, we're done
-          if !target_entry["Enabled"]
-            puts "Boot option '#{boot_option_name}' is already disabled".green
-            return true
-          end
-          
-          # Create a modified version with the target disabled
-          modified_seq = boot_seq.map do |seq|
-            if seq["Name"] == boot_option_name
-              seq.merge("Enabled" => false)
-            else
-              seq
-            end
-          end
-          
-          # Prepare the payload for updating using the Dell OEM extension
-          payload = {
-            "Attributes": {
-              "UefiBootSeq": modified_seq
-            }
-          }
-          
-          # Send the update to the Dell OEM extension endpoint
-          update_response = authenticated_request(
-            :patch, 
-            "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellBootSources",
-            body: payload.to_json,
-            headers: { 'Content-Type': 'application/json' }
-          )
-          
-          if update_response.status.between?(200, 299)
-            puts "Boot option '#{boot_option_name}' has been disabled".green
-            puts "A system reboot is required for changes to take effect".yellow
-            
-            # Check if we need to wait for a job
-            if update_response.headers["Location"]
-              job_id = update_response.headers["Location"].split("/").last
-              wait_for_job(job_id)
-            end
-            
-            return true
-          else
-            error_message = "Failed to disable boot option. Status code: #{update_response.status}"
-            
-            begin
-              error_data = JSON.parse(update_response.body)
-              if error_data["error"] && error_data["error"]["@Message.ExtendedInfo"]
-                error_info = error_data["error"]["@Message.ExtendedInfo"]
-                error_message += ", ExtendedInfo: #{error_info.inspect}"
-              elsif error_data["error"] && error_data["error"]["message"]
-                error_message += ", Message: #{error_data['error']['message']}"
-              end
-            rescue => e
-              # Log parsing error
-              puts "Error parsing response: #{e.message}".red
-              # Ignore JSON parsing errors
-            end
-            
-            raise Error, error_message
-          end
-        rescue JSON::ParserError => e
-          raise Error, "Failed to parse boot sources response: #{e.message}\n#{response.body}"
-        end
-      else
-        raise Error, "Failed to get boot sources. Status code: #{response.status}"
-      end
+      task = wait_for_task(response.headers["location"])
+      debugger
+      return task
     end
   end
 end 

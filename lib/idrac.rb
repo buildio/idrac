@@ -53,4 +53,6 @@ require 'idrac/virtual_media'
 require 'idrac/boot'
 require 'idrac/license'
 require 'idrac/system_config'
+require 'idrac/utility'
+# Client include must come last:
 require 'idrac/client'

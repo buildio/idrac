@@ -23,6 +23,7 @@ module IDRAC
     include Boot
     include License
     include SystemConfig
+    include Utility
 
     def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true, retry_count: 3, retry_delay: 1)
       @host = host
@@ -357,6 +358,100 @@ module IDRAC
           raise e
         end
       end
+    end    # Wait for a task to complete
+
+    def wait_for_task(task_id)
+      task = nil
+      
+      begin
+        loop do
+          task_response = authenticated_request(:get, "/redfish/v1/TaskService/Tasks/#{task_id}")
+          
+          case task_response.status
+            # 200-299
+          when 200..299
+            task = JSON.parse(task_response.body)
+
+            if task["TaskState"] != "Running"
+              break
+            end
+            
+            # Extract percentage complete if available
+            percent_complete = nil
+            if task["Oem"] && task["Oem"]["Dell"] && task["Oem"]["Dell"]["PercentComplete"]
+              percent_complete = task["Oem"]["Dell"]["PercentComplete"]
+              debug "Task progress: #{percent_complete}% complete", 1
+            end
+            
+            debug "Waiting for task to complete...: #{task["TaskState"]} #{task["TaskStatus"]}", 1
+            sleep 5
+          else
+            return { 
+              status: :failed, 
+              error: "Failed to check task status: #{task_response.status} - #{task_response.body}" 
+            }
+          end
+        end
+        
+        # Check final task state
+        if task["TaskState"] == "Completed" && task["TaskStatus"] == "OK"
+          debugger
+          return { status: :success }
+        elsif task["SystemConfiguration"] # SystemConfigurationProfile requests yield a 202 with a SystemConfiguration key
+          return task
+        else
+          # For debugging purposes
+          debug task.inspect, 1, :yellow
+          
+          # Extract any messages from the response
+          messages = []
+          if task["Messages"] && task["Messages"].is_a?(Array)
+            messages = task["Messages"].map { |m| m["Message"] }.compact
+          end
+          
+          return { 
+            status: :failed, 
+            task_state: task["TaskState"], 
+            task_status: task["TaskStatus"],
+            messages: messages,
+            error: messages.first || "Task failed with state: #{task["TaskState"]}"
+          }
+        end
+      rescue => e
+        debugger
+        return { status: :error, error: "Exception monitoring task: #{e.message}" }
+      end
     end
+
+    def handle_response(response)
+      # First see if there is a location header
+      if response.headers["location"]
+        return handle_location(response.headers["location"])
+      end
+
+      # If there is no location header, check the status code
+      if response.status.between?(200, 299)
+        return response.body
+      else
+        raise Error, "Failed to #{response.status} - #{response.body}"
+      end
+    end
+
+    # Handle location header and determine whether to use wait_for_job or wait_for_task
+    def handle_location(location)
+      return nil if location.nil? || location.empty?
+      
+      # Extract the ID from the location
+      id = location.split("/").last
+      
+      # Determine if it's a task or job based on the URL pattern
+      if location.include?("/TaskService/Tasks/")
+        wait_for_task(id)
+      else
+        # Assuming it's a job
+        wait_for_job(id)
+      end
+    end
+
   end
 end

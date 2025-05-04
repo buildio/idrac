@@ -3,8 +3,94 @@ require 'colorize'
 
 module IDRAC
   module Lifecycle
-    # Check if the Lifecycle Controller is enabled
+    # This follows from these Scripts "GetIdracLcSystemAttributesREDFISH.py" and "SetIdracLcSystemAttributesREDFISH.py"
+    # They can do more than just the lifecycle, but that's what we need right now.
+    # True or False if it's enabled or not
     def get_lifecycle_status
+      # Check iDRAC version first to determine the right approach
+      idrac_version = get_idrac_version rescue 0
+      
+      debug "Detected iDRAC version: #{idrac_version}", 1
+      
+      # Use version-specific methods
+      if idrac_version > 9
+        debug "Using modern approach for iDRAC > 9", 1
+        return get_lifecycle_status_modern_firmware
+      elsif idrac_version == 9
+        debug "Using registry approach for iDRAC 9", 1
+        return get_lifecycle_status_from_registry
+      else
+        debug "Using SCP approach for older iDRAC (v#{idrac_version})", 1
+        return get_lifecycle_status_from_scp
+      end
+    end
+    
+    # Get lifecycle status from SCP export (for older iDRAC firmware)
+    def get_lifecycle_status_from_scp
+      debug "Exporting System Configuration Profile to check LifecycleController state...", 1
+      
+      begin
+        # Use the SCP export to get LifecycleController state
+        scp = get_system_configuration_profile(target: "LifecycleController")
+        
+        # Check if we have data in the expected format
+        if scp && scp["SystemConfiguration"] && scp["SystemConfiguration"]["Components"]
+          # Find the LifecycleController component
+          lc_component = scp["SystemConfiguration"]["Components"].find do |component|
+            component["FQDD"] == "LifecycleController.Embedded.1"
+          end
+          
+          if lc_component && lc_component["Attributes"]
+            # Find the LifecycleControllerState attribute
+            lc_state_attr = lc_component["Attributes"].find do |attr|
+              attr["Name"] == "LCAttributes.1#LifecycleControllerState"
+            end
+            
+            if lc_state_attr
+              debug "Found LifecycleController state from SCP: #{lc_state_attr["Value"]}", 1
+              return lc_state_attr["Value"] == "Enabled"
+            end
+          end
+        end
+        
+        debug "Could not find LifecycleController state in SCP export", 1, :yellow
+        return false
+      rescue => e
+        debug "Error getting Lifecycle Controller status from SCP: #{e.message}", 1, :red
+        debug e.backtrace.join("\n"), 3, :red
+        return false
+      end
+    end
+    
+    # Get lifecycle status from registry (for iDRAC 9)
+    def get_lifecycle_status_from_registry
+      # This big JSON explains all the attributes:
+      path = "/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json"
+      response = authenticated_request(:get, path)
+      if response.status != 200
+        debug "Failed to get any Lifecycle Controller Attributes".red, 1
+        return false
+      end
+      attributes = JSON.parse(response.body)
+      # This is the attribute we want:
+      target = attributes&.dig('RegistryEntries', 'Attributes')&.find {|q| q['AttributeName'] =~ /LCAttributes.1.LifecycleControllerState/ }
+      # This is the FQDN of the attribute we want to get the value of:
+      fqdn = target.dig('Id')  # LifecycleController.Embedded.1#LCAttributes.1#LifecycleControllerState
+      # This is the Current Value:
+      response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/#{fqdn}")
+      if response.status != 200
+        debug "Failed to get Lifecycle Controller Attributes".red, 1
+        return false
+      end
+      attributes = JSON.parse(response.body)
+      # There is a ValueName and a Value Display Name (e.g. Enabled, Disabled, Recovery)
+      display = attributes&.dig('Attributes','LCAttributes.1.LifecycleControllerState')
+      value = target&.dig('Value')&.find { |v| v['ValueDisplayName'] == display }&.dig('ValueName')&.to_i
+      value == 1
+    end
+    
+    # Check if the Lifecycle Controller is enabled
+    def get_lifecycle_status_modern_firmware
       # Try the standard Attributes endpoint first
       path = "/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
       response = authenticated_request(:get, path)
