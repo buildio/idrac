@@ -165,7 +165,9 @@ module IDRAC
         body: {"ExportFormat": "JSON", "ShareParameters":{"Target": target}}.to_json,
         headers: {"Content-Type" => "application/json"}
       )
-      scp = handle_location(response.headers["location"])
+      scp = handle_location(response.headers["location"]) 
+      # We experienced this with older iDRACs, so let's give a enriched error to help debug.
+      raise(Error, "Failed exporting SCP, no location header found in response. Response: #{response.inspect}") if scp.nil?
       raise(Error, "Failed exporting SCP, taskstate: #{scp["TaskState"]}, taskstatus: #{scp["TaskStatus"]}") unless scp["SystemConfiguration"]
       return scp
     end
