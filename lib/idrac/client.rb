@@ -148,12 +148,16 @@ module IDRAC
           end
           
           return response
-        rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+        rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
+          # Old iDRACs (e.g. R630s) can have occasional connection issues--even SSLError is common
           debug "Connection error in direct mode: #{e.message}", 1, :red
           sleep(retry_count + 1) # Add some delay before retry
           return _perform_authenticated_request(method, path, options, retry_count + 1)
         rescue => e
+          debugger
           debug "Error during direct mode request: #{e.message}", 1, :red
+          # sleep(retry_count + 1) # Add some delay before retry
+          # return _perform_authenticated_request(method, path, options, retry_count + 1)
           raise Error, "Error during authenticated request: #{e.message}"
         end
       # Use Redfish session token if available
@@ -395,7 +399,6 @@ module IDRAC
         
         # Check final task state
         if task["TaskState"] == "Completed" && task["TaskStatus"] == "OK"
-          debugger
           return { status: :success }
         elsif task["SystemConfiguration"] # SystemConfigurationProfile requests yield a 202 with a SystemConfiguration key
           return task

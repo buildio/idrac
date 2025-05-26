@@ -382,7 +382,6 @@ module IDRAC
         end
       end
       
-      debugger
       # Map RAID type to proper format
       raid_level = case raid_type
                    when "RAID0" then "0"

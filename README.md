@@ -218,6 +218,9 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Changelog
 
+### Version 0.7.4
+- Added tolerance fol SSL Timeout errors during iDRAC operations.
+
 ### Version 0.7.3
 - Improved error handling around SystemConfigurationProfile.
 
