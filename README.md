@@ -218,6 +218,9 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Changelog
 
+### Version 0.7.3
+- Improved error handling around SystemConfigurationProfile.
+
 ### Version 0.7.2
 - **Added iDRAC Reset Functionality**: New `reset!` method to gracefully restart the iDRAC controller
 - Added CLI command `idrac reset` to restart iDRAC from the command line
