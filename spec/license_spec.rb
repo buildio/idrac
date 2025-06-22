@@ -54,6 +54,11 @@ RSpec.describe IDRAC::License do
       allow(license_instance).to receive(:client).and_return(client)
       allow(license_instance).to receive(:debug)
       
+      # Mock the authenticated_request call that happens in license_version
+      # Use a server header that doesn't contain version info to test the nil case
+      server_response = double(status: 200, headers: {"server" => "Apache/2.4.0"})
+      allow(license_instance).to receive(:authenticated_request).with(:get, "/redfish/v1").and_return(server_response)
+      
       # Return a hash
       allow(license_instance).to receive(:license_info).and_return(
         {"Description" => "Some other license"}
