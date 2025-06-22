@@ -218,6 +218,11 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Changelog
 
+### Version 0.7.8
+- **Network Redirection Support**: Added optional `host_header` parameter to Client initialization
+- Enables iDRAC access through network redirection scenarios where the connection IP differs from the Host header requirement
+- **Configurable VNC Port**: Made VNC port configurable in `set_idrac_ip` function with `vnc_port` parameter (default: 5901)
+
 ### Version 0.7.7
 - **Bug Fix**: Fixed Session base_url method to use instance variables instead of client delegation
 - Resolved "undefined local variable or method 'client'" error in session.rb

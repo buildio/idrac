@@ -4,16 +4,16 @@ require 'colorize'
 module IDRAC
   module SystemConfig
     # This assigns the iDRAC IP to be a STATIC IP.
-    def set_idrac_ip(new_ip:, new_gw:, new_nm:, vnc_password: "calvin")
+    def set_idrac_ip(new_ip:, new_gw:, new_nm:, vnc_password: "calvin", vnc_port: 5901)
       scp = get_system_configuration_profile(target: "iDRAC")
       pp scp
       ## We want to access the iDRAC web server even when IPs don't match (and they won't when we port forward local host):
       set_scp_attribute(scp, "WebServer.1#HostHeaderCheck", "Disabled")
       ## We want VirtualMedia to be enabled so we can mount ISOs: set_scp_attribute(scp, "VirtualMedia.1#Enable", "Enabled")
       set_scp_attribute(scp, "VirtualMedia.1#EncryptEnable", "Disabled")
-      ## We want to access VNC Server on 5901 for screenshots and without SSL:
+      ## We want to access VNC Server on specified port for screenshots and without SSL:
       set_scp_attribute(scp, "VNCServer.1#Enable", "Enabled")
-      set_scp_attribute(scp, "VNCServer.1#Port", "5901")
+      set_scp_attribute(scp, "VNCServer.1#Port", vnc_port.to_s)
       set_scp_attribute(scp, "VNCServer.1#SSLEncryptionBitLength", "Disabled")
       # And password calvin
       set_scp_attribute(scp, "VNCServer.1#Password", vnc_password)
@@ -72,8 +72,6 @@ module IDRAC
         raise "Failed configuring static IP: #{message} - #{error}"
       end
       
-      # Finally, let's update our configuration to reflect the new port:
-      self.idrac
       return true
     end
 
