@@ -218,6 +218,9 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Changelog
 
+### Version 0.7.6
+- **PR Preparation**: Updated version for PR submission
+
 ### Version 0.7.5
 - **Code Cleanup**: Consolidated duplicate methods across the codebase
 - Removed 5 sets of duplicate methods: `base_url`, `get_firmware_version`, `wait_for_task`, `handle_location`, and `extract_identifiers`

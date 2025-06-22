@@ -32,6 +32,9 @@ RSpec.describe "idrac power methods" do
         )
       )
       
+      # Mock the handle_response method that gets called by get_power_usage_watts
+      allow(client).to receive(:handle_response).and_return(power_fixture)
+      
       # Test the method
       watts = client.get_power_usage_watts
       expect(watts).to eq(158.0)
@@ -43,12 +46,14 @@ RSpec.describe "idrac power methods" do
       
       # Mock the login method to avoid actual login
       allow(client).to receive(:login)
-      allow(client).to receive(:authenticated_request).and_return(
-        double(
-          status: 500,
-          body: '{"error": {"message": "Internal Server Error"}}'
-        )
+      response = double(
+        status: 500,
+        body: '{"error": {"message": "Internal Server Error"}}'
       )
+      allow(client).to receive(:authenticated_request).and_return(response)
+      
+      # Mock the handle_response method to raise the expected error
+      allow(client).to receive(:handle_response).with(response).and_raise(IDRAC::Error, "Failed to get power usage")
       
       # Test that an error is raised
       expect {
