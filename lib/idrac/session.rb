@@ -282,8 +282,7 @@ module IDRAC
     private
 
     def base_url
-      protocol = use_ssl ? 'https' : 'http'
-      "#{protocol}://#{host}:#{port}"
+      client.base_url
     end
     
     def print_connection_debug_info
