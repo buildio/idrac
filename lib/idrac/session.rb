@@ -9,7 +9,7 @@ require 'socket'
 module IDRAC
   class Session
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, 
-                :x_auth_token, :session_location, :direct_mode, :auto_delete_sessions
+                :x_auth_token, :session_location, :direct_mode, :auto_delete_sessions, :host_header
     attr_accessor :verbosity
     
     include Debuggable
@@ -22,6 +22,7 @@ module IDRAC
       @port = client.port
       @use_ssl = client.use_ssl
       @verify_ssl = client.verify_ssl
+      @host_header = client.host_header
       @x_auth_token = nil
       @session_location = nil
       @direct_mode = client.direct_mode
@@ -348,10 +349,12 @@ module IDRAC
     end
     
     def basic_auth_headers(content_type = 'application/json')
-      {
+      headers = {
         'Authorization' => "Basic #{Base64.strict_encode64("#{username}:#{password}")}",
         'Content-Type' => content_type
       }
+      headers['Host'] = host_header if host_header
+      headers
     end
     
     def request_with_basic_auth(method, url, body = nil, content_type = 'application/json')
@@ -392,6 +395,7 @@ module IDRAC
         response = connection.post(url) do |req|
           req.headers['Content-Type'] = 'application/json'
           req.headers['Accept'] = 'application/json'
+          req.headers['Host'] = host_header if host_header
           req.body = payload.to_json
           debug "Request headers: #{req.headers.reject { |k,v| k =~ /auth/i }.to_json}", 2
           debug "Request body: #{req.body}", 2
@@ -419,6 +423,7 @@ module IDRAC
           alt_response = connection.post(url) do |req|
             # No Content-Type header
             req.headers['Accept'] = '*/*'
+            req.headers['Host'] = host_header if host_header
             req.body = payload.to_json
           end
           
@@ -495,6 +500,7 @@ module IDRAC
         no_content_type_response = connection.post(url) do |req|
           req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
           req.headers['Accept'] = '*/*'
+          req.headers['Host'] = host_header if host_header
           req.body = payload.to_json
         end
         
@@ -533,6 +539,7 @@ module IDRAC
             response = connection.post(url) do |req|
               req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
               req.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+              req.headers['Host'] = host_header if host_header
               req.body = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
             end
             
@@ -574,6 +581,7 @@ module IDRAC
         response = connection.post(url) do |req|
           req.headers['Content-Type'] = 'application/x-www-form-urlencoded'
           req.headers['Accept'] = '*/*'
+          req.headers['Host'] = host_header if host_header
           req.body = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
           debug "Request headers: #{req.headers.reject { |k,v| k =~ /auth/i }.to_json}", 2
         end
@@ -603,6 +611,7 @@ module IDRAC
           req.headers['Accept'] = 'application/json'
           req.headers['X-Requested-With'] = 'XMLHttpRequest'
           req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+          req.headers['Host'] = host_header if host_header
           req.body = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
         end
         
@@ -633,6 +642,7 @@ module IDRAC
         
         response = connection.get('/redfish/v1') do |req|
           req.headers['Accept'] = 'application/json'
+          req.headers['Host'] = host_header if host_header
         end
         
         if response.status == 200

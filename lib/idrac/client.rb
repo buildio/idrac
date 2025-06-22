@@ -9,7 +9,7 @@ require 'colorize'
 
 module IDRAC
   class Client
-    attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, :auto_delete_sessions, :session, :web
+    attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, :auto_delete_sessions, :session, :web, :host_header
     attr_accessor :direct_mode, :verbosity, :retry_count, :retry_delay
     
     include Power
@@ -25,7 +25,7 @@ module IDRAC
     include SystemConfig
     include Utility
 
-    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true, retry_count: 3, retry_delay: 1)
+    def initialize(host:, username:, password:, port: 443, use_ssl: true, verify_ssl: false, direct_mode: false, auto_delete_sessions: true, retry_count: 3, retry_delay: 1, host_header: nil)
       @host = host
       @username = username
       @password = password
@@ -34,6 +34,7 @@ module IDRAC
       @verify_ssl = verify_ssl
       @direct_mode = direct_mode
       @auto_delete_sessions = auto_delete_sessions
+      @host_header = host_header
       @verbosity = 0
       @retry_count = retry_count
       @retry_delay = retry_delay
@@ -121,6 +122,7 @@ module IDRAC
       # Add client headers
       headers['User-Agent'] ||= 'iDRAC Ruby Client'
       headers['Accept'] ||= 'application/json'
+      headers['Host'] = @host_header if @host_header
       
       # If we're in direct mode, use Basic Auth
       if @direct_mode
@@ -259,6 +261,7 @@ module IDRAC
         "User-Agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
         "Accept-Encoding" => "deflate, gzip"
       }
+      headers_to_use["Host"] = @host_header if @host_header
       
       if web.cookies
         headers_to_use["Cookie"] = web.cookies
