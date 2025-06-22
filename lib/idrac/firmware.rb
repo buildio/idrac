@@ -170,7 +170,7 @@ module IDRAC
         displayed_components.add(firmware_name.downcase)
         
         # Extract key identifiers from the firmware name
-        identifiers = extract_identifiers(firmware_name)
+        identifiers = catalog.extract_identifiers(firmware_name)
         
         # Try to find a matching update
         matching_updates = catalog_updates.select do |update|
@@ -255,7 +255,7 @@ module IDRAC
         # Skip if this update was already matched to a current firmware
         next if inventory[:firmware].any? do |fw|
           firmware_name = fw[:name] || ""
-          identifiers = extract_identifiers(firmware_name)
+          identifiers = catalog.extract_identifiers(firmware_name)
           
           identifiers.any? { |id| update_name.downcase.include?(id.downcase) } ||
           update_name.downcase.include?(firmware_name.downcase) ||
@@ -429,23 +429,7 @@ module IDRAC
       end
     end
 
-    def get_power_state
-      # Ensure we have a client
-      raise Error, "Client is required for power management" unless client
-      
-      # Login to iDRAC if needed
-      client.login unless client.instance_variable_get(:@session_id)
-      
-      # Get system information
-      response = client.authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
-      
-      if response.status == 200
-        system_data = JSON.parse(response.body)
-        return system_data["PowerState"]
-      else
-        raise Error, "Failed to get power state. Status code: #{response.status}"
-      end
-    end
+
 
     private
 
@@ -750,53 +734,6 @@ module IDRAC
       end
     end
 
-    # Helper method to extract identifiers from component names
-    def extract_identifiers(name)
-      return [] unless name
-      
-      identifiers = []
-      
-      # Extract model numbers like X520, I350, etc.
-      model_matches = name.scan(/[IX]\d{3,4}/)
-      identifiers.concat(model_matches)
-      
-      # Extract PERC model like H730
-      perc_matches = name.scan(/[HP]\d{3,4}/)
-      identifiers.concat(perc_matches)
-      
-      # Extract other common identifiers
-      if name.include?("NIC") || name.include?("Ethernet") || name.include?("Network")
-        identifiers << "NIC"
-      end
-      
-      if name.include?("PERC") || name.include?("RAID")
-        identifiers << "PERC"
-        # Extract PERC model like H730
-        perc_match = name.match(/PERC\s+([A-Z]\d{3})/)
-        identifiers << perc_match[1] if perc_match
-      end
-      
-      if name.include?("BIOS")
-        identifiers << "BIOS"
-      end
-      
-      if name.include?("iDRAC") || name.include?("IDRAC") || name.include?("Remote Access Controller")
-        identifiers << "iDRAC"
-      end
-      
-      if name.include?("Power Supply") || name.include?("PSU")
-        identifiers << "PSU"
-      end
-      
-      if name.include?("Lifecycle Controller")
-        identifiers << "LC"
-      end
-      
-      if name.include?("CPLD")
-        identifiers << "CPLD"
-      end
-      
-      identifiers
-    end
+
   end
 end 

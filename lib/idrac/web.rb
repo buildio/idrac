@@ -180,8 +180,7 @@ module IDRAC
     private
 
     def base_url
-      protocol = client.use_ssl ? 'https' : 'http'
-      "#{protocol}://#{client.host}:#{client.port}"
+      client.base_url
     end
   end
 end 

@@ -218,6 +218,12 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Changelog
 
+### Version 0.7.5
+- **Code Cleanup**: Consolidated duplicate methods across the codebase
+- Removed 5 sets of duplicate methods: `base_url`, `get_firmware_version`, `wait_for_task`, `handle_location`, and `extract_identifiers`
+- Simplified method delegation patterns for better maintainability
+- Eliminated ~150+ lines of duplicate code while preserving all functionality
+
 ### Version 0.7.4
 - Added tolerance fol SSL Timeout errors during iDRAC operations.
 
