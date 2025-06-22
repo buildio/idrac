@@ -218,6 +218,10 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Changelog
 
+### Version 0.7.7
+- **Bug Fix**: Fixed Session base_url method to use instance variables instead of client delegation
+- Resolved "undefined local variable or method 'client'" error in session.rb
+
 ### Version 0.7.6
 - **PR Preparation**: Updated version for PR submission
 
