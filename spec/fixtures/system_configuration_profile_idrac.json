@@ -1,0 +1,5862 @@
+{
+  "SystemConfiguration": {
+    "Comments": [
+      {
+        "Comment": "Export type is Normal,JSON,Selective"
+      },
+      {
+        "Comment": "Exported configuration may contain commented attributes. Attributes may be commented due to dependency, destructive nature, preserving server identity or for security reasons."
+      }
+    ],
+    "Model": "PowerEdge R6525",
+    "ServiceTag": "XXXXXXX",
+    "TimeStamp": "Sun Jun 22 19:02:47 2025",
+    "Components": [
+      {
+        "FQDD": "iDRAC.Embedded.1",
+        "Attributes": [
+          {
+            "Name": "IPMILan.1#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMILan.1#PrivLimit",
+            "Value": "Administrator",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMILan.1#EncryptionKey",
+            "Value": "0000000000000000000000000000000000000000",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMILan.1#CommunityName",
+            "Value": "public",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMILan.1#AlertEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#UserName",
+            "Value": "root",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#Privilege",
+            "Value": "511",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#IpmiLanPrivilege",
+            "Value": "Administrator",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#IpmiSerialPrivilege",
+            "Value": "Administrator",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SolEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.2#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.3#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.4#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.5#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.6#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.7#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.8#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.9#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.10#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.11#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.12#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.13#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.14#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.15#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#UserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#IpmiLanPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#IpmiSerialPrivilege",
+            "Value": "No Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#ProtocolEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#AuthenticationProtocol",
+            "Value": "SHA",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#PrivacyProtocol",
+            "Value": "AES",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SSHPublicKey1",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SSHPublicKey2",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SSHPublicKey3",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SSHPublicKey4",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#Simple2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#UseEmail",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#EmailAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#UseSMS",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SMSNumber",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#RSASecurID2FA",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SNMPv3AuthenticationPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SNMPv3PrivacyPassphrase",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#EnableSNMPv3Passphrase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Users.16#SourceIPTimeout",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Update.1#FwUpdateTFTPEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Update.1#FwUpdateIPAddr",
+            "Value": "0.0.0.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Update.1#FwUpdatePath",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.1#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.1#Address",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.1#CustomMsg",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.2#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.2#Address",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.2#CustomMsg",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.3#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.3#Address",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.3#CustomMsg",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.4#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.4#Address",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "EmailAlert.4#CustomMsg",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSH.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSH.1#Port",
+            "Value": "22",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSH.1#Timeout",
+            "Value": "1800",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSH.1#Banner",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSH.1#RotateHostKey",
+            "Value": "Done",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#HttpPort",
+            "Value": "80",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#HttpsPort",
+            "Value": "443",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#Timeout",
+            "Value": "1800",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#LowerEncryptionBitLength",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#HttpsRedirection",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#SSLEncryptionBitLength",
+            "Value": "128-Bit or higher",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#TLSProtocol",
+            "Value": "TLS 1.2 and Higher",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#TitleBarOption",
+            "Value": "Auto",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#CustomCipherString",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#TitleBarOptionCustom",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#Http2Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#HostHeaderCheck",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#ManualDNSEntry",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "WebServer.1#BlockHTTPPort",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#EncryptEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#LocalVideo",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#MaxSessions",
+            "Value": "6",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#Timeout",
+            "Value": "1800",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#AccessPrivilege",
+            "Value": "Deny Access",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#AttachState",
+            "Value": "Auto-attach",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#LocalDisable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#TimeoutEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#WebRedirect",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#CloseUnusedPort",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualConsole.1#CrashVideoCaptureEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Racadm.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Racadm.1#Timeout",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SerialRedirection.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SerialRedirection.1#QuitKey",
+            "Value": "^\\",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMISOL.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMISOL.1#BaudRate",
+            "Value": "115200",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMISOL.1#MinPrivilege",
+            "Value": "Administrator",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMISOL.1#AccumulateInterval",
+            "Value": "10",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPMISOL.1#SendThreshold",
+            "Value": "255",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMP.1#AgentEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMP.1#AgentCommunity",
+            "Value": "public",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMP.1#TrapFormat",
+            "Value": "SNMPv1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMP.1#SNMPProtocol",
+            "Value": "All",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMP.1#DiscoveryPort",
+            "Value": "161",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMP.1#AlertPort",
+            "Value": "162",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMP.1#CustomEngineID",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualMedia.1#Attached",
+            "Value": "AutoAttach",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualMedia.1#BootOnce",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualMedia.1#KeyEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualMedia.1#FloppyEmulation",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualMedia.1#EncryptEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VirtualMedia.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeAddr",
+            "Value": "192.168.1.1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeMask",
+            "Value": "255.255.255.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#BlockEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#FailCount",
+            "Value": "3",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#FailWindow",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#PenaltyTime",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeEnable2",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeAddr2",
+            "Value": "192.168.1.1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeMask2",
+            "Value": "255.255.255.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeEnable3",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeAddr3",
+            "Value": "192.168.1.1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeMask3",
+            "Value": "255.255.255.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeEnable4",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeAddr4",
+            "Value": "192.168.1.1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeMask4",
+            "Value": "255.255.255.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeEnable5",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeAddr5",
+            "Value": "192.168.1.1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPBlocking.1#RangeMask5",
+            "Value": "255.255.255.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LocalSecurity.1#PrebootConfig",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LocalSecurity.1#LocalConfig",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Time.1#TimeZoneOffset",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Time.1#DayLightOffset",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Time.1#Timezone",
+            "Value": "CST6CDT",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrCommonName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrOrganizationName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrOrganizationUnit",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrLocalityName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrStateName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrCountryCode",
+            "Value": "US",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrEmailAddr",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrKeySize",
+            "Value": "2048",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#CsrSubjectAltName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#PasswordRequireUpperCase",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#PasswordRequireNumbers",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#PasswordMinimumLength",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#PasswordRequireSymbols",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#MinimumPasswordScore",
+            "Value": "Weak Protection",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#PasswordRequireRegex",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Security.1#IPMIBootstrapCredentialProvisioning",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#RacName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#RacDomain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#AuthTimeout",
+            "Value": "120",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#Schema",
+            "Value": "Extended Schema",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#DomainController1",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#DomainController2",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#DomainController3",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#GlobalCatalog1",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#GlobalCatalog2",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#GlobalCatalog3",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#CertValidationEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#GCLookupEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#DCLookupEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#GCRootDomain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#DCLookupDomainName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#DCLookupByUserDomain",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#Connection",
+            "Value": "LDAPS",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#SSOEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ActiveDirectory.1#RSASecurID2FAAD",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.1#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.1#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.1#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.2#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.2#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.2#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.3#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.3#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.3#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.4#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.4#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.4#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.5#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.5#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.5#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.6#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.6#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.6#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.7#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.7#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.7#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.8#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.8#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.8#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.9#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.9#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.9#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.10#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.10#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.10#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.11#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.11#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.11#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.12#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.12#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.12#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.13#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.13#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.13#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.14#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.14#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.14#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.15#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.15#Domain",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ADGroup.15#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.1#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.2#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.3#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.4#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.5#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.6#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.7#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.8#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.9#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.10#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.11#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.12#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.13#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.14#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.15#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.16#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.17#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.18#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.19#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.20#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.21#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.22#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.23#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.24#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.25#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.26#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.27#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.28#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.29#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.30#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.31#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.32#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.33#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.34#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.35#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.36#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.37#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.38#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.39#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "UserDomain.40#Name",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SmartCard.1#SmartCardLogonEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SmartCard.1#SmartCardCRLEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SmartCard.1#SmartCardOCSPEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IntegratedDatacenter.1#DiscoveryEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#SysLogEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#Port",
+            "Value": "514",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#Server1",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#Server2",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#Server3",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#PowerLogEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#PowerLogInterval",
+            "Value": "5",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#securesyslogenable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#secureclientauth",
+            "Value": "Anonymous",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#secureserver1",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysLog.1#secureport",
+            "Value": "6514",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#Server",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#Port",
+            "Value": "636",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#BaseDN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#UserAttribute",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#GroupAttribute",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#GroupAttributeIsDN",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#BindDN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#BindPassword",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#SearchFilter",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#CertValidationEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#RSASecurID2FALDAP",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAP.1#Connection",
+            "Value": "LDAPS",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.1#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.1#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.2#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.2#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.3#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.3#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.4#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.4#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.5#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.5#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.6#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.6#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.7#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.7#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.8#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.8#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.9#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.9#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.10#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.10#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.11#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.11#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.12#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.12#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.13#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.13#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.14#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.14#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.15#DN",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "LDAPRoleGroup.15#Privilege",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RemoteHosts.1#SMTPServerIPAddress",
+            "Value": "0.0.0.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RemoteHosts.1#SMTPPort",
+            "Value": "25",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RemoteHosts.1#SMTPAuthentication",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RemoteHosts.1#SMTPUserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RemoteHosts.1#SMTPPassword",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RemoteHosts.1#SenderEmail",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RemoteHosts.1#MessageSubjectPrefix",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RemoteHosts.1#ConnectionEncryption",
+            "Value": "STARTTLS",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSHCrypto.1#Ciphers",
+            "Value": "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSHCrypto.1#HostKeyAlgorithms",
+            "Value": "rsa-sha2-512,rsa-sha2-256,ecdsa-sha2-nistp256,ssh-ed25519",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSHCrypto.1#KexAlgorithms",
+            "Value": "curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SSHCrypto.1#MACs",
+            "Value": "umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.1#AttachMode",
+            "Value": "Auto Attach",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.1#Image",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.1#WriteProtected",
+            "Value": "Read Only",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.1#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.1#User",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.1#Status",
+            "Value": "Done",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.1#IgnoreCertWarning",
+            "Value": "Yes",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.2#AttachMode",
+            "Value": "Auto Attach",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.2#Image",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.2#WriteProtected",
+            "Value": "Read Only",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.2#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.2#User",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.2#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.2#Status",
+            "Value": "Done",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RFS.2#IgnoreCertWarning",
+            "Value": "Yes",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "OS-BMC.1#AdminState",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "OS-BMC.1#OsIpAddress",
+            "Value": "0.0.0.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "OS-BMC.1#PTMode",
+            "Value": "usb-p2p",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "OS-BMC.1#UsbNicIpAddress",
+            "Value": "169.254.1.1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "OS-BMC.1#UsbNicULA",
+            "Value": "fde1:53ba:e9a0:de11::1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "OS-BMC.1#UsbNicIpv4AddressSupport",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "OS-BMC.1#UsbNicIpNetmask",
+            "Value": "255.255.255.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#Selection",
+            "Value": "Dedicated",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#Failover",
+            "Value": "None",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#Autoneg",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#Speed",
+            "Value": "1000",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#Duplex",
+            "Value": "Full",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#MTU",
+            "Value": "1500",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#DNSRacName",
+            "Value": "idrac-12GRQ54",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#DNSRegister",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#VLanEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#VLanPriority",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#VLanID",
+            "Value": "1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#AutoDetect",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#DedicatedNICScanTime",
+            "Value": "5",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#SharedNICScanTime",
+            "Value": "30",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#AutoConfig",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#VLanPort",
+            "Value": "Both",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#TopologyLldp",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#DiscoveryLLDP",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#DNSRegisterInterval",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#PowerOnOCPSlot1InS5",
+            "Value": "Off",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#DNSDomainName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NIC.1#PingEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv4.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv4.1#DHCPEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6.1#AutoConfig",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6.1#AddressGenerationMode",
+            "Value": "StablePrivacy",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NICStatic.1#DNSDomainName",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NICStatic.1#DNSDomainFromDHCP",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv4Static.1#Address",
+            "Value": "192.168.0.120",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv4Static.1#Netmask",
+            "Value": "255.255.255.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv4Static.1#Gateway",
+            "Value": "192.168.0.1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv4Static.1#DNS1",
+            "Value": "0.0.0.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv4Static.1#DNS2",
+            "Value": "0.0.0.0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv4Static.1#DNSFromDHCP",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6Static.1#Address1",
+            "Value": "::",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6Static.1#Gateway",
+            "Value": "::",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6Static.1#PrefixLength",
+            "Value": "64",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6Static.1#DNS1",
+            "Value": "::",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6Static.1#DNS2",
+            "Value": "::",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IPv6Static.1#DNSFromDHCP6",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.1#Destination",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.1#State",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.1#SNMPv3Username",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.2#Destination",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.2#State",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.2#SNMPv3Username",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.3#Destination",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.3#State",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.3#SNMPv3Username",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.4#Destination",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.4#State",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.4#SNMPv3Username",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.5#Destination",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.5#State",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.5#SNMPv3Username",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.6#Destination",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.6#State",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.6#SNMPv3Username",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.7#Destination",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.7#State",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.7#SNMPv3Username",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.8#Destination",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.8#State",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SNMPAlert.8#SNMPv3Username",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "DefaultCredentialMitigationConfigGroup.1#DefaultCredentialMitigation",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTPEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP1",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP2",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP3",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTPMaxDist",
+            "Value": "16",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP1SecurityType",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP2SecurityType",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP3SecurityType",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP1SecurityKeyNumber",
+            "Value": "1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP2SecurityKeyNumber",
+            "Value": "1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP3SecurityKeyNumber",
+            "Value": "1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP1SecurityKey",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP2SecurityKey",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "NTPConfigGroup.1#NTP3SecurityKey",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoOSLockGroup.1#AutoOSLockState",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Logging.1#SELOEMEventFilterEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Logging.1#SELBufferType",
+            "Value": "Circular",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Logging.1#LCLogAggregation",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Logging.1#LCLogAggregationTimeout",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Logging.1#LCDuplicateEventEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IOIDOpt.1#IOIDOptEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IOIDOpt.1#VirtualAddressPersistencePolicyNonAuxPwrd",
+            "Value": "WarmReset",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IOIDOpt.1#VirtualAddressPersistencePolicyAuxPwrd",
+            "Value": "WarmReset, ColdReset",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IOIDOpt.1#InitiatorPersistencePolicy",
+            "Value": "WarmReset, ColdReset, ACPowerLoss",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IOIDOpt.1#StorageTargetPersistencePolicy",
+            "Value": "WarmReset, ColdReset, ACPowerLoss",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "IOIDOpt.1#PersistencePolicyOnPartReplacement",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#OSInfo",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#WatchdogState",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#WatchdogResetTime",
+            "Value": "480",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#WatchdogRecoveryAction",
+            "Value": "None",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#LCLReplication",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#WMIInfo",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#ServiceModuleEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#iDRACHardReset",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#HostSNMPGet",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#HostSNMPAlert",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#iDRACSSOLauncher",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#ChipsetSATASupported",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#SSEventCorrelation",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#HostSNMPOMSAAlert",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServiceModule.1#EnableOSMetricInjection",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VNCServer.1#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VNCServer.1#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VNCServer.1#Port",
+            "Value": "5901",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VNCServer.1#LowerEncryptionBitLength",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VNCServer.1#Timeout",
+            "Value": "300",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VNCServer.1#SSLEncryptionBitLength",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "VNCServer.1#MaxSessions",
+            "Value": "2",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SecureDefaultPassword.1#ForceChangePassword",
+            "Value": "False",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SwitchConnectionView.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "GUI.1#SecurityPolicyMessage",
+            "Value": "By accessing this computer, you confirm that such access complies with your organization's security policy.",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Lockdown.1#SystemLockdown",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysInfo.1#LocalConsoleLockOut",
+            "Value": "1",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SysInfo.1#SystemRev",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServerBoot.1#FirstBootDevice",
+            "Value": "Normal",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ServerBoot.1#BootOnce",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "USB.1#ConfigurationXML",
+            "Value": "Enabled while server has default credential settings only",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "USB.1#PortStatus",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "USB.1#ZipPassword",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "GroupManager.1#Status",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SupportAssist.1#DefaultProtocol",
+            "Value": "CIFS",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SupportAssist.1#DefaultIPAddress",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SupportAssist.1#DefaultShareName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SupportAssist.1#DefaultWorkgroupName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SupportAssist.1#DefaultUserName",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SupportAssist.1#DefaultPassword",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SupportAssist.1#PreferredLanguage",
+            "Value": "English",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SupportAssist.1#DefaultProtocolPort",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RSASecurID2FA.1#RSASecurIDAuthenticationServer",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RSASecurID2FA.1#RSASecurIDClientID",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RSASecurID2FA.1#RSASecurIDAccessKey",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ASRConfig.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Redfish.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Redfish.1#NumericDynamicSegmentsEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RedfishEventing.1#DeliveryRetryAttempts",
+            "Value": "3",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RedfishEventing.1#DeliveryRetryIntervalInSeconds",
+            "Value": "5",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RedfishEventing.1#IgnoreCertificateErrors",
+            "Value": "Yes",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "RedfishEventing.1#EventEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#DenyFQDD",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#AllowFQDD",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#FQDDDenyList",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#CheckPCIID",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDAllowOnlyList",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDDenyList",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDList1",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDList2",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDList3",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDList4",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDList5",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDList6",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDList7",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDList8",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#BroadcastEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#NVMeHotplugEnable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PCIeVDM.1#PCIIDExtendedList",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Autodiscovery.1#EnableIPChangeAnnounce",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Autodiscovery.1#UnsolicitedIPChangeAnnounceRate",
+            "Value": "1 day",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Autodiscovery.1#EnableIPChangeAnnounceFromDHCP",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Autodiscovery.1#EnableIPChangeAnnounceFromUnicastDNS",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Autodiscovery.1#EnableIPChangeAnnounceFrommDNS",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Autodiscovery.1#SendTestAnnouncement",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SerialCapture.1#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Telemetry.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Telemetry.1#EnableMetricInjection",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySerialLog.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySerialLog.1#ReportInterval",
+            "Value": "40",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySerialLog.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPURegisters.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPURegisters.1#ReportInterval",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPURegisters.1#ReportTriggers",
+            "Value": "IERRCriticalTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPUSensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPUSensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPUSensor.1#ReportTriggers",
+            "Value": "CPUCriticalTrigger, CPUWarnTrigger, TMPCpuCriticalTrigger, TMPCpuWarnTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFanSensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFanSensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFanSensor.1#ReportTriggers",
+            "Value": "FANCriticalTrigger, FANWarnTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFCPortStatistics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFCPortStatistics.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFCPortStatistics.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFCSensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFCSensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFCSensor.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFPGASensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFPGASensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryFPGASensor.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryGPUMetrics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryGPUMetrics.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryGPUMetrics.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryGPUStatistics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryGPUStatistics.1#ReportInterval",
+            "Value": "600",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryGPUStatistics.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryMemorySensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryMemorySensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryMemorySensor.1#ReportTriggers",
+            "Value": "MEMCriticalTrigger, MEMWarnTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNICStatistics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNICStatistics.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNICStatistics.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNICSensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNICSensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNICSensor.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNVMeSMARTData.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNVMeSMARTData.1#ReportInterval",
+            "Value": "3600",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryNVMeSMARTData.1#ReportTriggers",
+            "Value": "NVMeCriticalTrigger, NVMeWarnTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySystemUsage.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySystemUsage.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySystemUsage.1#ReportTriggers",
+            "Value": "TMPCpuCriticalTrigger, TMPCpuWarnTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryAggregationMetrics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryAggregationMetrics.1#ReportInterval",
+            "Value": "0",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryAggregationMetrics.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPUMemMetrics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPUMemMetrics.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryCPUMemMetrics.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPowerMetrics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPowerMetrics.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPowerMetrics.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPowerStatistics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPowerStatistics.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPowerStatistics.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPSUMetrics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPSUMetrics.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryPSUMetrics.1#ReportTriggers",
+            "Value": "VLTCriticalTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetrySensor.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryStorageDiskSMARTData.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryStorageDiskSMARTData.1#ReportInterval",
+            "Value": "3600",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryStorageDiskSMARTData.1#ReportTriggers",
+            "Value": "PDRCriticalTrigger, PDRWarnTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryStorageSensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryStorageSensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryStorageSensor.1#ReportTriggers",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryThermalSensor.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryThermalSensor.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryThermalSensor.1#ReportTriggers",
+            "Value": "TMPCriticalTrigger, TMPWarnTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryThermalMetrics.1#EnableTelemetry",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryThermalMetrics.1#ReportInterval",
+            "Value": "60",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "TelemetryThermalMetrics.1#ReportTriggers",
+            "Value": "TMPDiskCriticalTrigger, TMPDiskWarnTrigger, TMPCriticalTrigger, TMPWarnTrigger",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "InventoryHash.1#HashCalculationInterval",
+            "Value": "15",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ACME.1#Enable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ACME.1#CA-URL",
+            "Value": "",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "ACME.1#EnrollmentAction",
+            "Value": "Halt",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SEKM-LKC.1#KMSHeartbeatInterval",
+            "Value": "4",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SEKM-LKC.1#KMSConnectionTimeout",
+            "Value": "24",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SEKM-LKC.1#KMSValidationFailurePolicy",
+            "Value": "Do not use the cached key",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SEKM-LKC.1#KeyCachingPolicy",
+            "Value": "No Caching",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "Telco-EdgeServer.1#HeartBeatEnable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "PLDMConfiguration.1#PLDMLogRetrieval",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "8021XSecurity.1#Use8021XSecurity",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "8021XSecurity.1#MacSecCapable",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "8021XSecurity.1#ClientCertificateType",
+            "Value": "DefaultIDEVID",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "8021XSecurity.1#ValidateAuthenticationServerCertificate",
+            "Value": "Disabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "CertificateManagement.1#ExpiryNotificationSupport",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SPDM.1#Enable",
+            "Value": "Enabled",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SPDM.1#ListType",
+            "Value": "Allowlist",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SPDM.1#DeviceList",
+            "Value": "1000:00A5:1028:2114,1000:00A5:1028:2115,1000:00A5:1028:2117,1000:00A5:1028:213A,1000:00A5:1028:213B,1000:00A5:1028:213C,1000:00A5:1028:213E,1000:00A5:1028:213F,1000:00A5:1028:2140,1000:00A5:1028:2141,1000:00A5:1028:2142,1000:00A5:1028:2209,1000:00A5:1028:220A,10DF:F400:10DF:F410,10DF:F400:10DF:F411,10DF:F400:10DF:F422",
+            "Set On Import": "True",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "SecurityCertificate.1#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.1#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.2#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.2#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.3#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.3#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.4#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.4#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.5#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.5#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.6#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.6#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.7#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.7#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.8#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.8#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.9#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.9#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.10#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.10#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.11#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.11#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.12#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.12#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.13#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.13#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.14#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.14#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.15#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.15#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.16#CertData",
+            "Value": ""
+          },
+          {
+            "Name": "SecurityCertificate.16#CertType",
+            "Value": ""
+          },
+          {
+            "Name": "AutoUpdate.1#IPAddress",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#Domain",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#ShareName",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#ShareType",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#Username",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#Password",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#ApplyReboot",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#Repeat",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#CatalogName",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#Time",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#DayofMonth",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#WeekofMonth",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#DayOfWeek",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#ProxyHostname",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#ProxyUsername",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#ProxyPassword",
+            "Value": "******",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#ProxyPort",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          },
+          {
+            "Name": "AutoUpdate.1#ProxyType",
+            "Value": "",
+            "Set On Import": "False",
+            "Comment": "Read and Write"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -20,6 +20,10 @@ RSpec.configure do |config|
   WebMock.disable_net_connect!(allow_localhost: true)
 
   config.before(:each) do
+    # Stub all forms of sleep to prevent delays during tests
+    allow(Kernel).to receive(:sleep)
+    allow_any_instance_of(Object).to receive(:sleep)
+    
     # Set up fixture base path
     fixture_base = "spec/fixtures/PowerEdge-R640/redfish/v1"
 

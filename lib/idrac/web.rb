@@ -60,9 +60,9 @@ module IDRAC
         elsif response.code == 400 && response.body.include?("maximum number of user sessions")
           puts "Maximum sessions reached during WebUI login".light_red
           
-          # Try to clear sessions if auto_delete_sessions is enabled
-          if client.auto_delete_sessions && !@tried_clearing_sessions
-            puts "Auto-delete sessions is enabled, attempting to clear sessions".light_cyan
+          # Try to clear sessions automatically
+          if !@tried_clearing_sessions
+            puts "Attempting to clear sessions automatically".light_cyan
             @tried_clearing_sessions = true
             
             if client.session.force_clear_sessions
@@ -73,7 +73,7 @@ module IDRAC
               return false
             end
           else
-            puts "Auto-delete sessions is disabled or already tried clearing".light_yellow
+            puts "Already tried clearing sessions".light_yellow
             return false
           end
         else

@@ -210,6 +210,60 @@ client = IDRAC.new(
 )
 ```
 
+### Basic Usage (Manual Session Management)
+
+For manual control over session lifecycle:
+
+```ruby
+require 'idrac'
+
+client = IDRAC::Client.new(
+  host: "192.168.1.100",
+  username: "root",
+  password: "calvin"
+)
+
+# Always remember to logout to clean up sessions
+begin
+  client.login
+  puts client.get_power_state
+  puts client.system_info
+ensure
+  client.logout
+end
+```
+
+### Block-based Usage (Recommended)
+
+The gem provides a block-based API that automatically handles session cleanup:
+
+```ruby
+require 'idrac'
+
+# Using IDRAC.connect - automatically handles login/logout
+IDRAC.connect(host: "192.168.1.100", username: "root", password: "calvin") do |client|
+  puts client.get_power_state
+  puts client.system_info
+  # Session is automatically cleaned up when block exits
+end
+
+# Or using Client.connect
+IDRAC::Client.connect(host: "192.168.1.100", username: "root", password: "calvin") do |client|
+  puts client.get_power_state
+  # Session cleanup is guaranteed
+end
+```
+
+### Automatic Session Cleanup
+
+The gem now includes automatic session cleanup mechanisms:
+
+1. **Finalizer**: Sessions are automatically cleaned up when the client object is garbage collected
+2. **Block-based API**: The `connect` method ensures sessions are cleaned up even if exceptions occur
+3. **Manual cleanup**: You can still call `client.logout` manually
+
+This prevents the "RAC0218: The maximum number of user sessions is reached" error that occurred when sessions were not properly cleaned up.
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.

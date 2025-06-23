@@ -36,6 +36,11 @@ module IDRAC
   def self.new(options = {})
     Client.new(options)
   end
+  
+  # Block-based API that ensures session cleanup
+  def self.connect(**options, &block)
+    Client.connect(**options, &block)
+  end
 end
 
 require 'idrac/version'

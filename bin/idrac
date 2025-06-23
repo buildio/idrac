@@ -22,7 +22,7 @@ module IDRAC
     class_option :port, type: :numeric, default: 443, desc: "iDRAC port"
     class_option :no_ssl, type: :boolean, default: false, desc: "Disable SSL"
     class_option :verify_ssl, type: :boolean, default: false, desc: "Enable SSL verification (not recommended for iDRAC's self-signed certificates)"
-    class_option :auto_delete_sessions, type: :boolean, default: true, desc: "Automatically delete sessions when maximum sessions are reached"
+
     class_option :retries, type: :numeric, default: 3, desc: "Number of retries for API calls"
     class_option :retry_delay, type: :numeric, default: 1, desc: "Initial delay in seconds between retries (increases exponentially)"
     class_option :verbose, type: :boolean, default: false, aliases: '-v', desc: "Enable verbose output"
@@ -1715,7 +1715,6 @@ module IDRAC
         port: options[:port],
         use_ssl: !options[:no_ssl],
         verify_ssl: options[:verify_ssl],
-        auto_delete_sessions: options[:auto_delete_sessions],
         retry_count: options[:retries],
         retry_delay: options[:retry_delay]
       )

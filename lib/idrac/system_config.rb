@@ -5,74 +5,52 @@ module IDRAC
   module SystemConfig
     # This assigns the iDRAC IP to be a STATIC IP.
     def set_idrac_ip(new_ip:, new_gw:, new_nm:, vnc_password: "calvin", vnc_port: 5901)
-      scp = get_system_configuration_profile(target: "iDRAC")
-      pp scp
-      ## We want to access the iDRAC web server even when IPs don't match (and they won't when we port forward local host):
-      set_scp_attribute(scp, "WebServer.1#HostHeaderCheck", "Disabled")
-      ## We want VirtualMedia to be enabled so we can mount ISOs: set_scp_attribute(scp, "VirtualMedia.1#Enable", "Enabled")
-      set_scp_attribute(scp, "VirtualMedia.1#EncryptEnable", "Disabled")
-      ## We want to access VNC Server on specified port for screenshots and without SSL:
-      set_scp_attribute(scp, "VNCServer.1#Enable", "Enabled")
-      set_scp_attribute(scp, "VNCServer.1#Port", vnc_port.to_s)
-      set_scp_attribute(scp, "VNCServer.1#SSLEncryptionBitLength", "Disabled")
-      # And password calvin
-      set_scp_attribute(scp, "VNCServer.1#Password", vnc_password)
-      # Disable DHCP on management NIC
-      set_scp_attribute(scp, "IPv4.1#DHCPEnable", "Disabled")
-      if drac_license_version.to_i == 8
-        # We want to use HTML for the virtual console
-        set_scp_attribute(scp, "VirtualConsole.1#PluginType", "HTML5")
-        # We want static IP for the iDRAC
-        set_scp_attribute(scp, "IPv4.1#Address", new_ip)
-        set_scp_attribute(scp, "IPv4.1#Gateway", new_gw)
-        set_scp_attribute(scp, "IPv4.1#Netmask", new_nm)
-      elsif drac_license_version.to_i == 9
-        # We want static IP for the iDRAC
-        set_scp_attribute(scp, "IPv4Static.1#Address", new_ip)
-        set_scp_attribute(scp, "IPv4Static.1#Gateway", new_gw)
-        set_scp_attribute(scp, "IPv4Static.1#Netmask", new_nm)
-        # {"Name"=>"SerialCapture.1#Enable", "Value"=>"Disabled", "Set On Import"=>"True", "Comment"=>"Read and Write"},
+      # Cache license version to avoid multiple iDRAC calls
+      version = license_version.to_i
+      
+      case version
+      when 8
+        ipv4_prefix = "IPv4"
+        settings = { "VirtualConsole.1#PluginType" => "HTML5" }
+      when 9
+        ipv4_prefix = "IPv4Static"
+        settings = {}
       else
-        raise "Unknown iDRAC version"
-      end
-      while true
-        res = self.post(path: "Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration", params: {"ImportBuffer": scp.to_json, "ShareParameters": {"Target": "iDRAC"}})
-        # A successful JOB will have a location header with a job id.
-        # We can get a busy message instead if we've sent too many iDRAC jobs back-to-back, so we check for that here.
-        if res[:headers]["location"].present?
-          # We have a job id, so we're good to go.
-          break
-        else
-          # Depending on iDRAC version content-length may be present or not.
-          # res[:headers]["content-length"].blank?
-          msg = res['body']['error']['@Message.ExtendedInfo'].first['Message']
-          details = res['body']['error']['@Message.ExtendedInfo'].first['Resolution']
-          # msg     => "A job operation is already running. Retry the operation after the existing job is completed."
-          # details => "Wait until the running job is completed or delete the scheduled job and retry the operation."
-          if details =~ /Wait until the running job is completed/
-            sleep 10
-          else
-            Rails.logger.warn msg+details
-            raise "failed configuring static ip, message: #{msg}, details: #{details}"
-          end
-        end
+        raise Error, "Unsupported iDRAC version: #{version}. Supported versions: 8, 9"
       end
       
-      # Allow some time for the iDRAC to prepare before checking the task status
-      sleep 3
+      # Build base settings for all versions
+      settings.merge!({
+        "WebServer.1#HostHeaderCheck" => "Disabled",
+        "VirtualMedia.1#EncryptEnable" => "Disabled", 
+        "VNCServer.1#Enable" => "Enabled",
+        "VNCServer.1#Port" => vnc_port.to_s,
+        "VNCServer.1#SSLEncryptionBitLength" => "Disabled",
+        "VNCServer.1#Password" => vnc_password,
+        "IPv4.1#DHCPEnable" => "Disabled", # only applies to iDRAC 8
+        "#{ipv4_prefix}.1#Address" => new_ip, # only applies to iDRAC 9
+        "#{ipv4_prefix}.1#Gateway" => new_gw,
+        "#{ipv4_prefix}.1#Netmask" => new_nm
+      })
       
-      # Use handle_location to monitor task progress
-      result = handle_location(res[:headers]["location"])
+      # Build SCP from scratch instead of getting full profile
+      scp_component = make_scp(fqdd: "iDRAC.Embedded.1", attributes: settings)
+      scp = { "SystemConfiguration" => { "Components" => [scp_component] } }
       
-      # Check if the operation succeeded
-      if result[:status] != :success
-        # Extract error details if available
-        message = result[:messages].first rescue "N/A" 
-        error = result[:error] || "Unknown error"
-        raise "Failed configuring static IP: #{message} - #{error}"
+      # Submit configuration with job availability handling
+      res = wait_for_job_availability do
+        authenticated_request(:post, 
+          "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration",
+          body: {"ImportBuffer": scp.to_json, "ShareParameters": {"Target": "iDRAC"}}.to_json,
+          headers: {"Content-Type" => "application/json"}
+        )
       end
       
-      return true
+      sleep 3  # Allow iDRAC to prepare
+      result = handle_location_with_ip_change(res.headers["location"], new_ip)
+      
+      raise "Failed configuring static IP: #{result[:messages]&.first || result[:error] || "Unknown error"}" if result[:status] != :success
+      true
     end
 
 
@@ -92,56 +70,7 @@ module IDRAC
       return scp
     end
 
-    # Set an attribute in a system configuration profile
-    def set_scp_attribute(scp, name, value)
-      # Make a deep copy to avoid modifying the original
-      scp_copy = JSON.parse(scp.to_json)
-      
-      # Clear unrelated attributes for quicker transfer
-      scp_copy["SystemConfiguration"].delete("Comments")
-      scp_copy["SystemConfiguration"].delete("TimeStamp")
-      scp_copy["SystemConfiguration"].delete("ServiceTag")
-      scp_copy["SystemConfiguration"].delete("Model")
 
-      # Skip these attribute groups to make the transfer faster
-      excluded_prefixes = [
-        "User", "Telemetry", "SecurityCertificate", "AutoUpdate", "PCIe", "LDAP", "ADGroup", "ActiveDirectory",
-        "IPMILan", "EmailAlert", "SNMP", "IPBlocking", "IPMI", "Security", "RFS", "OS-BMC", "SupportAssist",
-        "Redfish", "RedfishEventing", "Autodiscovery", "SEKM-LKC", "Telco-EdgeServer", "8021XSecurity", "SPDM",
-        "InventoryHash", "RSASecurID2FA", "USB", "NIC", "IPv6", "NTP", "Logging", "IOIDOpt", "SSHCrypto",
-        "RemoteHosts", "SysLog", "Time", "SmartCard", "ACME", "ServiceModule", "Lockdown",
-        "DefaultCredentialMitigation", "AutoOSLockGroup", "LocalSecurity", "IntegratedDatacenter",
-        "SecureDefaultPassword.1#ForceChangePassword", "SwitchConnectionView.1#Enable", "GroupManager.1",
-        "ASRConfig.1#Enable", "SerialCapture.1#Enable", "CertificateManagement.1",
-        "Update", "SSH", "SysInfo", "GUI"
-      ]
-      
-      # Remove excluded attribute groups
-      if scp_copy["SystemConfiguration"]["Components"] && 
-         scp_copy["SystemConfiguration"]["Components"][0] && 
-         scp_copy["SystemConfiguration"]["Components"][0]["Attributes"]
-        
-        attrs = scp_copy["SystemConfiguration"]["Components"][0]["Attributes"]
-        
-        attrs.reject! do |attr|
-          excluded_prefixes.any? { |prefix| attr["Name"] =~ /\A#{prefix}/ }
-        end
-        
-        # Update or add the specified attribute
-        if attrs.find { |a| a["Name"] == name }.nil?
-          # Attribute doesn't exist, create it
-          attrs << { "Name" => name, "Value" => value, "Set On Import" => "True" }
-        else
-          # Update existing attribute
-          attrs.find { |a| a["Name"] == name }["Value"] = value
-          attrs.find { |a| a["Name"] == name }["Set On Import"] = "True"
-        end
-        
-        scp_copy["SystemConfiguration"]["Components"][0]["Attributes"] = attrs
-      end
-      
-      return scp_copy
-    end
 
     # Helper method to normalize enabled/disabled values
     def normalize_enabled_value(v)
@@ -264,52 +193,78 @@ module IDRAC
       end
     end
 
-    # Merge two SCPs together
-    def merge_scp(scp1, scp2)
-      return scp1 || scp2 unless scp1 && scp2 # Return the one that's not nil if either is nil
+
+
+    # Handle location header for IP change operations. Monitors old IP until it fails,
+    # then aggressively monitors new IP with tight timeouts.
+    def handle_location_with_ip_change(location, new_ip, timeout: 300)
+      return nil if location.nil? || location.empty?
       
-      # Make them both arrays in case they aren't
-      scp1_array = scp1.is_a?(Array) ? scp1 : [scp1]
-      scp2_array = scp2.is_a?(Array) ? scp2 : [scp2]
+      old_ip = @host
+      start_time = Time.now
+      old_ip_failed = false
       
-      # Convert to hashes for merging
-      hash1 = scp_to_hash(scp1_array)
-      hash2 = scp_to_hash(scp2_array)
+      debug "Monitoring IP change: #{old_ip} → #{new_ip}", 1, :blue
       
-      # Perform deep merge
-      merged = deep_merge(hash1, hash2)
+      while Time.now - start_time < timeout
+        # Try old IP until it fails, then focus on new IP
+        [
+          old_ip_failed ? nil : [self, old_ip, "Old IP failed"],
+          [create_temp_client(new_ip), new_ip, old_ip_failed ? "New IP not ready" : "Cannot reach new IP"]
+        ].compact.each do |client, ip, error_prefix|
+          
+          begin
+            client.login if ip == new_ip
+            client.authenticated_request(:get, "/redfish/v1", timeout: 2, open_timeout: 1)
+            
+            if ip == new_ip
+              debug "✅ IP change successful!", 1, :green
+              @host = new_ip
+              return { status: :success, ip: new_ip }
+            else
+              return { status: :success, ip: old_ip }
+            end
+          rescue => e
+            debug "#{error_prefix}: #{e.message}", ip == new_ip ? 2 : 1, ip == new_ip ? :gray : :yellow
+            old_ip_failed = true if ip == old_ip
+          end
+        end
+        
+        sleep old_ip_failed ? 2 : 5
+      end
       
-      # Convert back to SCP array format
-      hash_to_scp(merged)
+      { status: :timeout, error: "IP change timed out after #{timeout}s. Old IP failed: #{old_ip_failed}" }
+    end
+    
+    private
+    
+    # Wait for job availability, retrying if busy
+    def wait_for_job_availability
+      loop do
+        res = yield
+        return res if res.headers["location"].present?
+        
+        msg = res['error']['@Message.ExtendedInfo'].first['Message']
+        details = res['error']['@Message.ExtendedInfo'].first['Resolution']
+        
+        if details =~ /Wait until the running job is completed/
+          sleep 10
+        else
+          Rails.logger.warn "#{msg}#{details}" if defined?(Rails)
+          raise "Failed configuring static IP: #{msg}, #{details}"
+        end
+      end
+    end
+    
+    # Create temporary client for new IP monitoring  
+    def create_temp_client(new_ip)
+      self.class.new(
+        host: new_ip, username: @username, password: @password,
+        port: @port, use_ssl: @use_ssl, verify_ssl: @verify_ssl,
+        retry_count: 1, retry_delay: 1
+      ).tap { |c| c.verbosity = [@verbosity - 1, 0].max }
     end
 
     private
-
-    # Helper method for deep merging of hashes
-    def deep_merge(hash1, hash2)
-      result = hash1.dup
-      
-      hash2.each do |key, value|
-        if result[key].is_a?(Array) && value.is_a?(Array)
-          # For arrays of attributes, merge by name
-          existing_names = result[key].map { |attr| attr["Name"] }
-          
-          value.each do |attr|
-            if existing_index = existing_names.index(attr["Name"])
-              # Update existing attribute
-              result[key][existing_index] = attr
-            else
-              # Add new attribute
-              result[key] << attr
-            end
-          end
-        else
-          # For other values, just replace
-          result[key] = value
-        end
-      end
-      
-      result
-    end
   end
 end 

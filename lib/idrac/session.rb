@@ -9,7 +9,7 @@ require 'socket'
 module IDRAC
   class Session
     attr_reader :host, :username, :password, :port, :use_ssl, :verify_ssl, 
-                :x_auth_token, :session_location, :direct_mode, :auto_delete_sessions, :host_header
+                :x_auth_token, :session_location, :direct_mode, :host_header
     attr_accessor :verbosity
     
     include Debuggable
@@ -27,7 +27,6 @@ module IDRAC
       @session_location = nil
       @direct_mode = client.direct_mode
       @sessions_maxed = false
-      @auto_delete_sessions = client.auto_delete_sessions
       @verbosity = client.respond_to?(:verbosity) ? client.verbosity : 0
     end
 
@@ -76,7 +75,7 @@ module IDRAC
       
       false
     end
-
+    
     # Delete all sessions using Basic Authentication
     def delete_all_sessions_with_basic_auth
       debug "Attempting to delete all sessions using Basic Authentication...", 1
@@ -143,7 +142,7 @@ module IDRAC
         return try_delete_latest_sessions
       end
     end
-    
+
     # Try to delete sessions by direct URL when we can't list sessions
     def try_delete_latest_sessions
       # Try to delete sessions by direct URL when we can't list sessions
@@ -209,71 +208,24 @@ module IDRAC
       begin
         debug "Deleting Redfish session...", 1
         
-        if @session_location
-          # Use the X-Auth-Token for authentication
-          headers = { 'X-Auth-Token' => @x_auth_token }
-          
-          begin
-            response = connection.delete(@session_location) do |req|
-              req.headers.merge!(headers)
-            end
-            
-            if response.status == 200 || response.status == 204
-              debug "Redfish session deleted successfully", 1, :green
-              @x_auth_token = nil
-              @session_location = nil
-              return true
-            end
-          rescue => session_e
-            debug "Error during session deletion via location: #{session_e.message}", 1, :yellow
-            # Continue to try basic auth method
-          end
+        # Try to delete via session location first
+        if @session_location && delete_via_location
+          return true
         end
         
-        # If deleting via session location fails or there's no session location,
-        # try to delete by using the basic auth method
-        if @x_auth_token
-          # Try to determine session ID from the X-Auth-Token or session_location
-          session_id = nil
-          
-          # Extract session ID from location if available
-          if @session_location
-            if @session_location =~ /\/([^\/]+)$/
-              session_id = $1
-            end
-          end
-          
-          # If we have an extracted session ID
-          if session_id
-            debug "Trying to delete session by ID #{session_id}", 1
-            
-            begin
-              endpoint = determine_session_endpoint
-              delete_url = "#{endpoint}/#{session_id}"
-              
-              delete_response = request_with_basic_auth(:delete, delete_url, nil)
-              
-              if delete_response.status == 200 || delete_response.status == 204
-                debug "Successfully deleted session via ID", 1, :green
-                @x_auth_token = nil
-                @session_location = nil
-                return true
-              end
-            rescue => id_e
-              debug "Error during session deletion via ID: #{id_e.message}", 1, :yellow
-            end
-          end
-          
-          # Last resort: clear the token variable even if we couldn't properly delete it
-          debug "Clearing session token internally", 1, :yellow
-          @x_auth_token = nil
-          @session_location = nil
+        # Try to delete via session ID
+        if @x_auth_token && delete_via_session_id
+          return true
         end
         
+        # Clear token variables even if deletion failed
+        debug "Clearing session token internally", 1, :yellow
+        @x_auth_token = nil
+        @session_location = nil
         return false
       rescue => e
         debug "Error during Redfish session deletion: #{e.message}", 1, :red
-        # Clear token variable anyway
+        # Clear token variables anyway
         @x_auth_token = nil
         @session_location = nil
         return false
@@ -527,45 +479,39 @@ module IDRAC
       return false unless @sessions_maxed
       
       debug "Maximum sessions reached, attempting to clear sessions", 1
-      if @auto_delete_sessions
-        if force_clear_sessions
-          debug "Successfully cleared sessions, trying to create a new session", 1, :green
+      if force_clear_sessions
+        debug "Successfully cleared sessions, trying to create a new session", 1, :green
+        
+        # Give the iDRAC a moment to process the session deletions
+        sleep(3)
+        
+        # Try one more time after clearing with form-urlencoded
+        begin
+          response = connection.post(url) do |req|
+            req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+            req.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            req.headers['Host'] = host_header if host_header
+            req.body = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
+          end
           
-          # Give the iDRAC a moment to process the session deletions
-          sleep(3)
-          
-          # Try one more time after clearing with form-urlencoded
-          begin
-            response = connection.post(url) do |req|
-              req.headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
-              req.headers['Content-Type'] = 'application/x-www-form-urlencoded'
-              req.headers['Host'] = host_header if host_header
-              req.body = "UserName=#{URI.encode_www_form_component(username)}&Password=#{URI.encode_www_form_component(password)}"
-            end
-            
-            if process_session_response(response)
-              debug "Redfish session created successfully after clearing sessions", 1, :green
-              return true
-            else
-              debug "Failed to create Redfish session after clearing sessions: #{response.status} - #{response.body}", 1, :red
-              # If still failing, try direct mode
-              debug "Falling back to direct mode", 1, :light_yellow
-              @direct_mode = true
-              return false
-            end
-          rescue => e
-            debug "Error during session creation after clearing: #{e.class.name}: #{e.message}", 1, :red
+          if process_session_response(response)
+            debug "Redfish session created successfully after clearing sessions", 1, :green
+            return true
+          else
+            debug "Failed to create Redfish session after clearing sessions: #{response.status} - #{response.body}", 1, :red
+            # If still failing, try direct mode
             debug "Falling back to direct mode", 1, :light_yellow
             @direct_mode = true
             return false
           end
-        else
-          debug "Failed to clear sessions, switching to direct mode", 1, :light_yellow
+        rescue => e
+          debug "Error during session creation after clearing: #{e.class.name}: #{e.message}", 1, :red
+          debug "Falling back to direct mode", 1, :light_yellow
           @direct_mode = true
           return false
         end
       else
-        debug "Auto delete sessions is disabled, switching to direct mode", 1, :light_yellow
+        debug "Failed to clear sessions, switching to direct mode", 1, :light_yellow
         @direct_mode = true
         return false
       end
@@ -635,6 +581,61 @@ module IDRAC
       end
     end
 
+    # Delete session using the session location URL
+    def delete_via_location
+      headers = { 'X-Auth-Token' => @x_auth_token }
+      
+      response = connection.delete(@session_location) do |req|
+        req.headers.merge!(headers)
+      end
+      
+      if response.status == 200 || response.status == 204
+        debug "Redfish session deleted successfully via location", 1, :green
+        @x_auth_token = nil
+        @session_location = nil
+        return true
+      end
+      
+      false
+    rescue => e
+      debug "Error during session deletion via location: #{e.message}", 1, :yellow
+      false
+    end
+    
+    # Delete session using session ID extracted from location or token
+    def delete_via_session_id
+      session_id = extract_session_id
+      return false unless session_id
+      
+      debug "Trying to delete session by ID #{session_id}", 1
+      
+      endpoint = determine_session_endpoint
+      delete_url = "#{endpoint}/#{session_id}"
+      
+      delete_response = request_with_basic_auth(:delete, delete_url, nil)
+      
+      if delete_response.status == 200 || delete_response.status == 204
+        debug "Successfully deleted session via ID", 1, :green
+        @x_auth_token = nil
+        @session_location = nil
+        return true
+      end
+      
+      false
+    rescue => e
+      debug "Error during session deletion via ID: #{e.message}", 1, :yellow
+      false
+    end
+    
+    # Extract session ID from location URL
+    def extract_session_id
+      return nil unless @session_location
+      
+      if @session_location =~ /\/([^\/]+)$/
+        $1
+      end
+    end
+
     # Determine the correct session endpoint based on Redfish version
     def determine_session_endpoint
       begin
@@ -655,122 +656,27 @@ module IDRAC
               
               # For version 1.17.0 and below, use the /redfish/v1/Sessions endpoint
               # For newer versions, use /redfish/v1/SessionService/Sessions
-              if Gem::Version.new(redfish_version) <= Gem::Version.new('1.17.0')
-                endpoint = '/redfish/v1/Sessions'
-                debug "Using endpoint #{endpoint} for Redfish version #{redfish_version}", 1
-                return endpoint
-              else
-                endpoint = '/redfish/v1/SessionService/Sessions'
-                debug "Using endpoint #{endpoint} for Redfish version #{redfish_version}", 1
-                return endpoint
-              end
+              endpoint = Gem::Version.new(redfish_version) <= Gem::Version.new('1.17.0') ? 
+                         '/redfish/v1/Sessions' : 
+                         '/redfish/v1/SessionService/Sessions'
+              
+              debug "Using endpoint #{endpoint} for Redfish version #{redfish_version}", 1
+              return endpoint
             end
           rescue JSON::ParserError => e
             debug "Error parsing Redfish version: #{e.message}", 1, :red
-            debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
           rescue => e
             debug "Error determining Redfish version: #{e.message}", 1, :red
-            debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
           end
         end
       rescue => e
         debug "Error checking Redfish version: #{e.message}", 1, :red
-        debug e.backtrace.join("\n"), 3 if e.backtrace && @verbosity >= 3
       end
       
       # Default to /redfish/v1/Sessions if we can't determine version
       default_endpoint = '/redfish/v1/Sessions'
       debug "Defaulting to endpoint #{default_endpoint}", 1, :light_yellow
       default_endpoint
-    end
-  end
-
-  # Module containing extracted session methods to be included in Client
-  module SessionUtils
-    def force_clear_sessions
-      debug = ->(msg, level=1, color=:light_cyan) { 
-        verbosity = respond_to?(:verbosity) ? verbosity : 0
-        return unless verbosity >= level
-        msg = msg.send(color) if color && msg.respond_to?(color)
-        puts msg
-      }
-      
-      debug.call "Attempting to force clear all sessions...", 1
-      
-      if delete_all_sessions_with_basic_auth
-        debug.call "Successfully cleared sessions using Basic Auth", 1, :green
-        true
-      else
-        debug.call "Failed to clear sessions using Basic Auth", 1, :red
-        false
-      end
-    end
-
-    # Delete all sessions using Basic Authentication
-    def delete_all_sessions_with_basic_auth
-      debug = ->(msg, level=1, color=:light_cyan) { 
-        verbosity = respond_to?(:verbosity) ? verbosity : 0
-        return unless verbosity >= level
-        msg = msg.send(color) if color && msg.respond_to?(color)
-        puts msg
-      }
-      
-      debug.call "Attempting to delete all sessions using Basic Authentication...", 1
-      
-      # First, get the list of sessions
-      sessions_url = session&.determine_session_endpoint || '/redfish/v1/Sessions'
-      
-      begin
-        # Get the list of sessions
-        response = authenticated_request(:get, sessions_url)
-        
-        if response.status != 200
-          debug.call "Failed to get sessions list: #{response.status} - #{response.body}", 1, :red
-          return false
-        end
-        
-        # Parse the response to get session IDs
-        begin
-          sessions_data = JSON.parse(response.body)
-          
-          if sessions_data['Members'] && sessions_data['Members'].any?
-            debug.call "Found #{sessions_data['Members'].count} active sessions", 1, :light_yellow
-            
-            # Delete each session
-            success = true
-            sessions_data['Members'].each do |session|
-              session_url = session['@odata.id']
-              
-              # Skip if no URL
-              next unless session_url
-              
-              # Delete the session
-              delete_response = authenticated_request(:delete, session_url)
-              
-              if delete_response.status == 200 || delete_response.status == 204
-                debug.call "Successfully deleted session: #{session_url}", 1, :green
-              else
-                debug.call "Failed to delete session #{session_url}: #{delete_response.status}", 1, :red
-                success = false
-              end
-              
-              # Small delay between deletions
-              sleep(1)
-            end
-            
-            return success
-          else
-            debug.call "No active sessions found", 1, :light_yellow
-            return true
-          end
-        rescue JSON::ParserError => e
-          debug.call "Error parsing sessions response: #{e.message}", 1, :red
-          return false
-        end
-      rescue => e
-        debug.call "Error during session deletion with Basic Auth: #{e.message}", 1, :red
-        return false
-      end
     end
   end
 end 
