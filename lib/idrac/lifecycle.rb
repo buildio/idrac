@@ -13,12 +13,13 @@ module IDRAC
       debug "Detected iDRAC version: #{idrac_version}", 1
       
       # Use version-specific methods
-      if idrac_version > 9
+      if idrac_version >= 9
         debug "Using modern approach for iDRAC > 9", 1
         return get_lifecycle_status_modern_firmware
-      elsif idrac_version == 9
-        debug "Using registry approach for iDRAC 9", 1
-        return get_lifecycle_status_from_registry
+      # This may have been one particularly odd oldish iDRAC 9
+      # elsif idrac_version == 9
+      #   debug "Using registry approach for iDRAC 9", 1
+      #   return get_lifecycle_status_from_registry
       else
         debug "Using SCP approach for older iDRAC (v#{idrac_version})", 1
         return get_lifecycle_status_from_scp
@@ -57,7 +58,7 @@ module IDRAC
         return false
       rescue => e
         debug "Error getting Lifecycle Controller status from SCP: #{e.message}", 1, :red
-        debug e.backtrace.join("\n"), 3, :red
+        debug e.backtrace.join("\n"), 10, :red
         return false
       end
     end
@@ -75,9 +76,11 @@ module IDRAC
       # This is the attribute we want:
       target = attributes&.dig('RegistryEntries', 'Attributes')&.find {|q| q['AttributeName'] =~ /LCAttributes.1.LifecycleControllerState/ }
       # This is the FQDN of the attribute we want to get the value of:
-      fqdn = target.dig('Id')  # LifecycleController.Embedded.1#LCAttributes.1#LifecycleControllerState
+      fqdn = target.dig('Id') # LifecycleController.Embedded.1#LCAttributes.1#LifecycleControllerState
+      subpath = fqdn.gsub(/#.*$/,'') # Remove everything # and onwards
       # This is the Current Value:
-      response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/#{fqdn}")
+      response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/#{subpath}")
+
       if response.status != 200
         debug "Failed to get Lifecycle Controller Attributes".red, 1
         return false

@@ -190,8 +190,7 @@ module IDRAC
       begin
         conn.options.timeout = timeout if timeout
         conn.options.open_timeout = open_timeout if open_timeout
-        
-        conn.run_request(method, path.sub(/^\//, ''), body, headers)
+        conn.run_request(method, path, body, headers)
       ensure
         conn.options.timeout = original_timeout
         conn.options.open_timeout = original_open_timeout

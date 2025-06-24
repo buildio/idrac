@@ -193,7 +193,36 @@ module IDRAC
       end
     end
 
-
+    # Merge multiple SCP configurations together
+    # Takes multiple arguments - each can be an SCP hash, array of components, or full SCP structure
+    def merge_scp(*scps)
+      merged_components = {}
+      
+      scps.compact.each do |scp|
+        components = extract_components(scp)
+        components.each do |component|
+          fqdd = component["FQDD"]
+          if merged_components[fqdd]
+            # Merge attributes for the same FQDD
+            existing_attrs = merged_components[fqdd]["Attributes"] || []
+            new_attrs = component["Attributes"] || []
+            
+            # Build hash of existing attributes by name for easy lookup
+            attr_hash = {}
+            existing_attrs.each { |attr| attr_hash[attr["Name"]] = attr }
+            
+            # Add/overwrite with new attributes
+            new_attrs.each { |attr| attr_hash[attr["Name"]] = attr }
+            
+            merged_components[fqdd]["Attributes"] = attr_hash.values
+          else
+            merged_components[fqdd] = component.dup
+          end
+        end
+      end
+      
+      merged_components.values
+    end
 
     # Handle location header for IP change operations. Monitors old IP until it fails,
     # then aggressively monitors new IP with tight timeouts.
@@ -266,5 +295,26 @@ module IDRAC
     end
 
     private
+    
+    # Extract components array from various SCP formats
+    def extract_components(scp)
+      case scp
+      when Hash
+        if scp["SystemConfiguration"] && scp["SystemConfiguration"]["Components"]
+          scp["SystemConfiguration"]["Components"]
+        elsif scp["Components"]
+          scp["Components"]  
+        elsif scp["FQDD"]
+          [scp] # Single component
+        else
+          # Assume it's a hash of FQDD => attributes
+          hash_to_scp(scp)
+        end
+      when Array
+        scp # Already an array of components
+      else
+        []
+      end
+    end
   end
 end 

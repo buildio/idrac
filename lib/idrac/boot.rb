@@ -356,7 +356,7 @@ module IDRAC
       else
         response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/Bios")
         json = JSON.parse(response.body)
-        raise "Error reading HddPlaceholder setup" if json&.dig('SystemConfiguration').blank?
+        raise "Error reading HddPlaceholder setup" if json&.dig('Attributes','HddPlaceholder').blank?
         json["Attributes"]["HddPlaceholder"] == "Enabled"
       end
     end
@@ -371,7 +371,7 @@ module IDRAC
       else
         response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/Bios")
         json = JSON.parse(response.body)
-        raise "Error reading PowerControl setup" if json&.dig('SystemConfiguration').blank?
+        raise "Error reading PowerControl setup" if json&.dig('Attributes').blank?
         json["Attributes"]["ProcCStates"] == "Enabled" &&
           json["Attributes"]["SysProfile"] == "PerfPerWattOptimizedOs" &&
           json["Attributes"]["ProcPwrPerf"] == "OsDbpm"
