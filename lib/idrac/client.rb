@@ -155,6 +155,11 @@ module IDRAC
       headers['Accept'] ||= 'application/json'
       headers['Host'] = @host_header if @host_header
       
+      # Debug the body being sent
+      if body && @verbosity >= 2
+        debug "Request body: #{body}", 2
+      end
+      
       # Determine authentication method and set headers
       if @direct_mode
         headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
@@ -190,6 +195,7 @@ module IDRAC
       begin
         conn.options.timeout = timeout if timeout
         conn.options.open_timeout = open_timeout if open_timeout
+        
         conn.run_request(method, path, body, headers)
       ensure
         conn.options.timeout = original_timeout

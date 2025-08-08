@@ -1660,6 +1660,53 @@ module IDRAC
       end
     end
     
+    # TSR (Technical Support Report) commands
+    desc "tsr_collect", "Generate and download TSR/SupportAssist collection"
+    method_option :output, type: :string, desc: "Output filename"
+    def tsr_collect
+      with_idrac_client do |client|
+        puts "Generating and downloading TSR logs...".yellow
+        puts "This may take several minutes...".yellow
+        
+        result = client.generate_and_download_tsr(output_file: options[:output])
+        
+        if result
+          puts "TSR logs saved to: #{result}".green
+          puts "File size: #{File.size(result) / 1024 / 1024} MB".cyan if File.exist?(result)
+        else
+          puts "Failed to generate or download TSR logs".red
+        end
+      end
+    end
+    
+    desc "tsr_status", "Check TSR collection status"
+    def tsr_status
+      with_idrac_client do |client|
+        status = client.tsr_status
+        
+        puts "\nTSR Collection Status:".green.bold
+        puts "Available: #{status[:available] ? 'Yes'.green : 'No'.red}"
+        
+        if status[:collection_in_progress]
+          puts "Collection in progress: Yes".yellow
+          puts "Job ID: #{status[:job_id]}".cyan if status[:job_id]
+        else
+          puts "Collection in progress: No".green
+        end
+      end
+    end
+    
+    desc "tsr_accept_eula", "Accept SupportAssist EULA"
+    def tsr_accept_eula
+      with_idrac_client do |client|
+        if client.accept_supportassist_eula
+          puts "SupportAssist EULA accepted successfully".green
+        else
+          puts "Failed to accept SupportAssist EULA".red
+        end
+      end
+    end
+    
     private
 
     def with_idrac_client

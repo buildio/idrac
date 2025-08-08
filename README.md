@@ -17,6 +17,8 @@ A Ruby client for the Dell iDRAC API. This gem provides a command-line interface
 - Lifecycle Controller status management
 - Return values as RecursiveOpenStruct objects for convenient attribute access
 - Reset iDRAC functionality
+- Generate and download TSR (Technical Support Report) / SupportAssist collections
+- SupportAssist EULA management
 
 ## Installation
 
@@ -85,6 +87,11 @@ idrac sel:clear --host=192.168.1.100
 
 # Reset iDRAC
 idrac reset --host=192.168.1.100
+
+# TSR/SupportAssist Collection Commands
+idrac tsr_collect --host=192.168.1.100  # Generate and download TSR logs
+idrac tsr_status --host=192.168.1.100  # Check TSR collection status
+idrac tsr_accept_eula --host=192.168.1.100  # Accept SupportAssist EULA (required before first use)
 ```
 
 All commands automatically handle session expiration by re-authenticating when necessary, ensuring that long-running operations like firmware updates complete successfully even if the iDRAC session times out.
@@ -179,6 +186,18 @@ client.clear_lifecycle!
 # Clear System Event Logs
 client.clear_system_event_logs!
 
+# TSR/SupportAssist Collection operations
+# Accept EULA (required only once)
+client.accept_supportassist_eula
+
+# Generate and download TSR logs
+file_path = client.generate_and_download_tsr(output_file: "tsr.zip")
+puts "TSR logs saved to: #{file_path}"
+
+# Check TSR collection status
+status = client.tsr_status
+puts "Collection available: #{status[:available]}"
+
 # Working with hash objects
 # Methods return data as Ruby hashes with string keys for consistent access
 
@@ -271,6 +290,15 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
 ## Changelog
+
+### Version 0.8.0
+- **Added TSR/SupportAssist Collection Support**: Simplified commands for generating Technical Support Reports
+  - Generate and download SupportAssist collections with direct file download
+  - Automatic EULA acceptance check with clear user guidance
+  - Simple CLI commands: `tsr_collect`, `tsr_status`, `tsr_accept_eula`
+  - Job-based generation with automatic progress tracking
+  - Direct download approach based on Dell's official Python implementation
+  - Clear error messages when EULA acceptance is required
 
 ### Version 0.7.8
 - **Network Redirection Support**: Added optional `host_header` parameter to Client initialization
