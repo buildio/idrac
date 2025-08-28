@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     idrac (0.8.0)
-      activesupport (>= 6.0, < 8.1)
+      activesupport (>= 7.0)
       base64 (~> 0.1, >= 0.1.0)
       colorize (~> 1.1, >= 1.1.0)
       faraday (~> 2.7, >= 2.7.0)
