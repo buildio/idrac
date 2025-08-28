@@ -152,6 +152,14 @@ module IDRAC
       JSON.parse(handle_response(response))&.dig("PowerControl", 0, "PowerConsumedWatts")&.to_f
     end
     
+    # TODO: Migrate method names to match radfish interface for uniformity:
+    # - Rename get_power_usage_watts to power_consumption_watts
+    # - Rename get_power_state to power_status
+    # - Ensure all methods return consistent types across vendors
+    # Once all vendor gems conform to the same interface, the radfish adapters
+    # can become thin registration layers or be eliminated entirely.
+    alias_method :power_consumption_watts, :get_power_usage_watts
+    
     private
     
     def wait_for_power_state(target_state:, tries: 6)
