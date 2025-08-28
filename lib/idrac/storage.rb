@@ -212,7 +212,7 @@ module IDRAC
               if controller_comp
                 # Try to find the matching virtual disk
                 # Format is typically "Disk.Virtual.X:RAID...."
-                vd_name = vol["Id"] || vol["Name"]
+                # vd_name = vol["Id"] || vol["Name"]  # Not used, kept for debugging
                 vd_comp = controller_comp["Components"]&.find do |comp|
                   comp["FQDD"] =~ /Disk\.Virtual\.\d+:#{controller_fqdd}/
                 end

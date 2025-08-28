@@ -142,7 +142,7 @@ module IDRAC
                 end
               end
             end
-          rescue => e
+          rescue
             # Ignore errors, just continue
           end
           
@@ -152,7 +152,7 @@ module IDRAC
             if idrac_net && idrac_net["mac"] && idrac_net["ipv4"]
               nic_ip_map[idrac_net["mac"].upcase] = idrac_net["ipv4"]
             end
-          rescue => e
+          rescue
             # Ignore errors, just continue
           end
           
@@ -218,7 +218,7 @@ module IDRAC
                     break
                   end
                 end
-              rescue => e
+              rescue
                 # Ignore errors and try the next port type
               end
             end
@@ -775,7 +775,7 @@ module IDRAC
       
       # Try to get license information (new approach that works with iDRAC 8 too)
       license_info = license_info() rescue nil
-      license_version = license_version() rescue nil
+      # license_version = license_version() rescue nil  # Not used currently
       
       if license_info
         license_type = license_info["LicenseType"] || "Unknown"

@@ -374,7 +374,7 @@ module IDRAC
               break
             end
             sleep 30
-          rescue => e
+          rescue
             tries += 1
             if tries > 5
               debug "Failed to reconnect to iDRAC after 5 attempts", 1, :red
@@ -395,7 +395,7 @@ module IDRAC
           else
             debug "Failed to reset iDRAC. Status code: #{response.status}", 1, :red
           end
-        rescue => e
+        rescue
           debug "Failed to reset iDRAC. Status code: #{response.status}", 1, :red
           debug "Error response: #{response.body}", 2, :red
         end

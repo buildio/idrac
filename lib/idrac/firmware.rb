@@ -57,7 +57,7 @@ module IDRAC
       puts "Retrieving system inventory..."
       
       # Get basic system information
-      system_uri = URI.parse("#{client.base_url}/redfish/v1/Systems/System.Embedded.1")
+      # system_uri = URI.parse("#{client.base_url}/redfish/v1/Systems/System.Embedded.1")  # Not used, kept for reference
       system_response = client.authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
       
       if system_response.status != 200
@@ -67,7 +67,7 @@ module IDRAC
       system_data = JSON.parse(system_response.body)
       
       # Get firmware inventory
-      firmware_uri = URI.parse("#{client.base_url}/redfish/v1/UpdateService/FirmwareInventory")
+      # firmware_uri = URI.parse("#{client.base_url}/redfish/v1/UpdateService/FirmwareInventory")  # Not used, kept for reference
       firmware_response = client.authenticated_request(:get, "/redfish/v1/UpdateService/FirmwareInventory")
       
       if firmware_response.status != 200
@@ -479,7 +479,7 @@ module IDRAC
         end
         
         # Upload the firmware file
-        file_content = File.read(firmware_path)
+        # file_content = File.read(firmware_path)  # Not used directly, file is read by Faraday
         
         headers = {
           'Content-Type' => 'multipart/form-data',
