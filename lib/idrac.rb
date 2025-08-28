@@ -59,5 +59,6 @@ require 'idrac/boot'
 require 'idrac/license'
 require 'idrac/system_config'
 require 'idrac/utility'
+require 'idrac/network'
 # Client include must come last:
 require 'idrac/client'
