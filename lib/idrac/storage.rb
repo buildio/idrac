@@ -13,7 +13,8 @@ module IDRAC
           
           # Transform and return all controllers as an array of hashes with string keys
           controllers = data["Members"].map do |controller|
-            {
+            controller_data = {
+              "id" => controller["Id"],
               "name" => controller["Name"],
               "model" => controller["Model"],
               "drives_count" => controller["Drives"].size,
@@ -23,9 +24,21 @@ module IDRAC
               "encryption_capability" => controller.dig("Oem", "Dell", "DellController", "EncryptionCapability"),
               "controller_type" => controller.dig("Oem", "Dell", "DellController", "ControllerType"),
               "pci_slot" => controller.dig("Oem", "Dell", "DellController", "PCISlot"),
-              "raw" => controller,
-              "@odata.id" => controller["@odata.id"]
+              "@odata.id" => controller["@odata.id"],
+              # Store full controller data for access to all fields
+              "Oem" => controller["Oem"],
+              "Status" => controller["Status"],
+              "StorageControllers" => controller["StorageControllers"]
             }
+            
+            # Fetch drives for this controller
+            if controller["Drives"] && !controller["Drives"].empty?
+              controller_data["drives"] = fetch_controller_drives(controller["@odata.id"])
+            else
+              controller_data["drives"] = []
+            end
+            
+            controller_data
           end
           
           return controllers.sort_by { |c| c["name"] }
@@ -36,6 +49,56 @@ module IDRAC
         raise Error, "Failed to get controllers. Status code: #{response.status}"
       end
     end
+    
+    private
+    
+    def fetch_controller_drives(controller_id)
+      controller_path = controller_id.split("v1/").last
+      response = authenticated_request(:get, "/redfish/v1/#{controller_path}?$expand=*($levels=1)")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          
+          drives = data["Drives"].map do |body|
+            serial = body["SerialNumber"] 
+            serial = body["Identifiers"].first["DurableName"] if serial.blank?
+            {
+              "id" => body["Id"],
+              "name" => body["Name"],
+              "serial" => serial,
+              "manufacturer" => body["Manufacturer"],
+              "model" => body["Model"],
+              "revision" => body["Revision"],
+              "capacity_bytes" => body["CapacityBytes"],
+              "speed_gbps" => body["CapableSpeedGbs"],
+              "rotation_speed_rpm" => body["RotationSpeedRPM"],
+              "media_type" => body["MediaType"],
+              "protocol" => body["Protocol"],
+              "health" => body.dig("Status", "Health") || "N/A",
+              "temperature_celsius" => nil,  # Not available in standard iDRAC
+              "failure_predicted" => body["FailurePredicted"],
+              "life_left_percent" => body["PredictedMediaLifeLeftPercent"],
+              # Dell-specific fields
+              "certified" => body.dig("Oem", "Dell", "DellPhysicalDisk", "Certified"),
+              "raid_status" => body.dig("Oem", "Dell", "DellPhysicalDisk", "RaidStatus"),
+              "operation_name" => body.dig("Oem", "Dell", "DellPhysicalDisk", "OperationName"),
+              "operation_progress" => body.dig("Oem", "Dell", "DellPhysicalDisk", "OperationPercentCompletePercent"),
+              "encryption_ability" => body["EncryptionAbility"],
+              "odata_id" => body["@odata.id"]  # Full API path for operations
+            }
+          end
+          
+          return drives.sort_by { |d| d["name"] }
+        rescue JSON::ParserError
+          []
+        end
+      else
+        []
+      end
+    end
+    
+    public
 
     # Find the best controller based on preference flags
     # @param name_pattern [String] Regex pattern to match controller name (defaults to "PERC")
@@ -108,22 +171,28 @@ module IDRAC
             serial = body["SerialNumber"] 
             serial = body["Identifiers"].first["DurableName"] if serial.blank?
             {
-              "serial" => serial,
-              "model" => body["Model"],
+              "id" => body["Id"],
               "name" => body["Name"],
-              "capacity_bytes" => body["CapacityBytes"],
-              "health" => body.dig("Status", "Health") || "N/A",
-              "speed_gbp" => body["CapableSpeedGbs"],
+              "serial" => serial,
               "manufacturer" => body["Manufacturer"],
+              "model" => body["Model"],
+              "revision" => body["Revision"],
+              "capacity_bytes" => body["CapacityBytes"],
+              "speed_gbps" => body["CapableSpeedGbs"],
+              "rotation_speed_rpm" => body["RotationSpeedRPM"],
               "media_type" => body["MediaType"],
+              "protocol" => body["Protocol"],
+              "health" => body.dig("Status", "Health") || "N/A",
+              "temperature_celsius" => nil,  # Not available in standard iDRAC
               "failure_predicted" => body["FailurePredicted"],
               "life_left_percent" => body["PredictedMediaLifeLeftPercent"],
+              # Dell-specific fields
               "certified" => body.dig("Oem", "Dell", "DellPhysicalDisk", "Certified"),
               "raid_status" => body.dig("Oem", "Dell", "DellPhysicalDisk", "RaidStatus"),
               "operation_name" => body.dig("Oem", "Dell", "DellPhysicalDisk", "OperationName"),
               "operation_progress" => body.dig("Oem", "Dell", "DellPhysicalDisk", "OperationPercentCompletePercent"),
               "encryption_ability" => body["EncryptionAbility"],
-              "@odata.id" => body["@odata.id"]
+              "odata_id" => body["@odata.id"]  # Full API path for operations
             }
           end
           

@@ -28,8 +28,229 @@ require 'colorize'
 # https://github.com/dell/iDRAC-Redfish-Scripting/issues/116
 module IDRAC
   module Boot
-    # Get BIOS boot options
+    # Get boot configuration with snake_case fields
+    def boot_config
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          boot_data = data["Boot"] || {}
+          
+          # Get boot options for resolving references
+          options_map = {}
+          begin
+            options = boot_options
+            options.each do |opt|
+              options_map[opt["id"]] = opt["display_name"] || opt["name"]
+            end
+          rescue
+            # Ignore errors fetching boot options
+          end
+          
+          # Build boot order with resolved names
+          boot_order = (boot_data["BootOrder"] || []).map do |ref|
+            {
+              "reference" => ref,
+              "name" => options_map[ref] || ref
+            }
+          end
+          
+          # Return hash with snake_case fields
+          {
+            # Boot override settings (for one-time or continuous boot)
+            "boot_source_override_enabled" => boot_data["BootSourceOverrideEnabled"],     # Disabled/Once/Continuous
+            "boot_source_override_target" => boot_data["BootSourceOverrideTarget"],       # None/Pxe/Hdd/Cd/etc
+            "boot_source_override_mode" => boot_data["BootSourceOverrideMode"],           # UEFI/Legacy
+            "allowed_override_targets" => boot_data["BootSourceOverrideTarget@Redfish.AllowableValues"] || [],
+            
+            # Permanent boot order with resolved names
+            "boot_order" => boot_order,                                                    # [{reference: "Boot0001", name: "Ubuntu"}]
+            "boot_order_refs" => boot_data["BootOrder"] || [],                            # Raw references for set_boot_order
+            
+            # UEFI specific fields
+            "uefi_target_boot_source_override" => boot_data["UefiTargetBootSourceOverride"],
+            "stop_boot_on_fault" => boot_data["StopBootOnFault"],
+            
+            # References to other resources
+            "boot_options_uri" => boot_data.dig("BootOptions", "@odata.id"),
+            "certificates_uri" => boot_data.dig("Certificates", "@odata.id")
+          }.compact
+        rescue JSON::ParserError
+          raise Error, "Failed to parse boot response: #{response.body}"
+        end
+      else
+        raise Error, "Failed to get boot configuration. Status code: #{response.status}"
+      end
+    end
+    
+    # Get raw Redfish boot data (CamelCase)
+    def boot_raw
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
+      
+      if response.status == 200
+        data = JSON.parse(response.body)
+        data["Boot"] || {}
+      else
+        raise Error, "Failed to get boot configuration. Status code: #{response.status}"
+      end
+    end
+    
+    # Shorter alias for convenience
+    def boot
+      boot_config
+    end
+    
+    # Get boot options collection - the actual boot devices present in the system
+    # This is different from boot_config which returns the boot configuration settings
+    def boot_options
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/BootOptions?$expand=*($levels=1)")
+      
+      if response.status == 200
+        begin
+          data = JSON.parse(response.body)
+          
+          # Return the BootOption objects with snake_case
+          data["Members"]&.map do |member|
+            {
+              "id" => member["Id"],                                           # Boot0001
+              "boot_option_reference" => member["BootOptionReference"],       # Boot0001  
+              "display_name" => member["DisplayName"],                        # "Integrated RAID Controller 1: Ubuntu"
+              "name" => member["DisplayName"] || member["Name"],              # Alias for display_name
+              "enabled" => member["BootOptionEnabled"],                       # true/false
+              "uefi_device_path" => member["UefiDevicePath"],                 # UEFI device path
+              "description" => member["Description"]
+            }.compact
+          end || []
+        rescue JSON::ParserError
+          raise Error, "Failed to parse boot options response: #{response.body}"
+        end
+      else
+        []
+      end
+    end
+    
+    # Legacy method names for backward compatibility
     def get_bios_boot_options
+      get_bios_boot_sources
+    end
+    
+    def get_boot_devices
+      boot_options
+    end
+    
+    # Set boot override for next boot
+    def set_boot_override(target, enabled: "Once", mode: nil)
+      # Validate target against allowed values
+      boot_data = boot
+      valid_targets = boot_data["allowed_override_targets"]
+      
+      if valid_targets && !valid_targets.include?(target)
+        debug "Invalid boot target '#{target}'. Allowed values: #{valid_targets.join(', ')}", 1, :red
+        raise Error, "Invalid boot target: #{target}"
+      end
+      
+      debug "Setting boot override to #{target} (#{enabled})...", 1, :yellow
+      
+      body = {
+        "Boot" => {
+          "BootSourceOverrideEnabled" => enabled,  # Disabled/Once/Continuous
+          "BootSourceOverrideTarget" => target     # None/Pxe/Hdd/Cd/etc
+        }
+      }
+      
+      # Add boot mode if specified
+      body["Boot"]["BootSourceOverrideMode"] = mode if mode
+      
+      response = authenticated_request(
+        :patch,
+        "/redfish/v1/Systems/System.Embedded.1",
+        body: body.to_json,
+        headers: { 'Content-Type': 'application/json' }
+      )
+      
+      if response.status.between?(200, 299)
+        debug "Boot override set successfully.", 1, :green
+        return true
+      else
+        raise Error, "Failed to set boot override: #{response.status} - #{response.body}"
+      end
+    end
+    
+    # Clear boot override settings
+    def clear_boot_override
+      debug "Clearing boot override...", 1, :yellow
+      
+      body = {
+        "Boot" => {
+          "BootSourceOverrideEnabled" => "Disabled"
+        }
+      }
+      
+      response = authenticated_request(
+        :patch,
+        "/redfish/v1/Systems/System.Embedded.1",
+        body: body.to_json,
+        headers: { 'Content-Type': 'application/json' }
+      )
+      
+      if response.status.between?(200, 299)
+        debug "Boot override cleared successfully.", 1, :green
+        return true
+      else
+        raise Error, "Failed to clear boot override: #{response.status} - #{response.body}"
+      end
+    end
+    
+    # Set the permanent boot order
+    def set_boot_order(devices)
+      debug "Setting boot order...", 1, :yellow
+      
+      body = {
+        "Boot" => {
+          "BootOrder" => devices
+        }
+      }
+      
+      response = authenticated_request(
+        :patch,
+        "/redfish/v1/Systems/System.Embedded.1",
+        body: body.to_json,
+        headers: { 'Content-Type': 'application/json' }
+      )
+      
+      if response.status.between?(200, 299)
+        debug "Boot order set successfully.", 1, :green
+        return true
+      else
+        raise Error, "Failed to set boot order: #{response.status} - #{response.body}"
+      end
+    end
+    
+    # Convenience methods for common boot targets
+    def boot_to_pxe(enabled: "Once", mode: nil)
+      set_boot_override("Pxe", enabled: enabled, mode: mode)
+    end
+    
+    def boot_to_disk(enabled: "Once", mode: nil)
+      set_boot_override("Hdd", enabled: enabled, mode: mode)
+    end
+    
+    def boot_to_cd(enabled: "Once", mode: nil)
+      set_boot_override("Cd", enabled: enabled, mode: mode)
+    end
+    
+    def boot_to_usb(enabled: "Once", mode: nil)
+      set_boot_override("Usb", enabled: enabled, mode: mode)
+    end
+    
+    def boot_to_bios_setup(enabled: "Once", mode: nil)
+      set_boot_override("BiosSetup", enabled: enabled, mode: mode)
+    end
+    
+    private
+    
+    def get_bios_boot_sources
       response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/BootSources")
       
       if response.status == 200
@@ -61,6 +282,8 @@ module IDRAC
         raise Error, "Failed to get BIOS boot options. Status code: #{response.status}"
       end
     end
+    
+    public
     
     # Ensure UEFI boot mode
     def ensure_uefi_boot

@@ -215,33 +215,6 @@ module IDRAC
       end
     end
 
-    # Get current boot source override settings
-    def get_boot_source_override
-      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1")
-      
-      if response.status == 200
-        begin
-          data = JSON.parse(response.body)
-          boot = data["Boot"]
-          
-          puts "Boot Source Override Configuration:".green
-          puts "  Enabled: #{boot['BootSourceOverrideEnabled']}"
-          puts "  Target: #{boot['BootSourceOverrideTarget']}"
-          puts "  Mode: #{boot['BootSourceOverrideMode']}" if boot['BootSourceOverrideMode']
-          
-          if boot["BootSourceOverrideEnabled"] != "Once" || boot["BootSourceOverrideTarget"] == "None"
-            return "None"
-          else
-            return "#{boot['BootSourceOverrideMode']} #{boot['BootSourceOverrideTarget']}"
-          end
-        rescue JSON::ParserError
-          raise Error, "Failed to parse boot source response: #{response.body}"
-        end
-      else
-        raise Error, "Failed to get boot source override. Status code: #{response.status}"
-      end
-    end
-
     private
 
 

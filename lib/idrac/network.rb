@@ -18,14 +18,18 @@ module IDRAC
           if response.status == 200
             data = JSON.parse(response.body)
             {
-              "ipv4_address" => data.dig("IPv4Addresses", 0, "Address"),
-              "subnet_mask" => data.dig("IPv4Addresses", 0, "SubnetMask"),
+              "ipv4" => data.dig("IPv4Addresses", 0, "Address"),
+              "mask" => data.dig("IPv4Addresses", 0, "SubnetMask"),
               "gateway" => data.dig("IPv4Addresses", 0, "Gateway"),
               "mode" => data.dig("IPv4Addresses", 0, "AddressOrigin"), # DHCP or Static
-              "mac_address" => data["MACAddress"],
+              "mac" => data["MACAddress"],
               "hostname" => data["HostName"],
               "fqdn" => data["FQDN"],
-              "dns_servers" => data["NameServers"] || []
+              "dns_servers" => data["NameServers"] || [],
+              "name" => data["Id"] || "iDRAC",
+              "speed_mbps" => data["SpeedMbps"] || 1000,
+              "status" => data.dig("Status", "Health") || "OK",
+              "kind" => "ethernet"
             }
           else
             raise Error, "Failed to get interface details. Status: #{response.status}"
@@ -38,7 +42,7 @@ module IDRAC
       end
     end
     
-    def set_bmc_network(ip_address: nil, subnet_mask: nil, gateway: nil, 
+    def set_bmc_network(ipv4: nil, mask: nil, gateway: nil, 
                         dns_primary: nil, dns_secondary: nil, hostname: nil, 
                         dhcp: false)
       # Get the interface path first
@@ -65,14 +69,14 @@ module IDRAC
             body = {}
             
             # Configure static IP if provided
-            if ip_address && subnet_mask
+            if ipv4 && mask
               body["IPv4Addresses"] = [{
-                "Address" => ip_address,
-                "SubnetMask" => subnet_mask,
+                "Address" => ipv4,
+                "SubnetMask" => mask,
                 "Gateway" => gateway,
                 "AddressOrigin" => "Static"
               }]
-              puts "  IP: #{ip_address}/#{subnet_mask}".cyan
+              puts "  IP: #{ipv4}/#{mask}".cyan
               puts "  Gateway: #{gateway}".cyan if gateway
             end
             

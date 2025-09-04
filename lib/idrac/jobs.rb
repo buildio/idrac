@@ -42,33 +42,30 @@ module IDRAC
     
     # Clear all jobs from the job queue
     def clear_jobs!
-      # Get list of jobs
       jobs_response = authenticated_request(:get, '/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)')
-      handle_response(jobs_response)
+      return true unless jobs_response.status == 200
       
-      if jobs_response.status == 200
-        begin
-          jobs_data = JSON.parse(jobs_response.body)
-          members = jobs_data["Members"]
-          
-          # Delete each job individually
-          members.each.with_index do |job, i|
-            puts "Removing #{job['Id']} : #{job['JobState']} > #{job['Message']} [#{i+1}/#{members.count}]".yellow
-            delete_response = authenticated_request(:delete, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{job['Id']}")
-            
-            unless delete_response.status.between?(200, 299)
-              puts "Warning: Failed to delete job #{job['Id']}. Status code: #{delete_response.status}".yellow
-            end
-          end
-          
-          puts "Successfully cleared all jobs".green
-          return true
-        rescue JSON::ParserError
-          raise Error, "Failed to parse jobs response: #{jobs_response.body}"
-        end
-      else
-        raise Error, "Failed to get jobs. Status code: #{jobs_response.status}"
+      jobs_data = JSON.parse(jobs_response.body)
+      members = jobs_data["Members"] || []
+      
+      if members.empty?
+        puts "No jobs to clear.".yellow
+        return true
       end
+      
+      puts "Clearing #{members.length} jobs...".yellow
+      
+      members.each_with_index do |job, i|
+        puts "Removing #{job['Id']} : #{job['JobState']} > #{job['Message']} [#{i+1}/#{members.count}]".yellow
+        response = authenticated_request(:delete, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{job['Id']}")
+        
+        unless response.status.between?(200, 299)
+          puts "Warning: Failed to delete job #{job['Id']}. Status code: #{response.status}".yellow
+        end
+      end
+      
+      puts "Successfully cleared all jobs".green
+      true
     end
     
     # Force clear the job queue

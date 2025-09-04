@@ -16,7 +16,7 @@ module IDRAC
             bank, index = /DIMM ([A-Z])(\d+)/.match(dimm_name).captures
             
             {
-              "model" => m["Model"], 
+              "manufacturer" => m["Manufacturer"],
               "name" => m["Name"], 
               "capacity_bytes" => m["CapacityMiB"].to_i * 1024 * 1024, 
               "health" => m.dig("Status","Health") || "N/A", 
@@ -24,7 +24,9 @@ module IDRAC
               "part_number" => m["PartNumber"], 
               "serial" => m["SerialNumber"],
               "bank" => bank,
-              "index" => index.to_i
+              "index" => index.to_i,
+              "memory_device_type" => m["MemoryDeviceType"],
+              "base_module_type" => m["BaseModuleType"]
             }
           end
           
@@ -87,7 +89,8 @@ module IDRAC
                 "name" => fan["Name"], 
                 "rpm" => fan["Reading"],
                 "serial" => fan["SerialNumber"],
-                "status" => fan.dig("Status", "Health")
+                "status" => fan.dig("Status", "Health"),
+                "state" => fan.dig("Status", "State")
               }
             end
             
@@ -646,7 +649,7 @@ module IDRAC
           data = JSON.parse(response.body)
           
           health = {
-            "overall" => data.dig("Status", "HealthRollup"),
+            "rollup" => data.dig("Status", "HealthRollup"),
             "system" => data.dig("Status", "Health"),
             "processor" => data.dig("ProcessorSummary", "Status", "Health"),
             "memory" => data.dig("MemorySummary", "Status", "Health"),
@@ -666,17 +669,29 @@ module IDRAC
     def system_event_logs
       response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Sel?$expand=*($levels=1)")
       
-      if response.status == 200
+      if response.status == 404
+        debug "SEL log not available on this system", 1, :yellow
+        return []
+      elsif response.status == 200
         begin
           data = JSON.parse(response.body)
           
           logs = data["Members"].map do |log|
             puts "#{log['Id']} : #{log['Created']} : #{log['Message']} : #{log['Severity']}".yellow
-            log
+            {
+              "id" => log["Id"],
+              "name" => log["Name"],
+              "created" => log["Created"],
+              "severity" => log["Severity"],
+              "message" => log["Message"],
+              "message_id" => log["MessageId"],
+              "sensor_type" => log["SensorType"],
+              "sensor_number" => log["SensorNumber"]
+            }
           end
           
           # Sort by creation date, newest first
-          return logs.sort_by { |log| log['Created'] }.reverse
+          return logs.sort_by { |log| log['created'] || "" }.reverse
         rescue JSON::ParserError
           raise Error, "Failed to parse system event logs response: #{response.body}"
         end
@@ -684,6 +699,9 @@ module IDRAC
         raise Error, "Failed to get system event logs. Status code: #{response.status}"
       end
     end
+    
+    # Alias for consistency with Supermicro naming
+    alias_method :sel_log, :system_event_logs
 
     # Clear system event logs
     def clear_system_event_logs
@@ -709,6 +727,37 @@ module IDRAC
         
         raise Error, error_message
       end
+    end
+    
+    # Alias for consistency with Supermicro naming
+    alias_method :clear_sel_log, :clear_system_event_logs
+    
+    # SEL log summary - display recent entries
+    def sel_summary(limit: 10)
+      entries = sel_log
+      
+      if entries.empty?
+        puts "No log entries found.".yellow
+        return entries
+      end
+      
+      puts "Total entries: #{entries.length}".cyan
+      puts "\nMost recent #{limit} entries:".cyan
+      
+      entries.first(limit).each do |entry|
+        severity_color = case entry["severity"]
+                        when "Critical" then :red
+                        when "Warning" then :yellow
+                        when "OK" then :green
+                        else :white
+                        end
+        
+        puts "\n[#{entry['created']}] #{entry['severity']}".send(severity_color)
+        puts "  #{entry['message']}"
+        puts "  ID: #{entry['id']} | MessageID: #{entry['message_id']}" if entry['message_id']
+      end
+      
+      entries
     end
 
     # Get total memory in human-readable format
