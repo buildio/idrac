@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    idrac (0.8.3)
+    idrac (0.8.4)
       activesupport (>= 7.0)
       base64 (~> 0.1, >= 0.1.0)
       colorize (~> 1.1, >= 1.1.0)
@@ -108,6 +108,8 @@ GEM
     thor (1.2.2)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
+    vcr (6.3.1)
+      base64
     webmock (3.25.0)
       addressable (>= 2.8.0)
       crack (>= 0.3.2)
@@ -128,6 +130,7 @@ DEPENDENCIES
   ostruct (~> 0.6)
   rake (~> 13.0, >= 13.0.0)
   rspec (~> 3.12, >= 3.12.0)
+  vcr
   webmock
 
 RUBY VERSION

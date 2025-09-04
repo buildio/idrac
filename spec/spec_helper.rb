@@ -4,6 +4,7 @@ require "active_support"
 require "active_support/core_ext"
 require "idrac"
 require "webmock/rspec"
+require "vcr"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -18,6 +19,17 @@ RSpec.configure do |config|
 
   # Configure WebMock
   WebMock.disable_net_connect!(allow_localhost: true)
+  
+  # Configure VCR
+  VCR.configure do |config|
+    config.cassette_library_dir = 'spec/vcr_cassettes'
+    config.hook_into :webmock
+    config.configure_rspec_metadata!
+    config.default_cassette_options = {
+      record: :new_episodes,
+      allow_unused_http_interactions: false
+    }
+  end
 
   config.before(:each) do
     # Stub all forms of sleep to prevent delays during tests

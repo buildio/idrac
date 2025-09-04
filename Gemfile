@@ -17,5 +17,6 @@ gem "logger", "~> 1.7"
 
 group :development, :test do
   gem "webmock"
+  gem "vcr"
   gem "activesupport", "~> 7.0"
 end
