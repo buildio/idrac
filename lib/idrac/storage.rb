@@ -16,7 +16,8 @@ module IDRAC
             controller_data = {
               "id" => controller["Id"],
               "name" => controller["Name"],
-              "model" => controller["Model"],
+              # Model is in the StorageControllers array, not at root level
+              "model" => controller.dig("StorageControllers", 0, "Model") || controller["Name"],
               "drives_count" => controller["Drives"].size,
               "status" => controller.dig("Status", "Health") || "N/A",
               "firmware_version" => controller.dig("StorageControllers", 0, "FirmwareVersion"),
