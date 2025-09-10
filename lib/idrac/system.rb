@@ -50,15 +50,17 @@ module IDRAC
           
           psus = data["PowerSupplies"].map do |psu|
             puts "PSU: #{psu["Name"]} > #{psu["PowerInputWatts"]}W > #{psu.dig("Status", "Health")}"
+            
             {
               "name" => psu["Name"], 
               "voltage" => psu["LineInputVoltage"], 
-              "voltage_human" => psu["LineInputVoltageType"], # AC240V
+              "voltage_human" => psu["LineInputVoltageType"],  # Return exactly what server provides
               "watts" => psu["PowerInputWatts"],
               "part" => psu["PartNumber"],
               "model" => psu["Model"],
               "serial" => psu["SerialNumber"],
-              "status" => psu.dig("Status", "Health")
+              "status" => psu.dig("Status", "Health"),
+              "power_supply_type" => psu["PowerSupplyType"]  # Add this field
             }
           end
           
