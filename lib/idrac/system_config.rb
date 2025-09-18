@@ -96,17 +96,24 @@ module IDRAC
         components = scp.is_a?(Array) ? scp : [scp]
         { "SystemConfiguration" => { "Components" => components } }
       end
+      
+      # Validate the SCP structure before sending
+      unless scp_to_apply.is_a?(Hash) && scp_to_apply["SystemConfiguration"] && scp_to_apply["SystemConfiguration"]["Components"]
+        raise ArgumentError, "Invalid SCP structure: must contain SystemConfiguration.Components"
+      end
 
       # Create the import parameters
+      # Use compact JSON generation to avoid formatting issues with Dell iDRAC
       params = { 
-        "ImportBuffer" => JSON.pretty_generate(scp_to_apply),
+        "ImportBuffer" => JSON.generate(scp_to_apply),
         "ShareParameters" => {"Target" => target},
         "ShutdownType" => "Forced",
         "HostPowerState" => reboot ? "On" : "Off"
       }
       
       debug "Importing System Configuration...", 1, :blue
-      debug "Configuration: #{JSON.pretty_generate(scp_to_apply)}", 3
+      debug "Configuration: #{JSON.pretty_generate(scp_to_apply)}", 1, :cyan
+      debug "ImportBuffer content: #{params['ImportBuffer']}", 1, :yellow
       
       # Make the API request
       response = authenticated_request(
@@ -119,7 +126,16 @@ module IDRAC
       # Check for immediate errors
       if response.headers["content-length"].to_i > 0
         debug response.inspect, 1, :red
-        return { status: :failed, error: "Failed importing SCP: #{response.body}" }
+        error_message = "Failed importing SCP: #{response.body}"
+        
+        # Check for specific schema validation errors
+        if response.body.include?("invalid characters") || response.body.include?("invalid token")
+          error_message += "\nThis may be due to JSON formatting issues. The SCP structure might contain characters not accepted by Dell iDRAC."
+        elsif response.body.include?("not compliant with configuration schema")
+          error_message += "\nThe SCP structure does not match Dell's expected schema format."
+        end
+        
+        return { status: :failed, error: error_message }
       end
       
       return handle_location(response.headers["location"])
@@ -188,7 +204,23 @@ module IDRAC
     # Convert an SCP hash back to array format
     def hash_to_scp(hash)
       hash.inject([]) do |acc, (fqdd, attributes)|
-        acc << { "FQDD" => fqdd, "Attributes" => attributes }
+        # Convert hash attributes to Dell SCP format (array of Name/Value/Set On Import objects)
+        scp_attributes = case attributes
+        when Hash
+          attributes.map do |name, value|
+            {
+              "Name" => name.to_s,
+              "Value" => value.to_s,
+              "Set On Import" => "True"
+            }
+          end
+        when Array
+          attributes # Already in correct format
+        else
+          []
+        end
+        
+        acc << { "FQDD" => fqdd, "Attributes" => scp_attributes }
         acc
       end
     end
@@ -197,6 +229,13 @@ module IDRAC
     # Takes multiple arguments - each can be an SCP hash, array of components, or full SCP structure
     def merge_scp(*scps)
       merged_components = {}
+      
+      # Get iDRAC version for version-specific handling
+      version = begin
+        license_version.to_i
+      rescue
+        9 # Default to iDRAC 9 behavior if version detection fails
+      end
       
       scps.compact.each do |scp|
         components = extract_components(scp)
@@ -209,10 +248,34 @@ module IDRAC
             
             # Build hash of existing attributes by name for easy lookup
             attr_hash = {}
-            existing_attrs.each { |attr| attr_hash[attr["Name"]] = attr }
+            
+            # Handle different attribute structures between iDRAC versions
+            existing_attrs.each do |attr|
+              case attr
+              when Hash
+                # iDRAC 8 style: {"Name" => "Users.3#IpmiLanPrivilege", "Value" => "Administrator"}
+                attr_hash[attr["Name"]] = attr if attr["Name"]
+              when String
+                # iDRAC 9 style: strings or different structure - preserve as-is
+                # For strings, use the string itself as both key and value
+                attr_hash[attr] = attr
+              else
+                # Unknown structure, preserve as-is with a generated key
+                attr_hash["attr_#{attr_hash.size}"] = attr
+              end
+            end
             
             # Add/overwrite with new attributes
-            new_attrs.each { |attr| attr_hash[attr["Name"]] = attr }
+            new_attrs.each do |attr|
+              case attr
+              when Hash
+                attr_hash[attr["Name"]] = attr if attr["Name"]
+              when String
+                attr_hash[attr] = attr
+              else
+                attr_hash["attr_#{attr_hash.size}"] = attr
+              end
+            end
             
             merged_components[fqdd]["Attributes"] = attr_hash.values
           else
@@ -225,18 +288,24 @@ module IDRAC
     end
 
     # Handle location header for IP change operations. Monitors old IP until it fails,
-    # then aggressively monitors new IP with tight timeouts.
+    # then monitors job completion at new IP with proper task polling.
     def handle_location_with_ip_change(location, new_ip, timeout: 300)
       return nil if location.nil? || location.empty?
+      
+      # Extract job ID from location header
+      job_id = location.split("/").last
+      debug "Extracted job ID: #{job_id}", 1, :cyan
       
       old_ip = @host
       start_time = Time.now
       old_ip_failed = false
+      task = nil
+      tries = 0
       
-      debug "Monitoring IP change: #{old_ip} → #{new_ip}", 1, :blue
+      debug "Monitoring IP change with job tracking: #{old_ip} → #{new_ip}", 1, :blue
       
       while Time.now - start_time < timeout
-        # Try old IP until it fails, then focus on new IP
+        # Try old IP until it fails, then focus on new IP with job monitoring
         [
           old_ip_failed ? nil : [self, old_ip, "Old IP failed"],
           [create_temp_client(new_ip), new_ip, old_ip_failed ? "New IP not ready" : "Cannot reach new IP"]
@@ -244,13 +313,45 @@ module IDRAC
           
           begin
             client.login if ip == new_ip
+            
+            # Test basic connectivity first
             client.authenticated_request(:get, "/redfish/v1", timeout: 2, open_timeout: 1)
             
             if ip == new_ip
-              debug "✅ IP change successful!", 1, :green
-              @host = new_ip
-              return { status: :success, ip: new_ip }
+              # Once we can reach the new IP, check the job status
+              debug "✅ New IP reachable, checking job status...", 1, :green
+              begin
+                task_response = client.authenticated_request(:get, "/redfish/v1/TaskService/Tasks/#{job_id}", timeout: 10)
+                task = JSON.parse(task_response.body)
+                
+                debug "Job status: #{task['TaskState']} / #{task['TaskStatus']}", 1, :cyan
+                
+                if task["TaskState"] == "Completed"
+                  if task["TaskStatus"] == "OK"
+                    debug "✅ Job completed successfully!", 1, :green
+                    @host = new_ip
+                    return { status: :success, ip: new_ip, job_status: task }
+                  else
+                    # Job completed but with error
+                    msg = task['Messages']&.first&.dig('Message') rescue "N/A"
+                    attr = task['Messages']&.first&.dig('Oem', 'Dell', 'Name') rescue "N/A"
+                    error_msg = "Job failed: #{msg} : #{attr}, TaskState: #{task['TaskState']}, TaskStatus: #{task['TaskStatus']}"
+                    debug "❌ #{error_msg}", 1, :red
+                    return { status: :error, error: error_msg, job_status: task }
+                  end
+                elsif task["TaskState"] == "Running"
+                  debug "⏳ Job still running, continuing to wait...", 2, :yellow
+                  # Continue monitoring
+                else
+                  debug "⚠️  Unexpected job state: #{task['TaskState']}", 1, :yellow
+                  # Continue monitoring
+                end
+              rescue => job_error
+                debug "Failed to check job status: #{job_error.message}", 2, :yellow
+                # Continue monitoring - job might not be ready yet
+              end
             else
+              # Still on old IP, just test connectivity
               return { status: :success, ip: old_ip }
             end
           rescue => e
@@ -259,7 +360,12 @@ module IDRAC
           end
         end
         
-        sleep old_ip_failed ? 2 : 5
+        tries += 1
+        if tries > 20
+          return { status: :timeout, error: "Job monitoring exceeded maximum retries (#{tries})" }
+        end
+        
+        sleep old_ip_failed ? 6 : 5  # Wait longer during IP change
       end
       
       { status: :timeout, error: "IP change timed out after #{timeout}s. Old IP failed: #{old_ip_failed}" }

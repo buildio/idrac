@@ -193,6 +193,12 @@ module IDRAC
       original_timeout = conn.options.timeout
       original_open_timeout = conn.options.open_timeout
       
+      # Add host header if specified (needed for SSH tunnels to iDRAC)
+      if @host_header
+        headers = headers.merge('Host' => @host_header)
+        debug "Added Host header to iDRAC request: #{@host_header}", 2
+      end
+      
       begin
         conn.options.timeout = timeout if timeout
         conn.options.open_timeout = open_timeout if open_timeout
@@ -360,6 +366,17 @@ module IDRAC
       retries = 0
       begin
         yield
+      rescue ServiceTemporarilyUnavailableError => e
+        retries += 1
+        if retries <= max_retries
+          delay = e.retry_delay  # Use the delay specified by iDRAC
+          debug "🕒 IDRAC REQUESTED RETRY: ServiceTemporarilyUnavailable - Attempt #{retries}/#{max_retries}, waiting #{delay}s as instructed by iDRAC", 1, :cyan
+          sleep delay
+          retry
+        else
+          debug "MAX RETRIES REACHED: #{e.message} after #{max_retries} attempts", 1, :red
+          raise e
+        end
       rescue *error_classes => e
         retries += 1
         if retries <= max_retries
@@ -446,7 +463,54 @@ module IDRAC
       if response.status.between?(200, 299)
         return response.body
       else
-        raise Error, "Failed to #{response.status} - #{response.body}"
+        # Enhanced error handling with ExtendedInfo support
+        error_message = "Failed with status #{response.status}"
+        
+        begin
+          error_data = JSON.parse(response.body)
+          
+          # Check for standard error message
+          if error_data['error'] && error_data['error']['message']
+            error_message += ": #{error_data['error']['message']}"
+          end
+          
+          # Check for ExtendedInfo which contains detailed error information
+          if error_data['error'] && error_data['error']['@Message.ExtendedInfo']
+            extended_info = error_data['error']['@Message.ExtendedInfo']
+            if extended_info.is_a?(Array) && extended_info.any?
+              error_message += "\nExtendedInfo:"
+              retry_delay = nil
+              extended_info.each_with_index do |info, index|
+                error_message += "\n  #{index + 1}. #{info['Message']}" if info['Message']
+                error_message += " (#{info['MessageId']})" if info['MessageId']
+                error_message += " - Resolution: #{info['Resolution']}" if info['Resolution']
+                
+                # Check for ServiceTemporarilyUnavailable with retry delay
+                if info['MessageId'] == 'Base.1.12.ServiceTemporarilyUnavailable'
+                  # Extract retry delay from MessageArgs (usually first argument)
+                  if info['MessageArgs'] && info['MessageArgs'].any?
+                    retry_delay = info['MessageArgs'].first.to_i
+                    debug "🕒 iDRAC ServiceTemporarilyUnavailable detected - will wait #{retry_delay} seconds as requested", 1, :yellow
+                  end
+                end
+              end
+              
+              # If we detected a ServiceTemporarilyUnavailable error, raise a special exception
+              if retry_delay
+                raise ServiceTemporarilyUnavailableError.new(error_message, retry_delay)
+              end
+            end
+          end
+          
+          # Also add the full response body for debugging
+          debug "Full error response: #{response.body}", 1, :red if @verbosity && @verbosity > 0
+          
+        rescue JSON::ParserError => e
+          error_message += " - Raw response: #{response.body}"
+          debug "Failed to parse JSON error response: #{e.message}", 1, :yellow if @verbosity && @verbosity > 0
+        end
+        
+        raise Error, error_message
       end
     end
 

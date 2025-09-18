@@ -384,7 +384,23 @@ module IDRAC
       end
       
       # For newer firmware, use Redfish API
-      drive_refs = drives.map { |d| { "@odata.id" => d.to_s } }
+      drive_refs = drives.map do |d|
+        # Convert drive identifier to proper @odata.id format
+        if d.to_s.start_with?('/redfish/v1/')
+          # Already in @odata.id format
+          { "@odata.id" => d.to_s }
+        else
+          # Convert FQDD to @odata.id format
+          drive_fqdd = d.to_s
+          # Build the full controller path for the drive reference
+          full_controller_path = if controller_id.start_with?('/redfish/v1/')
+            controller_id
+          else
+            "/redfish/v1/Systems/System.Embedded.1/Storage/#{controller_id}"
+          end
+          { "@odata.id" => "#{full_controller_path}/Drives/#{drive_fqdd}" }
+        end
+      end
       
       # [FastPath optimization for SSDs](https://www.dell.com/support/manuals/en-us/perc-h755/perc11_ug/fastpath?guid=guid-a9e90946-a41f-48ab-88f1-9ce514b4c414&lang=en-us)
       payload = {
@@ -406,9 +422,16 @@ module IDRAC
       
       payload["Encrypted"] = true if encrypt
       
+      # Ensure we have the full path to the controller
+      controller_path = if controller_id.start_with?('/redfish/v1/')
+        controller_id
+      else
+        "/redfish/v1/Systems/System.Embedded.1/Storage/#{controller_id}"
+      end
+      
       response = authenticated_request(
         :post, 
-        "#{controller_id}/Volumes",
+        "#{controller_path}/Volumes",
         body: payload.to_json, 
         headers: { 'Content-Type' => 'application/json' }
       )
@@ -533,21 +556,13 @@ module IDRAC
         
         return true
       else
-        error_message = "Failed to enable controller encryption. Status code: #{response.status}"
-        
-        begin
-          error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-        rescue
-          # Ignore JSON parsing errors
-        end
-        
-        raise Error, error_message
+        # Use generic error handler which includes ExtendedInfo parsing
+        handle_response(response)
       end
     end
 
     # Disable Self-Encrypting Drive support on controller
-    def disable_local_key_management(controller_id)
+    def disable_local_key_management(controller_id:)
       payload = { "TargetFQDD": controller_id }
       
       response = authenticated_request(
@@ -568,16 +583,8 @@ module IDRAC
         
         return true
       else
-        error_message = "Failed to disable controller encryption. Status code: #{response.status}"
-        
-        begin
-          error_data = JSON.parse(response.body)
-          error_message += ", Message: #{error_data['error']['message']}" if error_data['error'] && error_data['error']['message']
-        rescue
-          # Ignore JSON parsing errors
-        end
-        
-        raise Error, error_message
+        # Use generic error handler which includes ExtendedInfo parsing
+        handle_response(response)
       end
     end
 

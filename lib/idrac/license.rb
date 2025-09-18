@@ -41,6 +41,18 @@ module IDRAC
     # Extracts the iDRAC version from the license description or server header
     # @return [Integer, nil] The license version (e.g. 9) or nil if not found
     def license_version
+      # Use memoization to cache the result and avoid multiple API calls
+      @license_version ||= compute_license_version
+    end
+    
+    # Clear the cached license version (useful if iDRAC state changes)
+    def clear_license_version_cache
+      @license_version = nil
+    end
+    
+    private
+    
+    def compute_license_version
       # First try to get from license info
       license = license_info
       if license
@@ -79,8 +91,6 @@ module IDRAC
       debug "Could not determine license version from license info or server header", 1, :yellow
       nil
     end
-    
-    private
     
     # Attempt to get license information using Dell OEM extension path (for iDRAC 8)
     # @return [Hash, nil] License info or nil if not found

@@ -184,6 +184,10 @@ module IDRAC
       # Determine the correct session endpoint based on Redfish version
       session_endpoint = determine_session_endpoint
       
+      # Check current session count before creating new session
+      current_sessions = get_session_count
+      debug "Current active sessions: #{current_sessions}", 1, :cyan
+      
       payload = { "UserName" => username, "Password" => password }
       
       debug "Attempting to create Redfish session at #{base_url}#{session_endpoint}", 1
@@ -191,10 +195,22 @@ module IDRAC
       print_connection_debug_info if @verbosity >= 2
       
       # Try creation methods in sequence
-      return true if create_session_with_content_type(session_endpoint, payload)
-      return true if create_session_with_basic_auth(session_endpoint, payload)
-      return true if handle_max_sessions_and_retry(session_endpoint, payload)
-      return true if create_session_with_form_urlencoded(session_endpoint, payload)
+      if create_session_with_content_type(session_endpoint, payload)
+        log_session_creation_success(current_sessions)
+        return true
+      end
+      if create_session_with_basic_auth(session_endpoint, payload)
+        log_session_creation_success(current_sessions)
+        return true
+      end
+      if handle_max_sessions_and_retry(session_endpoint, payload)
+        log_session_creation_success(current_sessions)
+        return true
+      end
+      if create_session_with_form_urlencoded(session_endpoint, payload)
+        log_session_creation_success(current_sessions)
+        return true
+      end
       
       # If all attempts fail, switch to direct mode
       @direct_mode = true
@@ -677,6 +693,35 @@ module IDRAC
       default_endpoint = '/redfish/v1/Sessions'
       debug "Defaulting to endpoint #{default_endpoint}", 1, :light_yellow
       default_endpoint
+    end
+    
+    # Get current session count
+    def get_session_count
+      begin
+        sessions_url = determine_session_endpoint
+        response = request_with_basic_auth(:get, sessions_url, nil, 'application/json')
+        
+        if response.status == 200
+          sessions_data = JSON.parse(response.body)
+          count = sessions_data.dig('Members')&.size || 0
+          return count
+        end
+      rescue => e
+        debug "Error getting session count: #{e.message}", 2, :yellow
+      end
+      
+      # Return unknown if we can't determine
+      "unknown"
+    end
+    
+    # Log successful session creation with before/after count
+    def log_session_creation_success(before_count)
+      after_count = get_session_count
+      if before_count.is_a?(Integer) && after_count.is_a?(Integer)
+        debug "✅ Session created successfully! Count: #{before_count} → #{after_count} (+#{after_count - before_count})", 1, :green
+      else
+        debug "✅ Session created successfully! Previous: #{before_count}, Current: #{after_count}", 1, :green
+      end
     end
   end
 end 

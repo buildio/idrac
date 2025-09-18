@@ -555,9 +555,12 @@ module IDRAC
         begin
           data = JSON.parse(response.body)
           if data["Attributes"] && data["Attributes"].has_key?("ErrPrompt")
-            return data["Attributes"]["ErrPrompt"] == "Disabled"
+            current_value = data["Attributes"]["ErrPrompt"]
+            debug "ErrPrompt current value: '#{current_value}' (checking if == 'Disabled')", 1, :cyan
+            return current_value == "Disabled"
           else
             debug "ErrPrompt attribute not found in BIOS settings", 1, :yellow
+            debug "Available BIOS attributes: #{data['Attributes']&.keys&.sort&.join(', ')}", 2, :yellow if data["Attributes"]
             return false
           end
         rescue JSON::ParserError
@@ -640,18 +643,18 @@ module IDRAC
       
       settings.each do |key, value|
         attributes << {
-          "Name": key.to_s,
-          "Value": value,
-          "Set On Import": "True"
+          "Name" => key.to_s,
+          "Value" => value,
+          "Set On Import" => "True"
         }
       end
       
       scp = {
-        "SystemConfiguration": {
-          "Components": [
+        "SystemConfiguration" => {
+          "Components" => [
             {
-              "FQDD": "BIOS.Setup.1-1",
-              "Attributes": attributes
+              "FQDD" => "BIOS.Setup.1-1",
+              "Attributes" => attributes
             }
           ]
         }
@@ -663,9 +666,9 @@ module IDRAC
     # Import System Configuration Profile for advanced configurations
     def import_system_configuration(scp, target: "ALL", reboot: false)
       params = {
-        "ImportBuffer": JSON.pretty_generate(scp),
-        "ShareParameters": {
-          "Target": target
+        "ImportBuffer" => JSON.generate(scp),
+        "ShareParameters" => {
+          "Target" => target
         }
       }
       # Configure shutdown behavior
