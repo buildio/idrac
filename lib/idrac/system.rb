@@ -708,10 +708,9 @@ module IDRAC
     # Clear system event logs
     def clear_system_event_logs
       response = authenticated_request(
-        :post, 
+        :post,
         "/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Actions/LogService.ClearLog",
-        body: {}.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: {}.to_json
       )
       
       if response.status.between?(200, 299)

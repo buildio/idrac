@@ -71,10 +71,9 @@ module IDRAC
              end
       
       response = authenticated_request(
-        :post, 
+        :post,
         "/redfish/v1/#{path}",
-        body: {}.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: {}.to_json
       )
 
       handle_response(response)
@@ -106,10 +105,9 @@ module IDRAC
                  end
           
           response = authenticated_request(
-            :post, 
+            :post,
             "/redfish/v1/#{path}",
-            body: { "Image": iso_url, "Inserted": true, "WriteProtected": true }.to_json,
-            headers: { 'Content-Type': 'application/json' }
+            body: { "Image": iso_url, "Inserted": true, "WriteProtected": true }.to_json
           )
           
           if response.status == 204 || response.status == 200
@@ -158,10 +156,9 @@ module IDRAC
         
         # Set one-time boot to CD
         response = authenticated_request(
-          :patch, 
+          :patch,
           "/redfish/v1/Systems/System.Embedded.1",
-          body: { "Boot": { "BootSourceOverrideTarget": "Cd", "BootSourceOverrideEnabled": "Once" } }.to_json,
-          headers: { 'Content-Type': 'application/json' }
+          body: { "Boot": { "BootSourceOverrideTarget": "Cd", "BootSourceOverrideEnabled": "Once" } }.to_json
         )
         
         if response.status.between?(200, 299)
@@ -189,10 +186,9 @@ module IDRAC
         }
         
         response = authenticated_request(
-          :patch, 
+          :patch,
           "/redfish/v1/Managers/iDRAC.Embedded.1/Attributes",
-          body: payload.to_json,
-          headers: { 'Content-Type': 'application/json' }
+          body: payload.to_json
         )
         
         if response.status.between?(200, 299)

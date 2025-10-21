@@ -563,10 +563,7 @@ module IDRAC
         update_response = client.authenticated_request(
           :post,
           "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate",
-          {
-            headers: { 'Content-Type' => 'application/json' },
-            body: simple_update_payload.to_json
-          }
+          body: simple_update_payload.to_json
         )
         
         if update_response.status != 202 && update_response.status != 200

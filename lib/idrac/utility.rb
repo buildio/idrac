@@ -61,8 +61,7 @@ module IDRAC
       response = authenticated_request(
         :post,
         "/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistCollection",
-        body: payload.to_json,
-        headers: { 'Content-Type' => 'application/json' }
+        body: payload.to_json
       )
       
       case response.status
@@ -303,8 +302,7 @@ module IDRAC
       response = authenticated_request(
         :post,
         "/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistGetEULAStatus",
-        body: {}.to_json,
-        headers: { 'Content-Type' => 'application/json' }
+        body: {}.to_json
       )
       
       if response.status.between?(200, 299)
@@ -333,8 +331,7 @@ module IDRAC
       response = authenticated_request(
         :post,
         "/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistAcceptEULA",
-        body: {}.to_json,
-        headers: { 'Content-Type' => 'application/json' }
+        body: {}.to_json
       )
       
       if response.status.between?(200, 299)
@@ -357,8 +354,7 @@ module IDRAC
       response = authenticated_request(
         :post,
         "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Manager.Reset",
-        body: { "ResetType" => "GracefulRestart" }.to_json,
-        headers: { 'Content-Type' => 'application/json' }
+        body: { "ResetType" => "GracefulRestart" }.to_json
       )
       
       if response.status.between?(200, 299)

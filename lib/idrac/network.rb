@@ -171,8 +171,7 @@ module IDRAC
             response = authenticated_request(
               :patch,
               interface_path,
-              body: body.to_json,
-              headers: { 'Content-Type' => 'application/json' }
+              body: body.to_json
             )
             puts "✅ Got response with status: #{response.status}".green
           rescue => e
@@ -189,8 +188,7 @@ module IDRAC
               restart_response = authenticated_request(
                 :post,
                 "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Manager.Reset",
-                body: { "ResetType" => "GracefulRestart" }.to_json,
-                headers: { 'Content-Type' => 'application/json' }
+                body: { "ResetType" => "GracefulRestart" }.to_json
               )
               
               if restart_response.status == 204

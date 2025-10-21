@@ -75,10 +75,9 @@ module IDRAC
       payload = { "JobID" => "JID_CLEARALL_FORCE" }
       
       response = authenticated_request(
-        :post, 
-        path, 
-        body: payload.to_json, 
-        headers: { 'Content-Type' => 'application/json' }
+        :post,
+        path,
+        body: payload.to_json
       )
       
       if response.status.between?(200, 299)
@@ -90,10 +89,9 @@ module IDRAC
         retries = 60  # ~10 minutes with 10s sleep
         while retries > 0
           lc_response = authenticated_request(
-            :post, 
+            :post,
             '/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus',
-            body: {}.to_json, 
-            headers: { 'Content-Type': 'application/json' }
+            body: {}.to_json
           )
           
           if lc_response.status.between?(200, 299)

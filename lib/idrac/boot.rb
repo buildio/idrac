@@ -165,8 +165,7 @@ module IDRAC
       response = authenticated_request(
         :patch,
         "/redfish/v1/Systems/System.Embedded.1",
-        body: body.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: body.to_json
       )
       
       if response.status.between?(200, 299)
@@ -190,8 +189,7 @@ module IDRAC
       response = authenticated_request(
         :patch,
         "/redfish/v1/Systems/System.Embedded.1",
-        body: body.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: body.to_json
       )
       
       if response.status.between?(200, 299)
@@ -215,8 +213,7 @@ module IDRAC
       response = authenticated_request(
         :patch,
         "/redfish/v1/Systems/System.Embedded.1",
-        body: body.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: body.to_json
       )
       
       if response.status.between?(200, 299)
@@ -312,10 +309,9 @@ module IDRAC
             end
             
             response = authenticated_request(
-              :patch, 
+              :patch,
               "/redfish/v1/Systems/System.Embedded.1/Bios/Settings",
-              body: payload.to_json,
-              headers: { 'Content-Type': 'application/json' }
+              body: payload.to_json
             )
             
             wait_for_job(response.headers["location"])
@@ -396,10 +392,9 @@ module IDRAC
           
           # Set boot order
           response = authenticated_request(
-            :patch, 
+            :patch,
             "/redfish/v1/Systems/System.Embedded.1",
-            body: { "Boot": { "BootOrder": [boot_id] } }.to_json,
-            headers: { 'Content-Type': 'application/json' }
+            body: { "Boot": { "BootOrder": [boot_id] } }.to_json
           )
           
           if response.status.between?(200, 299)
@@ -495,10 +490,9 @@ module IDRAC
     # Configure BIOS settings
     def configure_bios_settings(settings)
       response = authenticated_request(
-        :patch, 
+        :patch,
         "/redfish/v1/Systems/System.Embedded.1/Bios/Settings",
-        body: { "Attributes": settings }.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: { "Attributes": settings }.to_json
       )
       
       if response.status.between?(200, 299)
@@ -676,10 +670,9 @@ module IDRAC
       params["HostPowerState"] = reboot ? "On" : "Off"
       
       response = authenticated_request(
-        :post, 
+        :post,
         "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration",
-        body: params.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: params.to_json
       )
       
       task = wait_for_task(response.headers["location"])

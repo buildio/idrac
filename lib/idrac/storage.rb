@@ -430,10 +430,9 @@ module IDRAC
       end
       
       response = authenticated_request(
-        :post, 
+        :post,
         "#{controller_path}/Volumes",
-        body: payload.to_json, 
-        headers: { 'Content-Type' => 'application/json' }
+        body: payload.to_json
       )
       
       handle_response(response)
@@ -541,8 +540,7 @@ module IDRAC
       response = authenticated_request(
         :post,
         "/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.SetControllerKey",
-        body: payload.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: payload.to_json
       )
       
       if response.status == 202
@@ -568,8 +566,7 @@ module IDRAC
       response = authenticated_request(
         :post,
         "/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.RemoveControllerKey",
-        body: payload.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: payload.to_json
       )
       
       if response.status == 202

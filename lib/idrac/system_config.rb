@@ -39,10 +39,9 @@ module IDRAC
       
       # Submit configuration with job availability handling
       res = wait_for_job_availability do
-        authenticated_request(:post, 
+        authenticated_request(:post,
           "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration",
-          body: {"ImportBuffer": scp.to_json, "ShareParameters": {"Target": "iDRAC"}}.to_json,
-          headers: {"Content-Type" => "application/json"}
+          body: {"ImportBuffer": scp.to_json, "ShareParameters": {"Target": "iDRAC"}}.to_json
         )
       end
       
@@ -58,10 +57,9 @@ module IDRAC
     # Get the system configuration profile for a given target (e.g. "RAID")
     def get_system_configuration_profile(target: "RAID")
       debug "Exporting System Configuration..."
-      response = authenticated_request(:post, 
-        "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration", 
-        body: {"ExportFormat": "JSON", "ShareParameters":{"Target": target}}.to_json,
-        headers: {"Content-Type" => "application/json"}
+      response = authenticated_request(:post,
+        "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration",
+        body: {"ExportFormat": "JSON", "ShareParameters":{"Target": target}}.to_json
       )
       scp = handle_location(response.headers["location"]) 
       # We experienced this with older iDRACs, so let's give a enriched error to help debug.
@@ -117,10 +115,9 @@ module IDRAC
       
       # Make the API request
       response = authenticated_request(
-        :post, 
+        :post,
         "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration",
-        body: params.to_json,
-        headers: {"Content-Type" => "application/json"}
+        body: params.to_json
       )
       
       # Check for immediate errors

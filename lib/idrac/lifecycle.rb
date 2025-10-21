@@ -169,8 +169,7 @@ module IDRAC
       response = authenticated_request(
         :patch,
         "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/LifecycleController.Embedded.1",
-        body: payload.to_json,
-        headers: { 'Content-Type': 'application/json' }
+        body: payload.to_json
       )
       
       code = response.status
@@ -210,10 +209,9 @@ module IDRAC
       payload = { "Component": ["LCData"] }
       
       response = authenticated_request(
-        :post, 
-        path, 
-        body: payload.to_json, 
-        headers: { 'Content-Type' => 'application/json' }
+        :post,
+        path,
+        body: payload.to_json
       )
       
       if response.status.between?(200, 299)
@@ -264,7 +262,7 @@ module IDRAC
     def clear_system_event_logs!
       path = '/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Actions/LogService.ClearLog'
       
-      response = authenticated_request(:post, path, body: {}.to_json, headers: { 'Content-Type' => 'application/json' })
+      response = authenticated_request(:post, path, body: {}.to_json)
       
       if response.status.between?(200, 299)
         debug "System Event Logs cleared", 0, :green

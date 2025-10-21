@@ -22,7 +22,7 @@ module IDRAC
       
       tries = 10
       while tries > 0
-        response = authenticated_request(:post, path, body: payload.to_json, headers: { 'Content-Type' => 'application/json' })
+        response = authenticated_request(:post, path, body: payload.to_json)
         
         case response.status
         when 200, 204
@@ -76,7 +76,7 @@ module IDRAC
       path = "/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
       payload = { "ResetType" => kind }
       
-      response = authenticated_request(:post, path, body: payload.to_json, headers: { 'Content-Type' => 'application/json' })
+      response = authenticated_request(:post, path, body: payload.to_json)
       
       if response.status == 409
         puts "Server is already powered OFF.".yellow
@@ -114,7 +114,7 @@ module IDRAC
       path = "/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
       payload = { "ResetType" => "ForceRestart" }
       
-      response = authenticated_request(:post, path, body: payload.to_json, headers: { 'Content-Type' => 'application/json' })
+      response = authenticated_request(:post, path, body: payload.to_json)
       
       if response.status >= 200 && response.status < 300
         puts "Server reboot command sent successfully".green
@@ -125,7 +125,7 @@ module IDRAC
         # Try gracefulRestart as an alternative
         puts "Trying GracefulRestart instead...".yellow
         payload = { "ResetType" => "GracefulRestart" }
-        response = authenticated_request(:post, path, body: payload.to_json, headers: { 'Content-Type' => 'application/json' })
+        response = authenticated_request(:post, path, body: payload.to_json)
         
         handle_response(response)
       else
