@@ -1746,8 +1746,8 @@ module IDRAC
     end
 
     def check_ssl_verification
-      # If verify_ssl is not explicitly set in the command line, show a warning
-      unless ARGV.include?('--verify-ssl') || ARGV.include?('--no-verify-ssl')
+      # If verify_ssl is not explicitly set in the command line, show a warning (only with verbose mode)
+      if options[:verbose] && !(ARGV.include?('--verify-ssl') || ARGV.include?('--no-verify-ssl'))
         puts "WARNING: SSL verification is disabled by default. iDRAC typically uses self-signed certificates.".yellow
         puts "         Use --verify-ssl if you want to enable SSL verification.".yellow
         puts ""

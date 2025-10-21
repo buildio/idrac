@@ -291,6 +291,39 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Changelog
 
+### Version 0.9.0
+- **Automatic Retry Handling**: ServiceTemporarilyUnavailable (503) errors now automatically retry with iDRAC-specified delay
+- **Simplified API**: `authenticated_request` now returns response body string by default instead of response object
+  - Use block syntax `authenticated_request(...) { |response| ... }` for custom response handling
+  - Most methods are now simpler and more consistent across the codebase
+- **Automatic Content-Type Header**: JSON request bodies automatically get `Content-Type: application/json` header
+- **Automatic Job Monitoring**: Location headers for async operations are automatically handled with job/task monitoring
+- **Fixed Jobs Module**: Resolved NoMethodError in `jobs`, `jobs_detail`, `clear_jobs!`, `force_clear_jobs!`, `wait_for_job`, and `tasks` methods
+- **Improved Error Handling**: Job failures now raise immediately instead of retrying indefinitely
+- **SSL Warning**: SSL verification warning now only shows in verbose mode
+- **Code Cleanup**: Removed ~60 lines of redundant Content-Type headers and manual location handling
+- **Comprehensive Tests**: Added full test coverage for Jobs module (63 total tests passing)
+- **Ruby 3.4+ Ready**: Added `csv` and `ostruct` gems to prevent future deprecation warnings
+
+### Versions 0.8.1-0.8.7
+- **Enhanced Hardware Support**: Added updates for latest Dell PowerEdge R7525 models
+- **Storage Improvements**: Fixed controller model extraction from StorageControllers array
+- **PSU Enhancements**:
+  - Fixed PSU voltage type display to show actual server values
+  - Added `power_supply_type` attribute
+  - Added `power_consumption_watts` alias for cross-vendor uniformity
+  - Ensured drives/volumes require controller_id parameter
+- **BMC/iDRAC IP Configuration**: Added vendor-agnostic BMC IP setting functionality
+- **API Consistency**: Enhanced API consistency and functionality across all modules
+- **Test Suite**: Fixed TSR logs test suite with proper mocking
+- **Dependency Updates**:
+  - Upgraded to Thor 1.4.0 (from 1.2.2)
+  - Updated ActiveSupport for Rails 8 compatibility
+  - Bumped Nokogiri to 1.18.9 for security updates
+- **Bug Fixes**:
+  - Fixed nagging multi-release attempts
+  - Resolved various dependency issues
+
 ### Version 0.8.0
 - **Added TSR/SupportAssist Collection Support**: Simplified commands for generating Technical Support Reports
   - Generate and download SupportAssist collections with direct file download

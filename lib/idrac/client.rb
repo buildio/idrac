@@ -114,7 +114,23 @@ module IDRAC
     end
 
     # Send an authenticated request to the iDRAC
-    def authenticated_request(method, path, body: nil, headers: {}, timeout: nil, open_timeout: nil, **options)
+    #
+    # Returns the full HTTParty::Response object by default, which allows access to:
+    # - response.status (HTTP status code)
+    # - response.body (response body as string)
+    # - response.headers (response headers)
+    #
+    # Automatically handles retry for 503 ServiceTemporarilyUnavailable errors.
+    # For error status codes (4xx, 5xx), handle_response is called to raise appropriate errors.
+    #
+    # You can provide a block for custom response handling:
+    #   authenticated_request(:post, path) { |response| custom_logic(response) }
+    def authenticated_request(method, path, body: nil, headers: {}, timeout: nil, open_timeout: nil, **options, &block)
+      # Automatically set Content-Type for JSON requests if not already set
+      if body && body.is_a?(String) && !headers.key?('Content-Type') && !headers.key?(:content_type)
+        headers = headers.merge('Content-Type' => 'application/json')
+      end
+
       # Build options hash with all parameters
       request_options = {
         body: body,
@@ -122,9 +138,19 @@ module IDRAC
         timeout: timeout,
         open_timeout: open_timeout
       }.merge(options).compact
-      
+
       with_retries do
-        _perform_authenticated_request(method, path, request_options)
+        response = _perform_authenticated_request(method, path, request_options)
+
+        # If a block is provided, use it for custom response handling
+        if block_given?
+          yield response
+        else
+          # Call handle_response only for error status codes to enable retry logic
+          # This allows 503 errors to be caught and retried by with_retries
+          handle_response(response) if response.status >= 400
+          response  # Return full response object for backward compatibility
+        end
       end
     end
 
