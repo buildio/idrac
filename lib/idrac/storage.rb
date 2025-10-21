@@ -361,8 +361,6 @@ module IDRAC
       puts "Deleting volume: #{path}"
       
       response = authenticated_request(:delete, "/redfish/v1/#{path}")
-
-      handle_response(response)
     end
 
     # Create a new virtual disk with RAID5 and FastPath optimizations
@@ -434,8 +432,6 @@ module IDRAC
         "#{controller_path}/Volumes",
         body: payload.to_json
       )
-      
-      handle_response(response)
     end
 
 
@@ -545,18 +541,15 @@ module IDRAC
       
       if response.status == 202
         puts "Controller encryption enabled".green
-        
+
         # Check if we need to wait for a job
         if response.headers["location"]
           job_id = response.headers["location"].split("/").last
           wait_for_job(job_id)
         end
-        
-        return true
-      else
-        # Use generic error handler which includes ExtendedInfo parsing
-        handle_response(response)
       end
+
+      true
     end
 
     # Disable Self-Encrypting Drive support on controller
@@ -571,18 +564,15 @@ module IDRAC
       
       if response.status == 202
         puts "Controller encryption disabled".green
-        
+
         # Check if we need to wait for a job
         if response.headers["location"]
           job_id = response.headers["location"].split("/").last
           wait_for_job(job_id)
         end
-        
-        return true
-      else
-        # Use generic error handler which includes ExtendedInfo parsing
-        handle_response(response)
       end
+
+      true
     end
 
     # Check if all physical disks are Self-Encrypting Drives

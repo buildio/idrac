@@ -76,7 +76,6 @@ module IDRAC
         body: {}.to_json
       )
 
-      handle_response(response)
       response.status.between?(200, 299)
     end
 

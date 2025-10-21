@@ -77,11 +77,9 @@ module IDRAC
       payload = { "ResetType" => kind }
       
       response = authenticated_request(:post, path, body: payload.to_json)
-      
+
       if response.status == 409
         puts "Server is already powered OFF.".yellow
-      else
-        handle_response(response)
       end
       
       # Wait for power state change if requested
@@ -125,9 +123,7 @@ module IDRAC
         # Try gracefulRestart as an alternative
         puts "Trying GracefulRestart instead...".yellow
         payload = { "ResetType" => "GracefulRestart" }
-        response = authenticated_request(:post, path, body: payload.to_json)
-        
-        handle_response(response)
+        authenticated_request(:post, path, body: payload.to_json)
       else
         raise Error, "Failed to reboot server. Status code: #{response.status}"
       end
@@ -139,8 +135,8 @@ module IDRAC
       
       # Get system information
       response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$select=PowerState")
-      
-      JSON.parse(handle_response(response))&.dig("PowerState")
+
+      JSON.parse(response.body)&.dig("PowerState")
     end
     
     def get_power_usage_watts
@@ -148,8 +144,8 @@ module IDRAC
       login unless @session_id
       
       response = authenticated_request(:get, "/redfish/v1/Chassis/System.Embedded.1/Power")
-      
-      JSON.parse(handle_response(response))&.dig("PowerControl", 0, "PowerConsumedWatts")&.to_f
+
+      JSON.parse(response.body)&.dig("PowerControl", 0, "PowerConsumedWatts")&.to_f
     end
     
     # TODO: Migrate method names to match radfish interface for uniformity:

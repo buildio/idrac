@@ -291,6 +291,13 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Changelog
 
+### Version 0.9.1
+- **Code Simplification**: Removed redundant `handle_response` calls throughout the codebase
+  - `authenticated_request` now automatically handles error responses (status >= 400)
+  - Removed 15 lines of redundant error handling code across storage.rb, power.rb, and virtual_media.rb
+  - Simplified response parsing in `get_power_state` and `get_power_usage_watts` methods
+  - Improved code maintainability by relying on centralized error handling
+
 ### Version 0.9.0
 - **Automatic Retry Handling**: ServiceTemporarilyUnavailable (503) errors now automatically retry with iDRAC-specified delay
 - **Simplified API**: `authenticated_request` now returns response body string by default instead of response object
