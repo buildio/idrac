@@ -86,14 +86,14 @@ module IDRAC
       end
     end
 
-    # Login to iDRAC
+    def authenticated?
+      @direct_mode || session.x_auth_token
+    end
+
+    # Login to iDRAC (no-op if already authenticated)
     def login
-      # If we're in direct mode, skip login attempts
-      if @direct_mode
-        debug "Using direct mode (Basic Auth) for all requests", 1, :light_yellow
-        return true
-      end
-      
+      return true if authenticated?
+
       # Try to create a Redfish session
       if session.create
         debug "Successfully logged in to iDRAC using Redfish session", 1, :green
@@ -103,6 +103,11 @@ module IDRAC
         @direct_mode = true
         return true
       end
+    end
+
+    # Ensure we're authenticated before making requests (idempotent)
+    def ensure_authenticated!
+      login unless authenticated?
     end
 
     # Logout from iDRAC

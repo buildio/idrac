@@ -4,8 +4,7 @@ require 'colorize'
 module IDRAC
   module Power
     def power_on(wait: true)
-      # Login to iDRAC if needed
-      login unless @session_id
+      ensure_authenticated!
       
       puts "Powering on server...".light_cyan
       
@@ -60,8 +59,7 @@ module IDRAC
     end
     
     def power_off(wait: true, kind: "ForceOff")
-      # Login to iDRAC if needed
-      login unless @session_id
+      ensure_authenticated!
       
       puts "Powering off server...".light_cyan
       
@@ -96,8 +94,7 @@ module IDRAC
     end
     
     def reboot
-      # Login to iDRAC if needed
-      login unless @session_id
+      ensure_authenticated!
       
       puts "Rebooting server...".light_cyan
 
@@ -130,8 +127,7 @@ module IDRAC
     end
     
     def get_power_state
-      # Login to iDRAC if needed
-      login unless @session_id
+      ensure_authenticated!
       
       # Get system information
       response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$select=PowerState")
@@ -140,8 +136,7 @@ module IDRAC
     end
     
     def get_power_usage_watts
-      # Login to iDRAC if needed
-      login unless @session_id
+      ensure_authenticated!
       
       response = authenticated_request(:get, "/redfish/v1/Chassis/System.Embedded.1/Power")
 

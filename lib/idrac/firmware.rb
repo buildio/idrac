@@ -30,8 +30,7 @@ module IDRAC
       # Ensure we have a client
       raise Error, "Client is required for firmware update" unless client
 
-      # Login to iDRAC
-      client.login unless client.instance_variable_get(:@session_id)
+      client.ensure_authenticated!
 
       # Upload firmware file
       job_id = upload_firmware(firmware_path)
