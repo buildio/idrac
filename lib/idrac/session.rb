@@ -180,38 +180,36 @@ module IDRAC
         debug "Skipping Redfish session creation (direct mode)", 1, :light_yellow
         return false
       end
-      
-      # Determine the correct session endpoint based on Redfish version
+
+      # Skip if already have a valid token
+      if @x_auth_token
+        debug "Session already active", 1, :green
+        return true
+      end
+
+      # Determine the correct session endpoint (cached after first call)
       session_endpoint = determine_session_endpoint
-      
-      # Check current session count before creating new session
-      current_sessions = get_session_count
-      debug "Current active sessions: #{current_sessions}", 1, :cyan
-      
+
       payload = { "UserName" => username, "Password" => password }
-      
+
       debug "Attempting to create Redfish session at #{base_url}#{session_endpoint}", 1
       debug "SSL verification: #{verify_ssl ? 'Enabled' : 'Disabled'}", 1
       print_connection_debug_info if @verbosity >= 2
-      
+
       # Try creation methods in sequence
       if create_session_with_content_type(session_endpoint, payload)
-        log_session_creation_success(current_sessions)
         return true
       end
       if create_session_with_basic_auth(session_endpoint, payload)
-        log_session_creation_success(current_sessions)
         return true
       end
       if handle_max_sessions_and_retry(session_endpoint, payload)
-        log_session_creation_success(current_sessions)
         return true
       end
       if create_session_with_form_urlencoded(session_endpoint, payload)
-        log_session_creation_success(current_sessions)
         return true
       end
-      
+
       # If all attempts fail, switch to direct mode
       @direct_mode = true
       false
@@ -652,32 +650,32 @@ module IDRAC
       end
     end
 
-    # Determine the correct session endpoint based on Redfish version
+    # Determine the correct session endpoint based on Redfish version (cached)
     def determine_session_endpoint
+      return @session_endpoint if @session_endpoint
+
       begin
         debug "Checking Redfish version to determine session endpoint...", 1
-        
+
         response = connection.get('/redfish/v1') do |req|
           req.headers['Accept'] = 'application/json'
           req.headers['Host'] = host_header if host_header
         end
-        
+
         if response.status == 200
           begin
             data = JSON.parse(response.body)
             redfish_version = data['RedfishVersion']
-            
+
             if redfish_version
               debug "Detected Redfish version: #{redfish_version}", 1
-              
-              # For version 1.17.0 and below, use the /redfish/v1/Sessions endpoint
-              # For newer versions, use /redfish/v1/SessionService/Sessions
-              endpoint = Gem::Version.new(redfish_version) <= Gem::Version.new('1.17.0') ? 
-                         '/redfish/v1/Sessions' : 
+
+              @session_endpoint = Gem::Version.new(redfish_version) <= Gem::Version.new('1.17.0') ?
+                         '/redfish/v1/Sessions' :
                          '/redfish/v1/SessionService/Sessions'
-              
-              debug "Using endpoint #{endpoint} for Redfish version #{redfish_version}", 1
-              return endpoint
+
+              debug "Using endpoint #{@session_endpoint} for Redfish version #{redfish_version}", 1
+              return @session_endpoint
             end
           rescue JSON::ParserError => e
             debug "Error parsing Redfish version: #{e.message}", 1, :red
@@ -688,11 +686,10 @@ module IDRAC
       rescue => e
         debug "Error checking Redfish version: #{e.message}", 1, :red
       end
-      
-      # Default to /redfish/v1/Sessions if we can't determine version
-      default_endpoint = '/redfish/v1/Sessions'
-      debug "Defaulting to endpoint #{default_endpoint}", 1, :light_yellow
-      default_endpoint
+
+      @session_endpoint = '/redfish/v1/Sessions'
+      debug "Defaulting to endpoint #{@session_endpoint}", 1, :light_yellow
+      @session_endpoint
     end
     
     # Get current session count
