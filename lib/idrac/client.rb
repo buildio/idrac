@@ -167,32 +167,21 @@ module IDRAC
 
     private
     
-    # Implementation of authenticated request without retry logic
-    def _perform_authenticated_request(method, path, options = {}, retry_count = 0)
-      # Check retry count to prevent infinite recursion
-      if retry_count >= @retry_count
-        debug "Maximum retry count reached", 1, :red
-        raise Error, "Failed to authenticate after #{@retry_count} retries"
-      end
-      
+    # Single-attempt authenticated request. Retry logic is in with_retries.
+    def _perform_authenticated_request(method, path, options = {})
       debug "Authenticated request: #{method.to_s.upcase} #{path}", 1
-      
-      # Extract options and prepare headers
+
       body = options[:body]
       headers = options[:headers] || {}
       timeout = options[:timeout]
       open_timeout = options[:open_timeout]
-      
+
       headers['User-Agent'] ||= 'iDRAC Ruby Client'
       headers['Accept'] ||= 'application/json'
       headers['Host'] = @host_header if @host_header
-      
-      # Debug the body being sent
-      if body && @verbosity >= 2
-        debug "Request body: #{body}", 2
-      end
-      
-      # Determine authentication method and set headers
+
+      debug "Request body: #{body}", 2 if body && @verbosity >= 2
+
       if @direct_mode
         headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
         debug "Using Basic Auth for request (direct mode)", 2
@@ -200,22 +189,22 @@ module IDRAC
         headers['X-Auth-Token'] = session.x_auth_token
         debug "Using X-Auth-Token for authentication", 2
       end
-      
-      # Make request with timeout handling
+
       response = make_request_with_timeouts(method, path, body, headers, timeout, open_timeout)
-      
-      # Handle authentication and connection errors
+
       case response.status
       when 401, 403
-        handle_auth_failure(method, path, options, retry_count)
+        handle_auth_failure(method, path, options, nil)
       else
         debug "Response status: #{response.status}", 2
         response
       end
     rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
-      handle_connection_error(e, method, path, options, retry_count)
+      handle_connection_error(e, method, path, options, nil)
+    rescue IDRAC::Error
+      raise
     rescue => e
-      handle_general_error(e, method, path, options, retry_count)
+      handle_general_error(e, method, path, options, nil)
     end
     
     # Make request with timeout handling
@@ -241,56 +230,29 @@ module IDRAC
       end
     end
     
-    # Handle authentication failures
+    # Handle authentication failures — recreate session, then raise so with_retries retries
     def handle_auth_failure(method, path, options, retry_count)
-      if @direct_mode
-        debug "Authentication failed in direct mode, retrying...", 1, :light_yellow
-        sleep(retry_count + 1)
-        return _perform_authenticated_request(method, path, options, retry_count + 1)
-      else
-        debug "Session expired, creating new session...", 1, :light_yellow
-        session.delete if session.x_auth_token
-        
-        if session.create
-          debug "New session created, retrying request...", 1, :green
-          return _perform_authenticated_request(method, path, options, retry_count + 1)
-        else
-          debug "Session creation failed, falling back to direct mode...", 1, :light_yellow
-          @direct_mode = true
-          return _perform_authenticated_request(method, path, options, retry_count + 1)
-        end
+      debug "Authentication failed (401/403), recreating session...", 1, :light_yellow
+      session.delete if session.x_auth_token
+
+      unless session.create
+        debug "Session creation failed, falling back to direct mode", 1, :light_yellow
+        @direct_mode = true
       end
+
+      raise Error, "Authentication failed, session recreated"
     end
     
-    # Handle connection errors
+    # Handle connection errors — raise so with_retries can handle retry logic
     def handle_connection_error(error, method, path, options, retry_count)
       debug "Connection error: #{error.message}", 1, :red
-      sleep(retry_count + 1)
-      
-      if @direct_mode || session.x_auth_token
-        return _perform_authenticated_request(method, path, options, retry_count + 1)
-      elsif session.create
-        debug "Created new session after connection error", 1, :green
-        return _perform_authenticated_request(method, path, options, retry_count + 1)
-      else
-        @direct_mode = true
-        return _perform_authenticated_request(method, path, options, retry_count + 1)
-      end
+      raise Error, "Connection failed: #{error.message}"
     end
-    
-    # Handle general errors
+
+    # Handle general errors — raise so with_retries can handle retry logic
     def handle_general_error(error, method, path, options, retry_count)
       debug "Error during request: #{error.message}", 1, :red
-      
-      if @direct_mode
-        raise Error, "Error during authenticated request: #{error.message}"
-      elsif session.create
-        debug "Created new session after error, retrying...", 1, :green
-        return _perform_authenticated_request(method, path, options, retry_count + 1)
-      else
-        @direct_mode = true
-        return _perform_authenticated_request(method, path, options, retry_count + 1)
-      end
+      raise Error, "Request failed: #{error.message}"
     end
 
     def _perform_get(path:, headers: {})
