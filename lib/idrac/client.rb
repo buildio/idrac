@@ -165,6 +165,16 @@ module IDRAC
       end
     end
 
+    # GET that returns parsed JSON on 200, nil on error. Never raises.
+    # Use for exploratory/optional endpoints that may not exist.
+    def safe_get(path)
+      response = authenticated_request(:get, path) { |r| r }
+      return nil unless response.status == 200
+      JSON.parse(response.body)
+    rescue
+      nil
+    end
+
     private
     
     # Single-attempt authenticated request. Retry logic is in with_retries.

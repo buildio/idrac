@@ -314,161 +314,80 @@ module IDRAC
 
     # Get PCI device information
     def pci_devices
-      # First try the standard PCIeDevices endpoint
-      response = authenticated_request(:get, "/redfish/v1/Chassis/System.Embedded.1/PCIeDevices?$expand=*($levels=1)")
-      
-      if response.status == 200
-        begin
-          data = JSON.parse(response.body)
-          
-          pci = data["Members"].map do |stub|
-            manufacturer = stub["Manufacturer"]
-            
-            # Get PCIe function details if available
-            pcie_function = nil
-            if stub.dig("Links", "PCIeFunctions", 0, "@odata.id")
-              pcie_function_path = stub.dig("Links", "PCIeFunctions", 0, "@odata.id").split("v1/").last
-              function_response = authenticated_request(:get, "/redfish/v1/#{pcie_function_path}")
-              
-              if function_response.status == 200
-                pcie_function = JSON.parse(function_response.body)
-              end
-            end
-            
-            # Create device info with available data
-            device_info = {
-              "device_class" => pcie_function ? pcie_function["DeviceClass"] : nil,
-              "manufacturer" => manufacturer,
-              "name" => stub["Name"],
-              "description" => stub["Description"],
-              "id" => pcie_function ? pcie_function["Id"] : stub["Id"],
-              "slot_type" => pcie_function ? pcie_function.dig("Oem", "Dell", "DellPCIeFunction", "SlotType") : nil,
-              "bus_width" => pcie_function ? pcie_function.dig("Oem", "Dell", "DellPCIeFunction", "DataBusWidth") : nil,
-              "nic" => pcie_function ? pcie_function.dig("Links", "EthernetInterfaces", 0, "@odata.id") : nil
-            }
-            
-            puts "PCI Device: #{device_info["name"]} > #{device_info["manufacturer"]} > #{device_info["device_class"]} > #{device_info["description"]} > #{device_info["id"]}"
-            
-            device_info
-          end
-          
-          return pci
-        rescue JSON::ParserError
-          raise Error, "Failed to parse PCI devices response: #{response.body}"
-        end
-      else
-        # For iDRAC 8, try Dell's recommended approach using System endpoint with PCIeDevices select option
-        system_pcie_response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$select=PCIeDevices")
-        
-        if system_pcie_response.status == 200
-          begin 
-            system_data = JSON.parse(system_pcie_response.body)
-            
-            if system_data.key?("PCIeDevices") && !system_data["PCIeDevices"].empty?
-              pci_devices = []
-              
-              # Process each PCIe device
-              system_data["PCIeDevices"].each do |device_link|
-                if device_link.is_a?(Hash) && device_link["@odata.id"]
-                  device_path = device_link["@odata.id"]
-                  device_response = authenticated_request(:get, device_path)
-                  
-                  if device_response.status == 200
-                    device_data = JSON.parse(device_response.body)
-                    
-                    pci_devices << {
-                      "device_class" => device_data["DeviceType"] || "Unknown",
-                      "manufacturer" => device_data["Manufacturer"],
-                      "name" => device_data["Name"] || device_data["Id"],
-                      "description" => device_data["Description"],
-                      "id" => device_data["Id"],
-                      "slot_type" => device_data.dig("Oem", "Dell", "SlotType"),
-                      "bus_width" => device_data.dig("Oem", "Dell", "BusWidth"),
-                      "nic" => nil
-                    }
-                  end
-                end
-              end
-              
-              return pci_devices unless pci_devices.empty?
-            end
-          rescue JSON::ParserError
-            # Continue to next approach
-          end
-        end
-        
-        # Try NetworkAdapters as an alternative for finding PCIe devices (especially NICs and FC adapters)
-        nic_response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/NetworkAdapters?$expand=*($levels=1)")
-        
-        if nic_response.status == 200
-          begin
-            nic_data = JSON.parse(nic_response.body)
-            
-            pci_devices = []
-            
-            # Extract PCI info from network adapters
-            if nic_data["Members"] && !nic_data["Members"].empty?
-              nic_data["Members"].each do |adapter|
-                next unless adapter["Model"] || adapter["Manufacturer"]
-                
-                # Check if this is a Fiber Channel adapter by name or model
-                is_fc = (adapter["Name"] =~ /FC/i || adapter["Model"] =~ /FC/i || 
-                         adapter["Id"] =~ /FC/i || adapter["Description"] =~ /Fibre/i) ? true : false
-                
-                device_class = is_fc ? "FibreChannelController" : "NetworkController"
-                
-                pci_devices << {
-                  "device_class" => device_class,
-                  "manufacturer" => adapter["Manufacturer"],
-                  "name" => adapter["Name"] || adapter["Id"],
-                  "description" => adapter["Description"],
-                  "id" => adapter["Id"],
-                  "slot_type" => adapter.dig("Oem", "Dell", "SlotType") || 
-                                 (adapter["Id"] =~ /Slot\.(\d+)/ ? "Slot #{$1}" : nil),
-                  "bus_width" => nil,
-                  "nic" => adapter["@odata.id"]
-                }
-              end
-              
-              return pci_devices unless pci_devices.empty?
-            end
-          rescue JSON::ParserError
-            # Continue to fallback
-          end
-        end
-        
-        # Last resort: check if PCIeFunctions are directly available
-        pcie_functions_response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/PCIeFunctions?$expand=*($levels=1)")
-        
-        if pcie_functions_response.status == 200
-          begin
-            functions_data = JSON.parse(pcie_functions_response.body)
-            
-            if functions_data["Members"] && !functions_data["Members"].empty?
-              pci_devices = functions_data["Members"].map do |function|
-                {
-                  "device_class" => function["DeviceClass"] || "Unknown",
-                  "manufacturer" => function["Manufacturer"] || "Unknown",
-                  "name" => function["Name"] || function["Id"],
-                  "description" => function["Description"],
-                  "id" => function["Id"],
-                  "slot_type" => function.dig("Oem", "Dell", "SlotType"),
-                  "bus_width" => function.dig("Oem", "Dell", "DataBusWidth"),
-                  "nic" => nil
-                }
-              end
-              
-              return pci_devices
-            end
-          rescue JSON::ParserError
-            # Continue to fallback
-          end
-        end
-        
-        # Fallback for any version when all endpoints unavailable
-        puts "PCI device information not available through standard or alternative endpoints" if @verbose
-        return []
+      # iDRAC 9+: standard PCIeDevices endpoint with expand
+      if (data = safe_get("/redfish/v1/Chassis/System.Embedded.1/PCIeDevices?$expand=*($levels=1)"))
+        return data["Members"].map { |stub|
+          fn = stub.dig("Links", "PCIeFunctions", 0, "@odata.id")
+          pcie_fn = fn ? safe_get(fn) : nil
+          {
+            "device_class" => pcie_fn&.dig("DeviceClass"),
+            "manufacturer" => stub["Manufacturer"],
+            "name" => stub["Name"],
+            "description" => stub["Description"],
+            "id" => pcie_fn&.dig("Id") || stub["Id"],
+            "slot_type" => pcie_fn&.dig("Oem", "Dell", "DellPCIeFunction", "SlotType"),
+            "bus_width" => pcie_fn&.dig("Oem", "Dell", "DellPCIeFunction", "DataBusWidth"),
+            "nic" => pcie_fn&.dig("Links", "EthernetInterfaces", 0, "@odata.id")
+          }
+        }
       end
+
+      # iDRAC 8: PCIeDevices via System endpoint
+      if (data = safe_get("/redfish/v1/Systems/System.Embedded.1?$select=PCIeDevices"))
+        devices = Array(data["PCIeDevices"]).filter_map { |link|
+          next unless link.is_a?(Hash) && link["@odata.id"]
+          d = safe_get(link["@odata.id"])
+          next unless d
+          {
+            "device_class" => d["DeviceType"] || "Unknown",
+            "manufacturer" => d["Manufacturer"],
+            "name" => d["Name"] || d["Id"],
+            "description" => d["Description"],
+            "id" => d["Id"],
+            "slot_type" => d.dig("Oem", "Dell", "SlotType"),
+            "bus_width" => d.dig("Oem", "Dell", "BusWidth"),
+            "nic" => nil
+          }
+        }
+        return devices unless devices.empty?
+      end
+
+      # Fallback: NetworkAdapters
+      if (data = safe_get("/redfish/v1/Systems/System.Embedded.1/NetworkAdapters?$expand=*($levels=1)"))
+        devices = Array(data["Members"]).filter_map { |a|
+          next unless a["Model"] || a["Manufacturer"]
+          is_fc = [a["Name"], a["Model"], a["Id"], a["Description"]].any? { |f| f =~ /FC|Fibre/i }
+          {
+            "device_class" => is_fc ? "FibreChannelController" : "NetworkController",
+            "manufacturer" => a["Manufacturer"],
+            "name" => a["Name"] || a["Id"],
+            "description" => a["Description"],
+            "id" => a["Id"],
+            "slot_type" => a.dig("Oem", "Dell", "SlotType") || (a["Id"] =~ /Slot\.(\d+)/ ? "Slot #{$1}" : nil),
+            "bus_width" => nil,
+            "nic" => a["@odata.id"]
+          }
+        }
+        return devices unless devices.empty?
+      end
+
+      # Last resort: PCIeFunctions directly
+      if (data = safe_get("/redfish/v1/Systems/System.Embedded.1/PCIeFunctions?$expand=*($levels=1)"))
+        return Array(data["Members"]).map { |fn|
+          {
+            "device_class" => fn["DeviceClass"] || "Unknown",
+            "manufacturer" => fn["Manufacturer"] || "Unknown",
+            "name" => fn["Name"] || fn["Id"],
+            "description" => fn["Description"],
+            "id" => fn["Id"],
+            "slot_type" => fn.dig("Oem", "Dell", "SlotType"),
+            "bus_width" => fn.dig("Oem", "Dell", "DataBusWidth"),
+            "nic" => nil
+          }
+        }
+      end
+
+      []
     end
 
     # Map NICs to PCI bus IDs for Mellanox cards

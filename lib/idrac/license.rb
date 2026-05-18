@@ -26,15 +26,6 @@ module IDRAC
 
     private
 
-    # GET that returns parsed JSON on 200, nil otherwise. Never raises on 4xx.
-    def safe_get(path)
-      response = authenticated_request(:get, path) { |r| r }
-      return nil unless response.status == 200
-      JSON.parse(response.body)
-    rescue JSON::ParserError
-      nil
-    end
-
     def compute_license_version
       license = license_info
       if license
