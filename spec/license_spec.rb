@@ -4,67 +4,66 @@ require "spec_helper"
 require "json"
 
 RSpec.describe IDRAC::License do
-  let(:client) { instance_double(IDRAC::Client) }
-  let(:license_collection_response) { double(status: 200, body: File.read("spec/fixtures/redfish/licenses.json")) }
-  let(:license_details_response) { double(status: 200, body: File.read("spec/fixtures/redfish/license_details.json")) }
-
-  before do
-    allow(client).to receive(:authenticated_request).with(:get, "/redfish/v1/LicenseService/Licenses").and_return(license_collection_response)
-    allow(client).to receive(:authenticated_request).with(:get, "/redfish/v1/LicenseService/Licenses/FD00000011364489").and_return(license_details_response)
-    allow(client).to receive(:debug)
+  let(:license_class) do
+    Class.new do
+      include IDRAC::License
+      attr_accessor :verbosity
+      def initialize; @verbosity = 0; end
+      def debug(*); end
+    end
   end
+  let(:instance) { license_class.new }
+
+  # iDRAC 9 fixtures
+  let(:license_collection) { JSON.parse(File.read("spec/fixtures/redfish/licenses.json")) }
+  let(:license_details) { JSON.parse(File.read("spec/fixtures/redfish/license_details.json")) }
+
+  # iDRAC 8 fixtures
+  let(:idrac8_manager) { JSON.parse(File.read("spec/fixtures/redfish/idrac8_manager.json")) }
 
   describe "#license_info" do
-    it "returns license details" do
-      license_class = Class.new
-      license_class.include(IDRAC::License)
-      license_instance = license_class.new
-      allow(license_instance).to receive(:client).and_return(client)
-      
-      # Need to mock both calls - first to get the collection, then to get the details
-      allow(license_instance).to receive(:authenticated_request).with(:get, "/redfish/v1/LicenseService/Licenses").and_return(license_collection_response)
-      allow(license_instance).to receive(:authenticated_request).with(:get, "/redfish/v1/LicenseService/Licenses/FD00000011364489").and_return(license_details_response)
-      allow(license_instance).to receive(:debug)
+    it "returns license details for iDRAC 9" do
+      allow(instance).to receive(:safe_get)
+        .with("/redfish/v1/LicenseService/Licenses").and_return(license_collection)
+      allow(instance).to receive(:safe_get)
+        .with("/redfish/v1/LicenseService/Licenses/FD00000011364489").and_return(license_details)
 
-      expected_details = JSON.parse(license_details_response.body)
-      expect(license_instance.license_info).to eq(expected_details)
+      expect(instance.license_info).to eq(license_details)
+    end
+
+    it "falls through to OEM path for iDRAC 8 (LicenseService unavailable)" do
+      allow(instance).to receive(:safe_get).and_return(nil)
+      allow(instance).to receive(:safe_get)
+        .with("/redfish/v1/Managers/iDRAC.Embedded.1").and_return(idrac8_manager)
+
+      result = instance.license_info
+      expect(result).to be_a(Hash)
+      expect(result["LicenseType"]).to be_present
     end
   end
 
   describe "#license_version" do
-    it "extracts version from license description" do
-      license_class = Class.new
-      license_class.include(IDRAC::License)
-      license_instance = license_class.new
-      allow(license_instance).to receive(:client).and_return(client)
-      allow(license_instance).to receive(:authenticated_request).and_return(license_details_response)
-      allow(license_instance).to receive(:debug)
-      
-      # Return hash
-      license_data = JSON.parse(license_details_response.body)
-      allow(license_instance).to receive(:license_info).and_return(license_data)
-
-      expect(license_instance.license_version).to eq(9)
+    it "extracts version 9 from license description" do
+      allow(instance).to receive(:license_info).and_return(license_details)
+      expect(instance.license_version).to eq(9)
     end
 
-    it "returns nil when no license version found" do
-      license_class = Class.new
-      license_class.include(IDRAC::License)
-      license_instance = license_class.new
-      allow(license_instance).to receive(:client).and_return(client)
-      allow(license_instance).to receive(:debug)
-      
-      # Mock the authenticated_request call that happens in license_version
-      # Use a server header that doesn't contain version info to test the nil case
-      server_response = double(status: 200, headers: {"server" => "Apache/2.4.0"})
-      allow(license_instance).to receive(:authenticated_request).with(:get, "/redfish/v1").and_return(server_response)
-      
-      # Return a hash
-      allow(license_instance).to receive(:license_info).and_return(
-        {"Description" => "Some other license"}
-      )
+    it "detects version 8 from server header when description lacks version" do
+      allow(instance).to receive(:license_info).and_return({"Description" => "Enterprise License"})
+      allow(instance).to receive(:authenticated_request)
+        .with(:get, "/redfish/v1")
+        .and_yield(double(status: 200, headers: {"server" => "iDRAC/8"}))
 
-      expect(license_instance.license_version).to be_nil
+      expect(instance.license_version).to eq(8)
+    end
+
+    it "returns nil when no version can be determined" do
+      allow(instance).to receive(:license_info).and_return({"Description" => "Some license"})
+      allow(instance).to receive(:authenticated_request)
+        .with(:get, "/redfish/v1")
+        .and_yield(double(status: 200, headers: {"server" => "Apache/2.4.0"}))
+
+      expect(instance.license_version).to be_nil
     end
   end
-end 
+end
