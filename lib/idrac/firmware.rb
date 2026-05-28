@@ -492,10 +492,8 @@ module IDRAC
         upload_response = client.authenticated_request(
           :post,
           http_push_uri,
-          {
-            headers: headers,
-            body: payload,
-          }
+          headers: headers,
+          body: payload
         )
         
         if upload_response.status != 201 && upload_response.status != 200
