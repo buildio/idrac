@@ -493,7 +493,9 @@ module IDRAC
           :post,
           http_push_uri,
           headers: headers,
-          body: payload
+          body: payload,
+          timeout: 3600,       # firmware uploads can take 30-60min on iDRAC8
+          open_timeout: 60
         )
         
         if upload_response.status != 201 && upload_response.status != 200
