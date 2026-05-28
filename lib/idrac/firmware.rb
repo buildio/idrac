@@ -532,39 +532,44 @@ module IDRAC
           # We'll try to continue with the SimpleUpdate action anyway
         end
         
-        # Now initiate the firmware update using SimpleUpdate action
-        puts "Initiating firmware update using SimpleUpdate...".light_cyan
-        
-        # Construct the image URI
-        image_uri = nil
-        
-        if firmware_id
-          image_uri = "#{http_push_uri}/#{firmware_id}"
+        # Construct the firmware URI from the upload response
+        image_uri = if firmware_id
+          "#{http_push_uri}/#{firmware_id}"
         else
-          # If we couldn't extract the firmware ID, try using the Location header
-          image_uri = upload_response.headers['Location']
+          upload_response.headers['Location'] || http_push_uri
         end
-        
-        # If we still don't have an image URI, try to use the HTTP push URI as a fallback
-        if image_uri.nil?
-          puts "Warning: Could not determine image URI, using HTTP push URI as fallback".yellow
-          image_uri = http_push_uri
+
+        # Check if Dell OEM Install action is available (iDRAC8)
+        # This is more reliable than SimpleUpdate on older iDRACs
+        dell_install_target = update_service.dig("Actions", "Oem",
+          "DellUpdateService.v1_0_0#DellUpdateService.Install", "target")
+
+        if dell_install_target
+          puts "Using Dell OEM Install action (iDRAC8)...".light_cyan
+          puts "Firmware URI: #{image_uri}".light_cyan
+          install_payload = {
+            "SoftwareIdentityURIs" => [image_uri],
+            "InstallUpon" => "Now"
+          }
+          update_response = client.authenticated_request(
+            :post,
+            dell_install_target,
+            body: install_payload.to_json
+          )
+        else
+          puts "Using SimpleUpdate action...".light_cyan
+          puts "ImageURI: #{image_uri}".light_cyan
+          simple_update_payload = {
+            "ImageURI" => image_uri,
+            "TransferProtocol" => "HTTP"
+          }
+          update_response = client.authenticated_request(
+            :post,
+            "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate",
+            body: simple_update_payload.to_json
+          )
         end
-        
-        puts "Using ImageURI: #{image_uri}".light_cyan
-        
-        # Initiate the SimpleUpdate action
-        simple_update_payload = {
-          "ImageURI" => image_uri,
-          "TransferProtocol" => "HTTP"
-        }
-        
-        update_response = client.authenticated_request(
-          :post,
-          "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate",
-          body: simple_update_payload.to_json
-        )
-        
+
         if update_response.status != 202 && update_response.status != 200
           puts "Failed to initiate firmware update: #{update_response.status} - #{update_response.body}".red
           raise Error, "Failed to initiate firmware update: #{update_response.status} - #{update_response.body}"
