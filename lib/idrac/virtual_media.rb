@@ -12,11 +12,18 @@ module IDRAC
           data = JSON.parse(response.body)
           
           media = data["Members"].map do |m|
-            # Check if media is inserted based on multiple indicators
-            is_inserted = m["Inserted"] || 
-                          (!m["Image"].nil? && !m["Image"].empty?) || 
-                          (m["ConnectedVia"] && m["ConnectedVia"] != "NotConnected") ||
-                          (m["ImageName"] && !m["ImageName"].empty?)
+            # Trust the BMC's structured connection state when present; fall back to the
+            # Image/ImageName string only when it isn't. On iDRAC8 a slot can keep a stale
+            # Image string with nothing actually mounted (ConnectedVia == "NotConnected" /
+            # Inserted == false); treating that as "inserted" makes eject POST an EjectMedia
+            # the BMC rejects with HTTP 500 (VRM0009).
+            is_inserted = if !m["Inserted"].nil?
+                            m["Inserted"]
+                          elsif m["ConnectedVia"]
+                            m["ConnectedVia"] != "NotConnected"
+                          else
+                            (m["Image"] && !m["Image"].empty?) || (m["ImageName"] && !m["ImageName"].empty?)
+                          end
               
             # Indicate which field is used for this iDRAC version and print it
             puts "ImageName is used for this iDRAC version".yellow if m["ImageName"]
@@ -70,13 +77,21 @@ module IDRAC
               "Managers/iDRAC.Embedded.1/VirtualMedia/#{device}/Actions/VirtualMedia.EjectMedia"
              end
       
-      response = authenticated_request(
-        :post,
-        "/redfish/v1/#{path}",
-        body: {}.to_json
-      )
-
-      response.status.between?(200, 299)
+      begin
+        response = authenticated_request(
+          :post,
+          "/redfish/v1/#{path}",
+          body: {}.to_json
+        )
+        response.status.between?(200, 299)
+      rescue IDRAC::Error => e
+        # iDRAC8 can still 500 with VRM0009 ("No Virtual Media devices are currently connected")
+        # when the slot reported a stale image but nothing was actually mounted. Ejecting nothing
+        # is a no-op success for callers, so swallow exactly that rejection.
+        raise unless e.message =~ /VRM0009|No Virtual Media devices are currently connected/i
+        puts "Nothing actually mounted on #{device}; treating eject as no-op".yellow
+        false
+      end
     end
 
     # Insert virtual media (ISO)
