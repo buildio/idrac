@@ -161,11 +161,20 @@ module IDRAC
         category_node = component.xpath("./Category/Display[@lang='en']").first
         category = category_node ? category_node.text.strip : ""
         
-        version = component['dellVersion'] || component['vendorVersion'] || ""
-        
+        # Prefer the numeric vendorVersion (e.g. "25.5.9.0001") over dellVersion,
+        # which is just the package revision label ("A17"). Comparing that label
+        # against an installed numeric version falsely flags every component.
+        version = component['vendorVersion'] || component['dellVersion'] || ""
+
+        # Dell componentIDs this DUP actually flashes. This is the reliable key
+        # for matching a DUP to an installed component (see #check_updates) —
+        # names are ambiguous (every NIC DUP says "Ethernet"), so name-matching
+        # picks wrong DUPs and iDRAC rejects them (RED097 / "not compatible").
+        component_ids = component.xpath(".//SupportedDevices/Device/@componentID").map(&:value).uniq
+
         # Skip if missing essential information
         next if name.empty? || path.empty? || version.empty?
-        
+
         # Only include firmware updates
         if component_type.include?("Firmware") ||
            category.include?("BIOS") ||
@@ -174,13 +183,14 @@ module IDRAC
            name.include?("BIOS") ||
            name.include?("Firmware") ||
            name.include?("iDRAC")
-          
+
           updates << {
             name: name,
             version: version,
             path: path,
             component_type: component_type,
             category: category,
+            component_ids: component_ids,
             download_url: "https://downloads.dell.com/#{path}"
           }
         end
@@ -189,7 +199,35 @@ module IDRAC
       puts "Found #{updates.size} firmware updates for system ID #{system_id}"
       updates
     end
-    
+
+    # Select the catalog DUPs that apply to one installed component (`fw` from
+    # the iDRAC inventory). Matches on Dell componentID — the reliable key —
+    # and only falls back to the legacy name heuristic when the inventory
+    # didn't expose a componentID (e.g. it reports "0").
+    def updates_for_component(catalog_updates, fw)
+      component_id = fw[:component_id]
+      if component_id && component_id != "0"
+        catalog_updates.select { |u| Array(u[:component_ids]).include?(component_id) }
+      else
+        name = fw[:name] || ""
+        ids = extract_identifiers(name)
+        catalog_updates.select do |u|
+          un = u[:name] || ""
+          ids.any? { |id| un.downcase.include?(id.downcase) } ||
+            un.downcase.include?(name.downcase) ||
+            name.downcase.include?(un.downcase)
+        end
+      end
+    end
+
+    # Sortable key for a Dell version string (e.g. "25.5.9.0001", "22.00.6").
+    # Non-numeric/odd versions sort lowest rather than raising.
+    def version_key(version)
+      Gem::Version.new(version.to_s[/\d[\d.]*/] || "0")
+    rescue ArgumentError
+      Gem::Version.new("0")
+    end
+
     def extract_identifiers(name)
       return [] unless name
       
