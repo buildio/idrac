@@ -526,11 +526,10 @@ module IDRAC
         end
         
         # Construct the firmware URI from the upload response
-        image_uri = if firmware_id
-          "#{http_push_uri}/#{firmware_id}"
-        else
-          upload_response.headers['Location'] || http_push_uri
-        end
+        # Prefer @odata.id from response body, then Location header, then constructed path
+        image_uri = upload_data&.dig('@odata.id') ||
+                    upload_response.headers['Location'] ||
+                    (firmware_id ? "#{http_push_uri}/#{firmware_id}" : http_push_uri)
 
         # Check if Dell OEM Install action is available (iDRAC8)
         # This is more reliable than SimpleUpdate on older iDRACs
@@ -540,9 +539,10 @@ module IDRAC
         if dell_install_target
           puts "Using Dell OEM Install action (iDRAC8)...".light_cyan
           puts "Firmware URI: #{image_uri}".light_cyan
+          # iDRAC8 DellUpdateService.Install expects @odata.id URIs
           install_payload = {
             "SoftwareIdentityURIs" => [image_uri],
-            "InstallUpon" => "Now"
+            "InstallUpon" => "NowAndReboot"
           }
           update_response = client.authenticated_request(
             :post,
