@@ -161,7 +161,10 @@ module IDRAC
         category_node = component.xpath("./Category/Display[@lang='en']").first
         category = category_node ? category_node.text.strip : ""
         
-        version = component['dellVersion'] || component['vendorVersion'] || ""
+        # Prefer the numeric vendorVersion (e.g. "25.5.9.0001") over dellVersion,
+        # which is just the package revision label ("A17"). Comparing that label
+        # against an installed numeric version falsely flags every component.
+        version = component['vendorVersion'] || component['dellVersion'] || ""
 
         # Dell componentIDs this DUP actually flashes. This is the reliable key
         # for matching a DUP to an installed component (see #check_updates) —
