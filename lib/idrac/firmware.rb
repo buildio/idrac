@@ -86,9 +86,16 @@ module IDRAC
             
             if component_response.status == 200
               component_data = JSON.parse(component_response.body)
+              # Dell componentID — prefer the Oem field, else parse the inventory
+              # Id ("Installed-<componentID>-<version>"). Used to match DUPs by
+              # componentID rather than by ambiguous display name.
+              fw_id = component_data['Id'].to_s
+              component_id = component_data.dig('Oem', 'Dell', 'DellSoftwareInventory', 'ComponentID')
+              component_id ||= fw_id[/\A(?:Installed|Current|Previous|Available)-(\d+)-/, 1]
               firmware_inventory << {
                 name: component_data['Name'],
                 id: component_data['Id'],
+                component_id: component_id,
                 version: component_data['Version'],
                 updateable: component_data['Updateable'] || false,
                 status: component_data['Status'] ? component_data['Status']['State'] : 'Unknown'
@@ -168,25 +175,16 @@ module IDRAC
         next if displayed_components.include?(firmware_name.downcase)
         displayed_components.add(firmware_name.downcase)
         
-        # Extract key identifiers from the firmware name
-        identifiers = catalog.extract_identifiers(firmware_name)
-        
-        # Try to find a matching update
-        matching_updates = catalog_updates.select do |update|
-          update_name = update[:name] || ""
-          
-          # Check if any of our identifiers match the update name
-          identifiers.any? { |id| update_name.downcase.include?(id.downcase) } ||
-          # Or if the update name contains the firmware name
-          update_name.downcase.include?(firmware_name.downcase) ||
-          # Or if the firmware name contains the update name
-          firmware_name.downcase.include?(update_name.downcase)
-        end
-        
+        # Match the installed component to catalog DUPs. Prefer the Dell
+        # componentID (reliable) — only fall back to the legacy name heuristic
+        # when the inventory doesn't expose one.
+        matching_updates = catalog.updates_for_component(catalog_updates, fw)
+
         if matching_updates.any?
-          # Use the first matching update
-          update = matching_updates.first
-          
+          # Among matches, take the newest available version (the catalog can
+          # list several revisions for one component).
+          update = matching_updates.max_by { |u| catalog.version_key(u[:version]) }
+
           # Check if version is newer
           needs_update = catalog.compare_versions(fw[:version], update[:version])
           
@@ -253,12 +251,7 @@ module IDRAC
         
         # Skip if this update was already matched to a current firmware
         next if inventory[:firmware].any? do |fw|
-          firmware_name = fw[:name] || ""
-          identifiers = catalog.extract_identifiers(firmware_name)
-          
-          identifiers.any? { |id| update_name.downcase.include?(id.downcase) } ||
-          update_name.downcase.include?(firmware_name.downcase) ||
-          firmware_name.downcase.include?(update_name.downcase)
+          catalog.updates_for_component([update], fw).any?
         end
         
         puts "%-30s %-20s %-20s %-10s %-15s %s" % [
