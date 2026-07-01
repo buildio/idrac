@@ -1663,12 +1663,19 @@ module IDRAC
     # TSR (Technical Support Report) commands
     desc "tsr_collect", "Generate and download TSR/SupportAssist collection"
     method_option :output, type: :string, desc: "Output filename"
+    method_option :timeout, type: :numeric, default: 600, desc: "Seconds to wait for collection to complete"
+    method_option :data_types, type: :string, desc: "Comma-separated log types to collect (0=HWData, 1=OSAppData, 2=TTYLogs, 3=DebugLogs; default: HWData,OSAppData)"
     def tsr_collect
       with_idrac_client do |client|
         puts "Generating and downloading TSR logs...".yellow
         puts "This may take several minutes...".yellow
-        
-        result = client.generate_and_download_tsr(output_file: options[:output])
+
+        data_selector = options[:data_types]&.split(',')
+        result = client.generate_and_download_tsr(
+          output_file: options[:output],
+          data_selector_values: data_selector,
+          wait_timeout: options[:timeout]
+        )
         
         if result
           puts "TSR logs saved to: #{result}".green
