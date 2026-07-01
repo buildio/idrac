@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Dependencies - Using semantic versioning recommendations
-  spec.add_dependency "httparty", "~> 0.21", ">= 0.21.0"
+  spec.add_dependency "httparty", "~> 0.24", ">= 0.24.0"
   spec.add_dependency "nokogiri", "~> 1.15", ">= 1.15.0"
   spec.add_dependency "faraday", "~> 2.7", ">= 2.7.0"
   spec.add_dependency "faraday-multipart", "~> 1.0", ">= 1.0.0"
