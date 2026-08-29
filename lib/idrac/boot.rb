@@ -323,22 +323,7 @@ module IDRAC
         raise Error, "Failed to get BIOS information. Status code: #{response.status}"
       end
     end
-=begin
-    # Servers can boot in BIOS mode or in UEFI (modern, extensible BIOS replacement) mode.
-    # We use UEFI mode.
-    # self.get(path: "Systems/System.Embedded.1/Bios/Settings?$select=BootMode")
-    res = self.get(path: "Systems/System.Embedded.1/Bios")
-    if res["body"]["Attributes"]["BootMode"] == "Uefi"
-      return { status: :success }
-    else
-      res = self.set_system_configuration_profile(scp_boot_mode_uefi, reboot: true)
-      # Then must power cycle the server
-      self.power_on!(wait: true)
-      self.power_off!(wait: true)
-      return res
-    end
 
-=end
     def scp_boot_mode_uefi(idrac_license_version: 9)
       opts = { "BootMode" => 'Uefi' }
       # If we're iDRAC 9, we need enable a placeholder, otherwise we can't order the
