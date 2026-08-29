@@ -1,13 +1,13 @@
 PATH
   remote: .
   specs:
-    idrac (0.10.3)
+    idrac (0.10.4)
       activesupport (>= 7.0)
       base64 (~> 0.1, >= 0.1.0)
       colorize (~> 1.1, >= 1.1.0)
       faraday (~> 2.7, >= 2.7.0)
       faraday-multipart (~> 1.0, >= 1.0.0)
-      httparty (~> 0.21, >= 0.21.0)
+      httparty (~> 0.24, >= 0.24.0)
       nokogiri (~> 1.15, >= 1.15.0)
       thor (~> 1.2, >= 1.2.0)
 
@@ -135,6 +135,9 @@ DEPENDENCIES
   rspec (~> 3.12, >= 3.12.0)
   vcr
   webmock
+
+RUBY VERSION
+   ruby 3.3.5p100
 
 BUNDLED WITH
    2.6.9

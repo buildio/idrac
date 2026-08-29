@@ -58,7 +58,15 @@ module IDRAC
       return true
     end
     
+    # Reset types that restart the host rather than leave it down. A restart never settles on
+    # "Off", so it must never be waited on — or escalated to — as if it were a shutdown.
+    RESTART_TYPES = %w[ForceRestart GracefulRestart PowerCycle].freeze
+
     def power_off(wait: true, kind: "ForceOff")
+      # A restart is not a shutdown. Sent down the power-off path it fails the wait for "Off" and
+      # escalates to ForceOff, which leaves the host powered down. Route it to the restart instead.
+      return reboot(kind: kind, wait: wait) if RESTART_TYPES.include?(kind)
+
       ensure_authenticated!
       
       puts "Powering off server...".light_cyan
@@ -93,37 +101,39 @@ module IDRAC
       return true
     end
     
-    def reboot
+    def reboot(kind: "ForceRestart", wait: false)
       ensure_authenticated!
       
-      puts "Rebooting server...".light_cyan
+      puts "Rebooting server (#{kind})...".light_cyan
 
       # Check current power state first
       current_state = get_power_state rescue "Unknown"
       if current_state == "Off"
         puts "Server is currently off, powering on instead of rebooting".yellow
-        return power_on
+        return power_on(wait: wait)
       end
       
-      # Send reboot command (Reset with ResetType=ForceRestart)
       path = "/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-      payload = { "ResetType" => "ForceRestart" }
-      
-      response = authenticated_request(:post, path, body: payload.to_json)
+      response = authenticated_request(:post, path, body: { "ResetType" => kind }.to_json)
       
       if response.status >= 200 && response.status < 300
         puts "Server reboot command sent successfully".green
-        return true
-      elsif response.status == 409
+      elsif response.status == 409 && kind != "GracefulRestart"
         error_data = JSON.parse(response.body) rescue nil
         puts "Received conflict (409) error from iDRAC: #{error_data.inspect}"
         # Try gracefulRestart as an alternative
         puts "Trying GracefulRestart instead...".yellow
-        payload = { "ResetType" => "GracefulRestart" }
-        authenticated_request(:post, path, body: payload.to_json)
+        response = authenticated_request(:post, path, body: { "ResetType" => "GracefulRestart" }.to_json)
+        raise Error, "Failed to reboot server. Status code: #{response.status}" unless response.status.between?(200, 299)
       else
         raise Error, "Failed to reboot server. Status code: #{response.status}"
       end
+      
+      # "On" is the only terminal state a restart reaches. Never wait for "Off" here: the host may
+      # never report it, and treating that as failure is what turned a reboot into a shutdown.
+      wait_for_power_state(target_state: "On", tries: 12) if wait
+      
+      return true
     end
     
     def get_power_state
