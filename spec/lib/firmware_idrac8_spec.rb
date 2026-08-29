@@ -131,6 +131,47 @@ RSpec.describe IDRAC::Firmware, 'iDRAC8' do
         expect(fw[:id]).to match(/^(Current|Installed|Previous)-/)
       end
     end
+
+    # iDRAC8 does not expose the Dell OEM block on inventory members, so the
+    # componentID has to come out of the Id ("Installed-<componentID>-<version>").
+    # It is the key used to match catalog DUPs to installed components.
+    it 'extracts the Dell componentID from the inventory Id' do
+      result = firmware.get_system_inventory
+      ids = result[:firmware].map { |fw| [fw[:id], fw[:component_id]] }.to_h
+      expect(ids["Installed-25227-2.84.84.84"]).to eq("25227")
+      expect(ids["Installed-159-2.17.0"]).to eq("159")
+      expect(ids["Installed-101560-25.5.0.0018"]).to eq("101560")
+      expect(ids["Previous-25227-2.41.40.40"]).to eq("25227")
+    end
+  end
+
+  describe '#get_firmware_inventory componentID from the Dell OEM block' do
+    let(:oem_component) do
+      {
+        "Name" => "PERC H730P Mini",
+        "Id" => "Installed-0-25.5.0.0018",
+        "Version" => "25.5.0.0018",
+        "Updateable" => true,
+        "Status" => { "State" => "Enabled" },
+        "Oem" => { "Dell" => { "DellSoftwareInventory" => { "ComponentID" => "101560" } } }
+      }.to_json
+    end
+
+    before do
+      stub_request(:get, "https://192.168.0.20:443/redfish/v1/Systems/System.Embedded.1")
+        .to_return(status: 200, body: system_info_response)
+      stub_request(:get, "https://192.168.0.20:443/redfish/v1/UpdateService/FirmwareInventory")
+        .to_return(status: 200, body: {
+          "Members" => [{ "@odata.id" => "/redfish/v1/UpdateService/FirmwareInventory/Installed-0-25.5.0.0018" }]
+        }.to_json)
+      stub_request(:get, "https://192.168.0.20:443/redfish/v1/UpdateService/FirmwareInventory/Installed-0-25.5.0.0018")
+        .to_return(status: 200, body: oem_component)
+    end
+
+    it 'prefers the OEM ComponentID over the Id, which reports 0' do
+      result = firmware.get_system_inventory
+      expect(result[:firmware].first[:component_id]).to eq("101560")
+    end
   end
 
   describe '#upload_firmware' do

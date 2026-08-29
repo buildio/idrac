@@ -472,4 +472,85 @@ RSpec.describe "IDRAC::SystemConfig" do
       end
     end
   end
+
+  describe "#set_system_configuration_profile" do
+    let(:job_id) { "JID_879852276151" }
+    let(:scp_component) do
+      { "FQDD" => "iDRAC.Embedded.1",
+        "Attributes" => [{ "Name" => "ServerBoot.1#BootOnce", "Value" => "Enabled", "Set On Import" => "True" }] }
+    end
+
+    def submitted(location)
+      double("HTTParty::Response", headers: { "location" => location }, status: 202, code: 202)
+    end
+
+    def job(state, message)
+      double("HTTParty::Response", status: 200,
+             body: { "Id" => job_id, "JobState" => state, "Message" => message }.to_json)
+    end
+
+    # iDRAC hands back a TaskService URI whose id is the id of the job it queued.
+    def submit_to_task_uri
+      allow(client).to receive(:authenticated_request)
+        .and_return(submitted("/redfish/v1/TaskService/Tasks/#{job_id}"))
+    end
+
+    def stub_job(*responses)
+      allow(client).to receive(:authenticated_request)
+        .with(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{job_id}")
+        .and_return(*responses)
+    end
+
+    it "waits for the import job and reports the job outcome" do
+      submit_to_task_uri
+      stub_job(job("Running", "Importing"),
+               job("Completed", "Successfully imported and applied Server Configuration Profile"))
+
+      result = client.set_system_configuration_profile(scp_component)
+
+      expect(result[:status]).to eq(:success)
+      expect(result[:job_id]).to eq(job_id)
+      expect(result[:job_state]).to eq("Completed")
+      expect(result[:message]).to match(/Successfully imported/)
+    end
+
+    # The regression: the submitting task sits at "Pending" / "New job." while the job
+    # it queued does the work. Reporting the task state aborted imports that had worked.
+    it "does not report a queued job as a failure, and never waits on the task" do
+      submit_to_task_uri
+      stub_job(job("Completed", "Successfully imported and applied Server Configuration Profile"))
+      expect(client).not_to receive(:wait_for_task)
+
+      expect(client.set_system_configuration_profile(scp_component)[:status]).to eq(:success)
+    end
+
+    it "surfaces the job's own message when the import job fails" do
+      submit_to_task_uri
+      stub_job(job("Failed", "SYS051: Unable to apply the configuration"))
+
+      result = client.set_system_configuration_profile(scp_component)
+
+      expect(result[:status]).to eq(:failed)
+      expect(result[:job_id]).to eq(job_id)
+      expect(result[:error]).to eq("SYS051: Unable to apply the configuration")
+    end
+
+    it "uses the job path when the location points straight at a job" do
+      allow(client).to receive(:authenticated_request)
+        .and_return(submitted("/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{job_id}"))
+      stub_job(job("Completed", "Done"))
+
+      expect(client.set_system_configuration_profile(scp_component)[:status]).to eq(:success)
+    end
+
+    it "reports a failure when no location header comes back" do
+      allow(client).to receive(:authenticated_request)
+        .and_return(double("HTTParty::Response", headers: {}, status: 202, code: 202))
+
+      result = client.set_system_configuration_profile(scp_component)
+
+      expect(result[:status]).to eq(:failed)
+      expect(result[:error]).to match(/no location header/)
+    end
+  end
 end 

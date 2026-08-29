@@ -143,4 +143,95 @@ RSpec.describe IDRAC::Jobs do
       }.to raise_error(IDRAC::Error, /Job failed/)
     end
   end
+
+  describe '#wait_for_job_completion' do
+    def job(state, message)
+      { status: 200, body: { "Id" => "JID_123", "JobState" => state, "Message" => message }.to_json }
+    end
+
+    it 'returns the job outcome, including the job id, when the job completes' do
+      stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs/JID_123})
+        .to_return(job("Running", "Importing configuration"),
+                   job("Completed", "Successfully imported and applied Server Configuration Profile"))
+
+      result = client.wait_for_job_completion("JID_123")
+
+      expect(result[:status]).to eq(:success)
+      expect(result[:job_id]).to eq("JID_123")
+      expect(result[:job_state]).to eq("Completed")
+      expect(result[:message]).to match(/Successfully imported/)
+      expect(result[:job]["Id"]).to eq("JID_123")
+    end
+
+    %w[Failed CompletedWithErrors RebootFailed].each do |state|
+      it "surfaces the job's own message when the job is #{state}" do
+        stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs/JID_123})
+          .to_return(job(state, "Unable to apply attribute ServerBoot.1#FirstBootDevice"))
+
+        result = client.wait_for_job_completion("JID_123")
+
+        expect(result[:status]).to eq(:failed)
+        expect(result[:job_state]).to eq(state)
+        expect(result[:error]).to eq("Unable to apply attribute ServerBoot.1#FirstBootDevice")
+        expect(result[:messages]).to eq(["Unable to apply attribute ServerBoot.1#FirstBootDevice"])
+      end
+    end
+
+    it 'accepts a location header instead of a bare job id' do
+      stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs/JID_123})
+        .to_return(job("Completed", "Done"))
+
+      expect(client.wait_for_job_completion("/redfish/v1/TaskService/Tasks/JID_123")[:job_id]).to eq("JID_123")
+    end
+
+    it 'keeps polling when the job is briefly unreadable' do
+      calls = [-> { raise IDRAC::Error, "Connection reset" },
+               -> { double("response", status: 200, body: { "JobState" => "Completed", "Message" => "Done" }.to_json) }]
+      allow(client).to receive(:authenticated_request) { calls.shift.call }
+
+      expect(client.wait_for_job_completion("JID_123")[:status]).to eq(:success)
+    end
+
+    it 'reports a timeout with the job id and last state' do
+      stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs/JID_123})
+        .to_return(job("Running", "Still going"))
+
+      result = client.wait_for_job_completion("JID_123", timeout: 0.05)
+
+      expect(result[:status]).to eq(:timeout)
+      expect(result[:job_id]).to eq("JID_123")
+      expect(result[:error]).to match(/JID_123/)
+    end
+  end
+
+  describe '#wait_for_task' do
+    it 'keeps waiting on a queued task instead of calling "Pending" a failure' do
+      stub_request(:get, %r{/redfish/v1/TaskService/Tasks/JID_123})
+        .to_return({ status: 200,
+                     body: { "TaskState" => "Pending", "TaskStatus" => "OK",
+                             "Messages" => [{ "Message" => "New job." }] }.to_json },
+                   { status: 200, body: { "TaskState" => "Completed", "TaskStatus" => "OK" }.to_json })
+
+      expect(client.wait_for_task("JID_123")).to eq({ status: :success })
+    end
+
+    it 'accepts a full location header' do
+      stub_request(:get, %r{/redfish/v1/TaskService/Tasks/JID_123$})
+        .to_return(status: 200, body: { "TaskState" => "Completed", "TaskStatus" => "OK" }.to_json)
+
+      expect(client.wait_for_task("/redfish/v1/TaskService/Tasks/JID_123")).to eq({ status: :success })
+    end
+
+    it 'still reports a genuinely failed task' do
+      stub_request(:get, %r{/redfish/v1/TaskService/Tasks/JID_123})
+        .to_return(status: 200,
+                   body: { "TaskState" => "Exception", "TaskStatus" => "Critical",
+                           "Messages" => [{ "Message" => "Import failed" }] }.to_json)
+
+      result = client.wait_for_task("JID_123")
+
+      expect(result[:status]).to eq(:failed)
+      expect(result[:error]).to eq("Import failed")
+    end
+  end
 end

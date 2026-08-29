@@ -675,9 +675,8 @@ module IDRAC
         body: params.to_json
       )
       
-      task = wait_for_task(response.headers["location"])
-      debugger
-      return task
+      # Same operation as set_system_configuration_profile: wait on the import JOB.
+      return wait_for_scp_import(response.headers["location"])
     end
   end
 end 

@@ -185,7 +185,55 @@ module IDRAC
       
       raise Error, "Timeout waiting for job to complete"
     end
-    
+
+    # Job states that mean the job is finished, one way or another.
+    JOB_TERMINAL_STATES = %w[Completed CompletedWithErrors Failed RebootFailed].freeze
+
+    # Wait for an iDRAC job to reach a terminal state and report on the JOB itself.
+    #
+    # Unlike wait_for_job this does not raise for a job that simply failed -- it returns
+    # the outcome so the caller can log or re-check it. The hash always carries :job_id.
+    #
+    #   { status: :success | :failed | :timeout, job_id:, job_state:,
+    #     message:, messages: [message], job: <raw job data>,
+    #     error: <the job's own message, on anything but :success> }
+    def wait_for_job_completion(job_id, timeout: 600, interval: 10)
+      job_id = job_id.to_s.split("/").last
+      deadline = Time.now + timeout
+      state = nil
+      last_error = nil
+
+      while Time.now < deadline
+        begin
+          response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{job_id}")
+          job = response.status == 200 ? JSON.parse(response.body) : nil
+          state = job ? job["JobState"] : nil
+
+          if JOB_TERMINAL_STATES.include?(state)
+            message = job["Message"] || Array(job["Messages"]).map { |m| m["Message"] }.compact.first
+            success = state == "Completed"
+            debug "Job #{job_id} #{state}: #{message}", 1, success ? :green : :red
+            result = { status: success ? :success : :failed, job_id: job_id, job_state: state,
+                       message: message, messages: [message].compact, job: job }
+            result[:error] = message || "Job #{job_id} finished with state #{state}" unless success
+            return result
+          end
+
+          last_error = "HTTP #{response.status}" unless job
+          debug "Job #{job_id} state: #{state || last_error}. Waiting...", 1, :yellow
+        rescue StandardError => e
+          # An SCP import can bounce the host, so a job can be briefly unreadable. Keep polling.
+          last_error = e.message
+          debug "Job #{job_id} not readable (#{e.message}). Waiting...", 1, :yellow
+        end
+
+        sleep interval
+      end
+
+      { status: :timeout, job_id: job_id, job_state: state,
+        error: "Timed out after #{timeout}s waiting for job #{job_id} (last state: #{state || last_error || 'unknown'})" }
+    end
+
     # Get system tasks
     def tasks
       response = authenticated_request(:get, '/redfish/v1/TaskService/Tasks')

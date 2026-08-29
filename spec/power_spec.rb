@@ -55,5 +55,14 @@ RSpec.describe "idrac power methods" do
         client.get_power_usage_watts
       }.to raise_error(IDRAC::Error, /Failed to get power usage/)
     end
+
+    # A 200 whose body carries no PowerControl reading is an absent value, not an error.
+    it "returns nil when the response carries no reading" do
+      client = Class.new { include IDRAC::Power }.new
+      allow(client).to receive(:ensure_authenticated!)
+      allow(client).to receive(:authenticated_request).and_return(double(status: 200, body: '{}'))
+
+      expect(client.get_power_usage_watts).to be_nil
+    end
   end
 end 

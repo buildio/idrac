@@ -167,8 +167,13 @@ client.clear_jobs!
 # Force clear job queue (use with caution)
 client.force_clear_jobs!
 
-# Wait for a specific job to complete
+# Wait for a specific job to complete (raises IDRAC::Error if the job failed)
 job_data = client.wait_for_job("JID_12345678")
+
+# Wait for a job and get its outcome back instead of an exception
+result = client.wait_for_job_completion("JID_12345678")
+# => { status: :success, job_id: "JID_12345678", job_state: "Completed",
+#      message: "...", messages: ["..."], job: { ... } }
 
 # Lifecycle Controller operations
 # Check if Lifecycle Controller is enabled
@@ -290,6 +295,30 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
 ## Changelog
+
+### Version 0.10.3
+- **Fixed: SCP imports reported as failures when they had succeeded**: `set_system_configuration_profile` waited on the *task* that submitted the import. iDRAC answers the import with a TaskService URI whose id is the id of the job it queued, and that task sits at `TaskState "Pending"` / `"New job."` while the job does the real work. The transient task state was returned as `{status: :failed, task_state: "Pending", messages: ["New job."]}`, so callers aborted on imports that went on to complete.
+  - The import now waits for the **job** to reach a terminal state and returns the **job's** outcome
+  - Return value: `{ status: :success | :failed | :timeout, job_id:, job_state:, message:, messages:, job: }`, plus `error:` for anything other than `:success` (`:status` is unchanged; `:job_id` is new, so callers no longer have to diff the job list to find the job)
+  - `Failed`, `CompletedWithErrors`, and `RebootFailed` surface the job's own `Message`
+  - A location header that points straight at a job still uses the job path
+  - New `timeout:` option (default 600s)
+- **New `wait_for_job_completion(job_id, timeout:, interval:)`**: waits for a job and returns its outcome as a hash rather than raising, keeps polling while the host is briefly unreachable (an SCP import can bounce it), and always reports the job id
+- **Fixed `wait_for_task` treating a queued task as failed**: it broke out of its poll loop on any state other than `Running`, so `New`/`Pending`/`Starting` were reported as failures. It now waits through every non-terminal state, accepts a full location header, and takes a `timeout:` (default 600s)
+- **Removed stray `debugger` calls** from `wait_for_task` and `import_system_configuration`
+
+### Version 0.10.2
+- **Fixed: firmware updates matched the wrong Dell Update Package**: `check_updates` paired an installed component with a catalog DUP by display name. Names are ambiguous — every NIC package reads "Ethernet" — so it selected packages that do not flash the installed device. iDRAC rejected those on apply (RED097 / "not compatible") and the version column compared unrelated components.
+  - Matching is now done on the Dell **componentID**, the key that actually identifies the device
+  - `find_updates_for_system` records `component_ids:` for each DUP, read from `SupportedDevices/Device/@componentID`
+  - `get_system_inventory` records `component_id:` for each installed component, from the Dell OEM block when present and otherwise parsed out of the inventory `Id` (`Installed-<componentID>-<version>`), which is all iDRAC8 exposes
+  - New `FirmwareCatalog#updates_for_component(catalog_updates, fw)` does the matching, and falls back to the old name heuristic only when the inventory reports no componentID (or reports `"0"`)
+  - New `FirmwareCatalog#version_key(version)` gives a sortable key, so when the catalog lists several revisions for one component the newest is chosen
+- **Fixed: every component reported as out of date**: the catalog version came from `dellVersion`, which is the package revision label (`A17`), not a version. Comparing that against an installed numeric version (`25.5.9.0001`) flagged everything. `vendorVersion` is now preferred.
+
+### Versions 0.10.0-0.10.1
+- Use the Dell OEM `Install` action on iDRAC8 instead of `SimpleUpdate`
+- Fixed a false-positive virtual-media "inserted" state on iDRAC8 (benign VRM0009 500 on eject is now a no-op)
 
 ### Version 0.9.1
 - **Code Simplification**: Removed redundant `handle_response` calls throughout the codebase

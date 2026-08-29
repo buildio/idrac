@@ -392,10 +392,18 @@ module IDRAC
           raise e
         end
       end
-    end    # Wait for a task to complete
+    end
 
-    def wait_for_task(task_id)
+    # Task states that mean the task has not produced a result yet. A task that has only
+    # been queued reports "Pending"/"New" ("New job."), which is not an outcome -- so we
+    # keep waiting instead of reporting that transient state as a failure.
+    TASK_INCOMPLETE_STATES = %w[New Starting Pending Running Stopping Cancelling].freeze
+
+    # Wait for a task to complete
+    def wait_for_task(task_id, timeout: 600)
+      task_id = task_id.to_s.split("/").last # tolerate being handed a full location header
       task = nil
+      deadline = Time.now + timeout
       
       begin
         loop do
@@ -406,9 +414,7 @@ module IDRAC
           when 200..299
             task = JSON.parse(task_response.body)
 
-            if task["TaskState"] != "Running"
-              break
-            end
+            break unless TASK_INCOMPLETE_STATES.include?(task["TaskState"])
             
             # Extract percentage complete if available
             percent_complete = nil
@@ -418,6 +424,12 @@ module IDRAC
             end
             
             debug "Waiting for task to complete...: #{task["TaskState"]} #{task["TaskStatus"]}", 1
+            
+            if Time.now >= deadline
+              return { status: :timeout, task_state: task["TaskState"], task_status: task["TaskStatus"],
+                       error: "Timed out after #{timeout}s waiting for task #{task_id} (state: #{task["TaskState"]})" }
+            end
+            
             sleep 5
           else
             return { 
@@ -451,7 +463,7 @@ module IDRAC
           }
         end
       rescue => e
-        debugger
+        debug "Exception monitoring task #{task_id}: #{e.message}", 1, :red
         return { status: :error, error: "Exception monitoring task: #{e.message}" }
       end
     end

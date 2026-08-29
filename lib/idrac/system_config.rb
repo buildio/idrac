@@ -84,8 +84,13 @@ module IDRAC
       end
     end
 
-    # Apply a system configuration profile to the iDRAC
-    def set_system_configuration_profile(scp, target: "ALL", reboot: false, retry_count: 0)
+    # Apply a system configuration profile to the iDRAC.
+    #
+    # Waits for the import JOB to finish and returns the JOB's outcome:
+    #
+    #   { status: :success | :failed | :timeout, job_id:, job_state:, message:,
+    #     messages: [message], job: <raw job data>, error: <message unless :success> }
+    def set_system_configuration_profile(scp, target: "ALL", reboot: false, timeout: 600, retry_count: 0)
       # Ensure scp has the proper structure with SystemConfiguration wrapper
       scp_to_apply = if scp.is_a?(Hash) && scp["SystemConfiguration"]
         scp
@@ -135,7 +140,27 @@ module IDRAC
         return { status: :failed, error: error_message }
       end
       
-      return handle_location(response.headers["location"])
+      return wait_for_scp_import(response.headers["location"], timeout: timeout)
+    end
+
+    # Wait for an SCP import submitted at +location+ and report the JOB's outcome.
+    #
+    # iDRAC answers the import with a TaskService URI whose id is the id of the job it
+    # queued (/redfish/v1/TaskService/Tasks/JID_...). That task is only the submission:
+    # it sits at TaskState "Pending" / "New job." while the job does the real work, so
+    # waiting on the task reports a queued job as a failure. The job is the operation,
+    # so the job is what we wait on -- and the job id goes back to the caller.
+    def wait_for_scp_import(location, timeout: 600)
+      return { status: :failed, error: "SCP import returned no location header" } if location.nil? || location.to_s.empty?
+
+      id = location.to_s.split("/").last
+      # Dell job ids (JID_/RID_) name the job whether the header points at the job itself
+      # or at the task that queued it. Anything else is a real task: handle it as before.
+      if location.to_s.include?("/Jobs/") || id.start_with?("JID_", "RID_")
+        wait_for_job_completion(id, timeout: timeout)
+      else
+        handle_location(location)
+      end
     end
 
     # This puts the SCP into a format that can be used by reasonable Ruby code.
