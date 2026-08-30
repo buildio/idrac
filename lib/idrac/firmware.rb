@@ -90,12 +90,29 @@ module IDRAC
               # Id ("Installed-<componentID>-<version>"). Used to match DUPs by
               # componentID rather than by ambiguous display name.
               fw_id = component_data['Id'].to_s
-              component_id = component_data.dig('Oem', 'Dell', 'DellSoftwareInventory', 'ComponentID')
+              oem = component_data.dig('Oem', 'Dell', 'DellSoftwareInventory') || {}
+              component_id = oem['ComponentID']
               component_id ||= fw_id[/\A(?:Installed|Current|Previous|Available)-(\d+)-/, 1]
+              # The same Oem block carries the device's PCI IDs, and it carries
+              # them exactly where the componentID is missing. The iDRAC reports
+              # componentID "0" for firmware it did not install itself, so
+              # factory-flashed hardware is unmatchable by componentID: on an
+              # R6525, 13 of 23 entries report "0" (both LOMs, both ConnectX-6,
+              # the PERC, all 8 NVMe drives) and each publishes all four PCI
+              # IDs, while the 10 with a real componentID publish none. An
+              # entry gains its componentID once a DUP is applied — a LOM went
+              # from "Installed-0-22.91.5" to "Installed-108255-23.61.3" — so
+              # the unmatchable set is first-touch hardware, not an edge case.
+              # No PCIeDevices/PCIeFunctions lookup is needed to identify what
+              # the componentID cannot; see #updates_for_component.
               firmware_inventory << {
                 name: component_data['Name'],
                 id: component_data['Id'],
                 component_id: component_id,
+                vendor_id: oem['VendorID'],
+                device_id: oem['DeviceID'],
+                sub_vendor_id: oem['SubVendorID'],
+                sub_device_id: oem['SubDeviceID'],
                 version: component_data['Version'],
                 updateable: component_data['Updateable'] || false,
                 status: component_data['Status'] ? component_data['Status']['State'] : 'Unknown'

@@ -172,6 +172,16 @@ module IDRAC
         # picks wrong DUPs and iDRAC rejects them (RED097 / "not compatible").
         component_ids = component.xpath(".//SupportedDevices/Device/@componentID").map(&:value).uniq
 
+        # The PCI IDs this DUP declares it can flash. The PCIe/storage half of
+        # the iDRAC inventory reports componentID "0" (measured on an R6525:
+        # every NIC, the PERC and all 8 NVMe drives), so componentID alone
+        # cannot match them and the old name heuristic guessed — it offered a
+        # Broadcom LOM an Intel package. PCI IDs are the identity both sides
+        # publish, so a cross-vendor match becomes impossible.
+        pci_ids = component.xpath(".//SupportedDevices/Device/PCIInfo").map { |p|
+          pci_key(p["vendorID"], p["deviceID"], p["subVendorID"], p["subDeviceID"])
+        }.compact.uniq
+
         # Skip if missing essential information
         next if name.empty? || path.empty? || version.empty?
 
@@ -191,6 +201,7 @@ module IDRAC
             component_type: component_type,
             category: category,
             component_ids: component_ids,
+            pci_ids: pci_ids,
             download_url: "https://downloads.dell.com/#{path}"
           }
         end
@@ -200,23 +211,65 @@ module IDRAC
       updates
     end
 
+    # Normalize one PCI ID quad to a comparable key. Dell publishes the same
+    # four IDs on both sides but spells them differently: the catalog writes
+    # bare uppercase hex (<PCIInfo vendorID="14E4" deviceID="165F"/>) while
+    # Redfish writes "0x790e". Returns nil unless all four are present, so a
+    # caller can tell "no PCI identity" from "PCI identity that matched
+    # nothing".
+    def pci_key(vendor_id, device_id, sub_vendor_id, sub_device_id)
+      parts = [vendor_id, device_id, sub_vendor_id, sub_device_id].map do |id|
+        id.to_s.strip.sub(/\A0x/i, "").upcase
+      end
+      return nil if parts.any?(&:empty?)
+
+      parts.map { |p| p.rjust(4, "0") }.join("/")
+    end
+
     # Select the catalog DUPs that apply to one installed component (`fw` from
-    # the iDRAC inventory). Matches on Dell componentID — the reliable key —
-    # and only falls back to the legacy name heuristic when the inventory
-    # didn't expose a componentID (e.g. it reports "0").
+    # the iDRAC inventory), most specific key first.
+    #
+    # 1. Dell componentID, when the inventory gives a real one. Exact and
+    #    unambiguous; unchanged.
+    # 2. PCI IDs, for the entries that report componentID "0" — on an R6525
+    #    that is every NIC, the PERC and every drive. The full quad first, then
+    #    vendor+device if the catalog lists no package for that exact subsystem
+    #    ID. Both tiers pin the vendor, which is the whole point: name matching
+    #    reduced any NIC to the token "NIC" and any RAID device to "PERC", then
+    #    substring-matched the DUP's package name, so a "Broadcom NetXtreme
+    #    Gigabit Ethernet" LOM was offered "Intel NIC Family Version 25.0.0
+    #    Firmware for Intel I350 and X550 Adapters" — wrong vendor — and a
+    #    "PERC H755N Front" was offered the H355 package. It was also unstable:
+    #    the same tool offered two identical PERCs different packages, because
+    #    the winner depended on catalog order.
+    # 3. The name heuristic, only when the inventory gave neither key. When PCI
+    #    IDs are present they are the answer: if nothing matches them, the
+    #    catalog has no package for this device, and guessing by name is how
+    #    the wrong-vendor DUPs got offered in the first place.
     def updates_for_component(catalog_updates, fw)
       component_id = fw[:component_id]
       if component_id && component_id != "0"
-        catalog_updates.select { |u| Array(u[:component_ids]).include?(component_id) }
-      else
-        name = fw[:name] || ""
-        ids = extract_identifiers(name)
-        catalog_updates.select do |u|
-          un = u[:name] || ""
-          ids.any? { |id| un.downcase.include?(id.downcase) } ||
-            un.downcase.include?(name.downcase) ||
-            name.downcase.include?(un.downcase)
+        return catalog_updates.select { |u| Array(u[:component_ids]).include?(component_id) }
+      end
+
+      key = pci_key(fw[:vendor_id], fw[:device_id], fw[:sub_vendor_id], fw[:sub_device_id])
+      if key
+        exact = catalog_updates.select { |u| Array(u[:pci_ids]).include?(key) }
+        return exact if exact.any?
+
+        chip = key.split("/").first(2).join("/")
+        return catalog_updates.select do |u|
+          Array(u[:pci_ids]).any? { |k| k.start_with?("#{chip}/") }
         end
+      end
+
+      name = fw[:name] || ""
+      ids = extract_identifiers(name)
+      catalog_updates.select do |u|
+        un = u[:name] || ""
+        ids.any? { |id| un.downcase.include?(id.downcase) } ||
+          un.downcase.include?(name.downcase) ||
+          name.downcase.include?(un.downcase)
       end
     end
 
