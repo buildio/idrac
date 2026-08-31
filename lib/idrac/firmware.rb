@@ -11,6 +11,8 @@ require_relative 'firmware_catalog'
 require 'faraday'
 require 'faraday/multipart'
 
+require "timeout"
+
 module IDRAC
   class Firmware
     attr_reader :client
@@ -439,6 +441,51 @@ module IDRAC
     end
 
 
+
+    # An iDRAC holds ONE staged package and refuses another while any update job is outstanding
+    # ("503: A deployment operation is already in progress"). Retrying cannot clear it, because
+    # the staged package IS the operation -- the caller has to wait for the slot. Anyone updating
+    # several components in sequence needs this: a straight loop over one R6525's 15 packages
+    # submitted 6 and lost 9 to 503.
+    #
+    # Every rule here is a Dell fact rather than a caller's policy, which is why it belongs in
+    # the gem. Each was a silent stall on real hardware:
+    #
+    #   * "Available-" is a PREFIX, not a substring. The TPM ships an installed entry whose
+    #     version is the literal string "NotAvailable"
+    #     (Installed-12345-NotAvailable__TPM.Integrated.1-1); a substring test matches it and the
+    #     slot then never reads free on that machine.
+    #   * RebootCompleted is TERMINAL, as is anything at PercentComplete 100. Counting a finished
+    #     reboot as active made a drained queue look busy for 67 minutes.
+    #   * Jobs matter, not just the staging slot: triggering an install consumes the staged
+    #     package into a job, so Available empties while the install is still pending.
+    TERMINAL_JOB_STATES = %w[Completed Failed CompletedWithErrors RebootCompleted RebootFailed].freeze
+
+    def update_slot_free?
+      staged = JSON.parse(client.authenticated_request(:get, "/redfish/v1/UpdateService/FirmwareInventory").body)["Members"]
+                   .map { |m| m["@odata.id"].to_s.split("/").last }
+                   .count { |id| id.start_with?("Available-") }
+      busy = JSON.parse(client.authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs?$expand=*($levels=1)").body)["Members"]
+                 .count { |job| !(TERMINAL_JOB_STATES.include?(job["JobState"]) || job["PercentComplete"].to_i == 100) }
+      staged.zero? && busy.zero?
+    end
+
+    # Block until the iDRAC can accept an update. Probes are bounded because a hung transport
+    # blocks without raising, so a bare rescue never fires and the wait wedges silently.
+    def wait_for_update_slot!(timeout: 2700, interval: 30, probe_timeout: 90)
+      deadline = Time.now + timeout
+      loop do
+        begin
+          return true if Timeout.timeout(probe_timeout) { update_slot_free? }
+        rescue StandardError => e
+          # Report rather than counting a probe failure as "busy": an unreachable BMC is
+          # otherwise indistinguishable from a working one, and the caller waits out the timeout.
+          puts "Update slot probe failed (#{e.class}); retrying".yellow
+        end
+        raise Error, "iDRAC update slot never freed within #{timeout}s" if Time.now > deadline
+        sleep interval
+      end
+    end
 
     private
 
