@@ -100,7 +100,90 @@ module IDRAC
     def boot
       boot_config
     end
-    
+
+    # Stale "Unknown.Unknown.*" UEFI placeholders left by prior OSes. UEFI can loop over these
+    # dead entries and never reach a real boot device (it trapped a node whose boot list was PXE
+    # plus five such ghosts and no disk entry). Match on the entry Name.
+    STALE_UEFI_BOOT_NAME = /\AUnknown\.Unknown\./.freeze
+
+    # Read the UEFI boot sequence and return the still-enabled entries whose Name matches +match+
+    # (default: the stale "Unknown.Unknown.*" placeholders). Returns [] when the host is not in
+    # UEFI mode, the read fails, or nothing matches. Pure Redfish, non-destructive.
+    def stale_uefi_boot_entries(match: STALE_UEFI_BOOT_NAME)
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/BootSources")
+      return [] unless response.status == 200
+
+      seq = JSON.parse(response.body).dig("Attributes", "UefiBootSeq") || []
+      seq.select { |e| e["Name"].to_s.match?(match) && e["Enabled"] != false }
+    rescue JSON::ParserError
+      []
+    end
+
+    # Disable the UEFI boot entries whose Name matches +match+ (default: the stale
+    # "Unknown.Unknown.*" placeholders) and return the names it disabled ([] when there was
+    # nothing to do). Pure Redfish:
+    #   GET  /Systems/System.Embedded.1/BootSources                 -- read the sequence
+    #   PATCH /Systems/System.Embedded.1/BootSources/Settings       -- same seq, Enabled=false on matches
+    #   POST /Managers/iDRAC.Embedded.1/Jobs (TargetSettingsURI)    -- config job, applied at next boot
+    # then scrape the JID and (by default) wait for the job. The config-job POST drains any pending
+    # LC config job first (LC068 self-heal), so a leftover job cannot block this one.
+    def disable_boot_entries(match: STALE_UEFI_BOOT_NAME, wait: true, timeout: 900)
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/BootSources")
+      raise Error, "Failed to read BootSources. Status code: #{response.status}" unless response.status == 200
+
+      seq = JSON.parse(response.body).dig("Attributes", "UefiBootSeq") || []
+      targets = seq.select { |e| e["Name"].to_s.match?(match) && e["Enabled"] != false }
+      return [] if targets.empty?
+
+      newseq = seq.each_with_index.map do |e, i|
+        off = e["Name"].to_s.match?(match)
+        { "Enabled" => (off ? false : e["Enabled"]), "Id" => e["Id"], "Index" => i, "Name" => e["Name"] }
+      end
+      patch = authenticated_request(:patch, "/redfish/v1/Systems/System.Embedded.1/BootSources/Settings",
+                                    body: JSON.generate("Attributes" => { "UefiBootSeq" => newseq }))
+      raise Error, "Disabling stale boot sources failed (HTTP #{patch.status}): #{patch.body}" unless patch.status.between?(200, 299)
+
+      jid = schedule_bootsources_config_job
+      wait_for_job_completion(jid, timeout: timeout) if wait && jid
+      targets.map { |e| e["Name"] }
+    end
+
+    # Schedule the config job that applies the pending BootSources/Settings at the next boot, and
+    # return its JID (scraped from the Location header, falling back to the body). Drains any pending
+    # LC config job FIRST (LC068 self-heal) unless +drain: false+, so a leftover job cannot block it.
+    def schedule_bootsources_config_job(drain: true)
+      drain_pending_config_jobs! if drain
+
+      job = authenticated_request(:post, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs",
+                                  body: JSON.generate("TargetSettingsURI" => "/redfish/v1/Systems/System.Embedded.1/BootSources/Settings"))
+      raise Error, "BootSources config job failed (HTTP #{job.status}): #{job.body}" unless job.status.between?(200, 299)
+
+      headers = job.respond_to?(:headers) ? (job.headers || {}) : {}
+      (headers["location"] || headers["Location"]).to_s[/(JID_\w+)/, 1] || job.body.to_s[/(JID_\w+)/, 1]
+    end
+
+    # Normalized Redfish BootProgress.LastState as a snake_case symbol (e.g. :os_running), or nil
+    # when the BMC omits BootProgress entirely (iDRAC8 does not report it). A nil here means
+    # "cannot observe", NOT "not running" -- callers treat it as unknown, never as a failure.
+    def boot_progress
+      response = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$select=BootProgress")
+      return nil unless response.status == 200
+
+      normalize_boot_progress(JSON.parse(response.body).dig("BootProgress", "LastState"))
+    rescue JSON::ParserError
+      nil
+    end
+
+    # Map a Redfish LastState (CamelCase, e.g. "OSRunning") to a snake_case symbol (:os_running).
+    def normalize_boot_progress(state)
+      return nil if state.nil? || state.to_s.empty?
+
+      state.to_s
+           .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+           .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+           .downcase.to_sym
+    end
+
     # Get boot options collection - the actual boot devices present in the system
     # This is different from boot_config which returns the boot configuration settings
     def boot_options

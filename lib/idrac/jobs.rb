@@ -68,6 +68,29 @@ module IDRAC
       true
     end
     
+    # Anticipate-and-drain for iDRAC LC068. The iDRAC serializes Lifecycle Controller config jobs:
+    # a single job left Scheduled/Running/New (anything but Completed) makes the NEXT config job or
+    # SCP import hard-fail with RED/LC068 ("a configuration job is already scheduled"). Repeated
+    # canary/break-glass runs leave exactly such a stale job behind. Before we schedule our own job,
+    # delete every still-incomplete job from the queue so the schedule goes through; Completed jobs
+    # are harmless and are kept. Best-effort: if the queue read/delete itself fails we log and return,
+    # and the caller's schedule will surface LC068 the old way. Returns the ids it deleted.
+    def drain_pending_config_jobs!
+      resp = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)")
+      return [] unless resp.status.to_i == 200
+
+      pending = (JSON.parse(resp.body)["Members"] || []).reject { |j| j["JobState"].to_s == "Completed" }
+      return [] if pending.empty?
+
+      debug "Draining #{pending.size} pending config job(s) that would block a new one (LC068 self-heal): " \
+            "#{pending.map { |j| "#{j['Id']}=#{j['JobState']}" }.join(', ')}", 1, :yellow
+      pending.each { |j| authenticated_request(:delete, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{j['Id']}") }
+      pending.map { |j| j["Id"] }
+    rescue StandardError => e
+      debug "Could not drain pending config jobs (#{e.class}: #{e.message}); proceeding", 1, :yellow
+      []
+    end
+
     # Force clear the job queue
     def force_clear_jobs!
       # Clear the job queue using force option which will also clear any pending data and restart processes
