@@ -691,8 +691,9 @@ module IDRAC
     # do). Drains any pending Lifecycle Controller config job FIRST so scheduling ours never trips
     # LC068, then PATCHes BootSources/Settings and POSTs the BIOS config job that applies the change.
     # The disable is applied by a reboot -- the LifecycleController runs the pending job during POST
-    # -- so this only SCHEDULES it; the caller owns power.
-    def disable_boot_entries(match: STALE_UEFI_BOOT_ENTRY)
+    # -- so by default this only SCHEDULES it and the caller owns power. Pass wait: true to poll the
+    # scheduled BIOS config job to a terminal state here (via wait_config_job) before returning.
+    def disable_boot_entries(match: STALE_UEFI_BOOT_ENTRY, wait: false, timeout: 900)
       res = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/BootSources")
       body = res.body.is_a?(String) ? JSON.parse(res.body) : res.body
       seq = body.dig("Attributes", "UefiBootSeq") || []
@@ -713,6 +714,14 @@ module IDRAC
       job = authenticated_request(:post, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs",
                                   body: JSON.generate("TargetSettingsURI" => "/redfish/v1/Systems/System.Embedded.1/BootSources/Settings"))
       raise Error, "BIOS config job for boot sources failed (HTTP #{job.status}): #{job.body}" unless job.status.between?(200, 299)
+
+      # Default: the caller's reboot applies the change (LC runs the pending job during POST). With
+      # wait: true, poll the scheduled config job to a terminal state -- reuse Jobs#wait_config_job.
+      if wait
+        headers = job.respond_to?(:headers) ? (job.headers || {}) : {}
+        jid = (headers["location"] || headers["Location"]).to_s[/(JID_\w+)/, 1] || job.body.to_s[/(JID_\w+)/, 1]
+        wait_config_job(jid, timeout: timeout) if jid
+      end
 
       names = stale.map { |e| e["Name"] }
       puts "Disabled #{names.size} stale UEFI boot #{names.size == 1 ? 'entry' : 'entries'} " \
