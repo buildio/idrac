@@ -234,6 +234,56 @@ module IDRAC
         error: "Timed out after #{timeout}s waiting for job #{job_id} (last state: #{state || last_error || 'unknown'})" }
     end
 
+    # Delete every Lifecycle Controller config job that is NOT Completed, and return the ids drained
+    # ([] when there was nothing to drain). The iDRAC serializes LC config jobs: one left
+    # Scheduled/Running/New/Pending makes the NEXT SCP import or config-job POST hard-fail with LC068
+    # ("a configuration job is already scheduled"). Repeated install/break-glass runs leave exactly
+    # such a stale job behind (this wedged n000), so anything that schedules its own config job drains
+    # first. Completed jobs are harmless and are kept. Best-effort: a failed queue read/delete is
+    # logged and swallowed (returns []), and the later schedule surfaces LC068 the old way rather than
+    # this raising. Moved out of the app's raw Redfish (radfish #40).
+    def drain_pending_config_jobs!
+      resp = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)")
+      return [] unless resp.status.to_i == 200
+      pending = (JSON.parse(resp.body)["Members"] || []).reject { |j| j["JobState"].to_s == "Completed" }
+      return [] if pending.empty?
+      puts "Draining #{pending.size} pending config job(s) that would block a new one (LC068): " \
+           "#{pending.map { |j| "#{j['Id']}=#{j['JobState']}" }.join(', ')}".yellow
+      pending.each { |j| authenticated_request(:delete, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{j['Id']}") }
+      pending.map { |j| j["Id"] }
+    rescue StandardError => e
+      puts "Could not drain pending config jobs (#{e.class}: #{e.message.lines.first.to_s.strip}); proceeding.".yellow
+      []
+    end
+
+    # Job states that mean a BIOS/config job has finished, one way or another.
+    CONFIG_JOB_TERMINAL_STATES = %w[Completed Failed CompletedWithErrors].freeze
+
+    # Poll a Lifecycle Controller job (e.g. the BIOS config job that a BootSources change schedules)
+    # until it reaches a terminal state, and RETURN that state string. Returns nil on timeout rather
+    # than raising -- the caller proceeds without confirmation (a still-pending job costs a slower
+    # boot, not a wrong one). A transient read error is treated as "keep polling". Moved out of the
+    # app's raw Redfish (radfish #40).
+    def wait_config_job(jid, timeout: 900, interval: 20)
+      deadline = Time.now + timeout
+      loop do
+        state = begin
+          res = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{jid}")
+          body = res.body.is_a?(String) ? JSON.parse(res.body) : res.body
+          body.is_a?(Hash) ? body["JobState"] : nil
+        rescue StandardError
+          nil
+        end
+        return state if CONFIG_JOB_TERMINAL_STATES.include?(state)
+        if Time.now > deadline
+          puts "Config job #{jid} did not finish within #{timeout}s (last state #{state.inspect}); " \
+               "proceeding without confirmation.".yellow
+          return nil
+        end
+        sleep interval
+      end
+    end
+
     # Get system tasks
     def tasks
       response = authenticated_request(:get, '/redfish/v1/TaskService/Tasks')
