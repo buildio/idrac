@@ -663,5 +663,114 @@ module IDRAC
       # Same operation as set_system_configuration_profile: wait on the import JOB.
       return wait_for_scp_import(response.headers["location"])
     end
+
+    ########################################################
+    # Boot mechanics moved out of the app's raw Redfish (radfish #40). These used to live in the
+    # app's Infra::OsInstall as hand-rolled authenticated_request calls; the iDRAC BootSources /
+    # one-time-boot mechanics belong here, the adapter and the radfish facade just expose them.
+    ########################################################
+
+    # Stale UEFI boot placeholders a prior OS can leave behind. Dell names them
+    # "Unknown.Unknown.<n>-<n>"; left ENABLED they make UEFI loop over dead entries and can keep a
+    # node from ever reaching an install (this trapped n008: PXE plus five "Unknown.Unknown" ghosts,
+    # no disk entry). The default match targets exactly them.
+    STALE_UEFI_BOOT_ENTRY = /\AUnknown\.Unknown\./
+
+    # The still-ENABLED UEFI boot entries whose Name matches +match+ (default: the stale
+    # "Unknown.Unknown.*" placeholders). Returns the raw BootSources entry hashes so callers can read
+    # Name/Id/Index; [] when there are none. Read-only.
+    def stale_uefi_boot_entries(match: STALE_UEFI_BOOT_ENTRY)
+      res = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/BootSources")
+      body = res.body.is_a?(String) ? JSON.parse(res.body) : res.body
+      seq = body.dig("Attributes", "UefiBootSeq") || []
+      seq.select { |e| e["Name"].to_s.match?(match) && e["Enabled"] != false }
+    end
+
+    # Disable the UEFI boot entries whose Name matches +match+ (default: the stale
+    # "Unknown.Unknown.*" placeholders) and return the NAMES disabled ([] when there was nothing to
+    # do). Drains any pending Lifecycle Controller config job FIRST so scheduling ours never trips
+    # LC068, then PATCHes BootSources/Settings and POSTs the BIOS config job that applies the change.
+    # The disable is applied by a reboot -- the LifecycleController runs the pending job during POST
+    # -- so by default this only SCHEDULES it and the caller owns power. Pass wait: true to poll the
+    # scheduled BIOS config job to a terminal state here (via wait_config_job) before returning.
+    def disable_boot_entries(match: STALE_UEFI_BOOT_ENTRY, wait: false, timeout: 900)
+      res = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1/BootSources")
+      body = res.body.is_a?(String) ? JSON.parse(res.body) : res.body
+      seq = body.dig("Attributes", "UefiBootSeq") || []
+      stale = seq.select { |e| e["Name"].to_s.match?(match) && e["Enabled"] != false }
+      return [] if stale.empty?
+
+      # A stale pending job would make the config-job POST below hard-fail with LC068; drain first.
+      drain_pending_config_jobs!
+
+      newseq = seq.each_with_index.map do |e, i|
+        off = e["Name"].to_s.match?(match)
+        { "Enabled" => (off ? false : e["Enabled"]), "Id" => e["Id"], "Index" => i, "Name" => e["Name"] }
+      end
+      patch = authenticated_request(:patch, "/redfish/v1/Systems/System.Embedded.1/BootSources/Settings",
+                                    body: JSON.generate("Attributes" => { "UefiBootSeq" => newseq }))
+      raise Error, "Disabling stale boot sources failed (HTTP #{patch.status}): #{patch.body}" unless patch.status.between?(200, 299)
+
+      job = authenticated_request(:post, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs",
+                                  body: JSON.generate("TargetSettingsURI" => "/redfish/v1/Systems/System.Embedded.1/BootSources/Settings"))
+      raise Error, "BIOS config job for boot sources failed (HTTP #{job.status}): #{job.body}" unless job.status.between?(200, 299)
+
+      # Default: the caller's reboot applies the change (LC runs the pending job during POST). With
+      # wait: true, poll the scheduled config job to a terminal state -- reuse Jobs#wait_config_job.
+      if wait
+        headers = job.respond_to?(:headers) ? (job.headers || {}) : {}
+        jid = (headers["location"] || headers["Location"]).to_s[/(JID_\w+)/, 1] || job.body.to_s[/(JID_\w+)/, 1]
+        wait_config_job(jid, timeout: timeout) if jid
+      end
+
+      names = stale.map { |e| e["Name"] }
+      puts "Disabled #{names.size} stale UEFI boot #{names.size == 1 ? 'entry' : 'entries'} " \
+           "(#{names.join(', ')}); a BIOS config job applies it at the next boot.".green
+      names
+    end
+
+    # Redfish BootProgress.LastState mapped to the snake_case symbols radfish orders boots by
+    # (Radfish::Client::BOOT_PROGRESS_ORDER). Explicit so the acronym cases (PCI, OS) normalize
+    # correctly instead of through a naive underscore.
+    BOOT_PROGRESS_STATES = {
+      "None" => :none,
+      "PrimaryProcessorInitializationStarted" => :primary_processor_initialization_started,
+      "BusInitializationStarted" => :bus_initialization_started,
+      "MemoryInitializationStarted" => :memory_initialization_started,
+      "SecondaryProcessorInitializationStarted" => :secondary_processor_initialization_started,
+      "PCIResourceConfigStarted" => :pci_resource_config_started,
+      "SystemHardwareInitializationComplete" => :system_hardware_initialization_complete,
+      "SetupEntered" => :setup_entered,
+      "OSBootStarted" => :os_boot_started,
+      "OSRunning" => :os_running
+    }.freeze
+
+    # Normalized last BootProgress state (a snake_case Symbol from BOOT_PROGRESS_STATES), or nil when
+    # the BMC does not report BootProgress at all (iDRAC8 omits it). nil means "cannot observe", never
+    # "not running" -- callers fall back to other signals.
+    def boot_progress
+      res = authenticated_request(:get, "/redfish/v1/Systems/System.Embedded.1?$select=BootProgress")
+      body = res.body.is_a?(String) ? JSON.parse(res.body) : res.body
+      last = body.is_a?(Hash) ? body.dig("BootProgress", "LastState") : nil
+      return nil if last.nil? || last.to_s.empty?
+      BOOT_PROGRESS_STATES[last] || last.to_s.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase.to_sym
+    end
+
+    # Dell one-time boot to the virtual CD via an SCP import (the reliable path on this fleet). Drains
+    # any pending Lifecycle Controller config job first (a stale one makes the import hard-fail with
+    # LC068 "a configuration job is already scheduled"), then imports ServerBoot.1#BootOnce +
+    # FirstBootDevice=VCD-DVD. BootOnce makes the BIOS fall back to the standing order after one boot,
+    # so no boot-order reorder is needed here. Raises on a failed import; returns the import result hash.
+    def set_one_time_cd_boot(reboot: false)
+      drain_pending_config_jobs!
+      scp = { "FQDD" => "iDRAC.Embedded.1", "Attributes" => [
+        { "Name" => "ServerBoot.1#BootOnce", "Value" => "Enabled", "Set On Import" => "True" },
+        { "Name" => "ServerBoot.1#FirstBootDevice", "Value" => "VCD-DVD", "Set On Import" => "True" } ] }
+      res = set_system_configuration_profile(scp, target: "ALL", reboot: reboot)
+      unless res.is_a?(Hash) && res[:status] == :success
+        raise Error, "SCP one-time vCD boot failed: #{res[:job_state]} #{res[:error] || res[:message]} (job #{res[:job_id]})"
+      end
+      res
+    end
   end
-end 
+end

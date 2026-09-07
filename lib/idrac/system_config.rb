@@ -90,7 +90,13 @@ module IDRAC
     #
     #   { status: :success | :failed | :timeout, job_id:, job_state:, message:,
     #     messages: [message], job: <raw job data>, error: <message unless :success> }
-    def set_system_configuration_profile(scp, target: "ALL", reboot: false, timeout: 600, retry_count: 0)
+    def set_system_configuration_profile(scp, target: "ALL", reboot: false, timeout: 600, retry_count: 0, drain: true)
+      # A stale Lifecycle Controller job left pending/scheduled makes this import hard-fail with
+      # RED/LC068 ("a configuration job is already scheduled"). Anticipate it: drain any still-
+      # incomplete config job first (self-heal, don't hard-fail) so the import goes through. Pass
+      # drain: false to keep an in-flight job (e.g. when a long-running job must not be disturbed).
+      drain_pending_config_jobs! if drain
+
       # Ensure scp has the proper structure with SystemConfiguration wrapper
       scp_to_apply = if scp.is_a?(Hash) && scp["SystemConfiguration"]
         scp
