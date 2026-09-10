@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+### Fixed
+- Development and CI no longer hold json at 2.x. The `unknown keyword:
+  quirks_mode` failure came from activesupport below 8.1, whose JSON encoder
+  passes `quirks_mode:` to `JSON.generate` — json 3 removed it. CI now runs a
+  matrix over both supported ends of the gemspec's `activesupport >= 7.0`
+  range: activesupport 8.1 with json 3, and activesupport 7.2 with json 2.
+  Documented the incompatible pair in the README, since it affects anyone
+  loading `active_support/core_ext`, not just this gem's specs.
+
 ## [0.11.0] - 2026-09-10
 ### Changed
 - **Breaking:** `set_boot_override` and the `boot_to_*` helpers take `persistence:`
