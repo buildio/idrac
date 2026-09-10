@@ -11,16 +11,18 @@ gemspec
 gem "csv"
 gem "ostruct"
 
-# json 3.x drops the quirks_mode keyword that the JSON encoding in these specs
-# still relies on, so every example errors with "unknown keyword: quirks_mode".
-# Hold at 2.x until that is sorted upstream.
-gem "json", "~> 2.19"
-
 # These dependencies are already specified in the gemspec
 # with specific versions, so we don't need to specify them here
 
 group :development, :test do
   gem "webmock"
   gem "vcr"
-  gem "activesupport", "~> 7.0"
+
+  # activesupport below 8.1 passes quirks_mode: to JSON.generate, which json 3
+  # removed, so `hash.to_json` raises "unknown keyword: quirks_mode" on that
+  # pair. The gemspec allows activesupport >= 7.0, so CI runs both ends: the
+  # modern pair by default, and the oldest supported one via these variables.
+  # See .github/workflows/ci.yml.
+  gem "activesupport", ENV.fetch("ACTIVESUPPORT_VERSION", ">= 8.1")
+  gem "json", ENV.fetch("JSON_VERSION", ">= 3.0")
 end
