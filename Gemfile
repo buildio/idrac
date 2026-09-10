@@ -11,6 +11,11 @@ gemspec
 gem "csv"
 gem "ostruct"
 
+# json 3.x drops the quirks_mode keyword that the JSON encoding in these specs
+# still relies on, so every example errors with "unknown keyword: quirks_mode".
+# Hold at 2.x until that is sorted upstream.
+gem "json", "~> 2.19"
+
 # These dependencies are already specified in the gemspec
 # with specific versions, so we don't need to specify them here
 
