@@ -9,6 +9,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # setup-ruby's bundler-cache installs in frozen mode, which fails whenever
+      # the lockfile's RUBY VERSION does not match the runner's patch level.
+      BUNDLE_FROZEN: "false"
     steps:
       - uses: actions/checkout@v5
       - uses: ruby/setup-ruby@v1
