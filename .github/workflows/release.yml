@@ -28,7 +28,7 @@ jobs:
       # transitive activesupport dependency. Build and push with plain rubygems
       # instead; the credentials come from OIDC either way.
       - name: Configure RubyGems credentials
-        uses: rubygems/configure-rubygems-credentials@v1
+        uses: rubygems/configure-rubygems-credentials@v2.1.0
       - name: Build and push the gem
         run: |
           gem build *.gemspec
