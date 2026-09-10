@@ -140,7 +140,8 @@ module IDRAC
     end
     
     # Set boot override for next boot
-    def set_boot_override(target, enabled: "Once", mode: nil)
+    def set_boot_override(target, persistence: nil, mode: nil)
+      persistence = "Once" unless persistence
       # Validate target against allowed values
       boot_data = boot
       valid_targets = boot_data["allowed_override_targets"]
@@ -150,11 +151,11 @@ module IDRAC
         raise Error, "Invalid boot target: #{target}"
       end
       
-      debug "Setting boot override to #{target} (#{enabled})...", 1, :yellow
+      debug "Setting boot override to #{target} (#{persistence})...", 1, :yellow
       
       body = {
         "Boot" => {
-          "BootSourceOverrideEnabled" => enabled,  # Disabled/Once/Continuous
+          "BootSourceOverrideEnabled" => persistence,  # Disabled/Once/Continuous
           "BootSourceOverrideTarget" => target     # None/Pxe/Hdd/Cd/etc
         }
       }
@@ -225,24 +226,24 @@ module IDRAC
     end
     
     # Convenience methods for common boot targets
-    def boot_to_pxe(enabled: "Once", mode: nil)
-      set_boot_override("Pxe", enabled: enabled, mode: mode)
+    def boot_to_pxe(persistence: nil, mode: nil)
+      set_boot_override("Pxe", persistence: persistence, mode: mode)
     end
     
-    def boot_to_disk(enabled: "Once", mode: nil)
-      set_boot_override("Hdd", enabled: enabled, mode: mode)
+    def boot_to_disk(persistence: nil, mode: nil)
+      set_boot_override("Hdd", persistence: persistence, mode: mode)
     end
     
-    def boot_to_cd(enabled: "Once", mode: nil)
-      set_boot_override("Cd", enabled: enabled, mode: mode)
+    def boot_to_cd(persistence: nil, mode: nil)
+      set_boot_override("Cd", persistence: persistence, mode: mode)
     end
     
-    def boot_to_usb(enabled: "Once", mode: nil)
-      set_boot_override("Usb", enabled: enabled, mode: mode)
+    def boot_to_usb(persistence: nil, mode: nil)
+      set_boot_override("Usb", persistence: persistence, mode: mode)
     end
     
-    def boot_to_bios_setup(enabled: "Once", mode: nil)
-      set_boot_override("BiosSetup", enabled: enabled, mode: mode)
+    def boot_to_bios_setup(persistence: nil, mode: nil)
+      set_boot_override("BiosSetup", persistence: persistence, mode: mode)
     end
     
     private
