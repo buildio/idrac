@@ -10,6 +10,13 @@
   nothing. It never touches a job that has not finished. This is the safe
   primitive `radfish` has always declared in `Radfish::Core::Jobs` and no
   adapter implemented. (radfish-idrac#7)
+- `IDRAC::Error` carries the HTTP `status` and Dell's `message_ids` from
+  `@Message.ExtendedInfo`. `handle_response` already held both and flattened
+  them into prose, so a caller deciding what to do about a failure had to
+  match a substring of a message no contract guarantees. Both default to
+  `nil`/`[]`, the message text is unchanged, and every existing
+  `raise Error, "..."` site keeps working. `ServiceTemporarilyUnavailableError`
+  takes them too and keeps its `retry_delay`. (radfish-idrac#7)
 - `pending_config_jobs` lists the jobs that have NOT finished, read-only, so a
   caller can see why a queue is blocked before deciding what may be done about
   it. `job_queue` returns the raw queue and never raises.
