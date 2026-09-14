@@ -40,7 +40,9 @@ module IDRAC
       end
     end
     
-    # Clear all jobs from the job queue
+    # Delete EVERY job in the queue, whatever its state -- a Running or Scheduled job is cancelled
+    # with the rest. This is not job-queue hygiene: use clear_completed_jobs to free slots without
+    # touching live work. Keep this for the rare case where cancelling in-flight work is intended.
     def clear_jobs!
       jobs_response = authenticated_request(:get, '/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)')
       return true unless jobs_response.status == 200
@@ -242,6 +244,9 @@ module IDRAC
     # first. Completed jobs are harmless and are kept. Best-effort: a failed queue read/delete is
     # logged and swallowed (returns []), and the later schedule surfaces LC068 the old way rather than
     # this raising. Moved out of the app's raw Redfish (radfish #40).
+    #
+    # This is NOT queue hygiene either: a Running job is cancelled along with a stale Scheduled one.
+    # To free slots without cancelling anything, use clear_completed_jobs.
     def drain_pending_config_jobs!
       resp = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)")
       return [] unless resp.status.to_i == 200
@@ -258,6 +263,61 @@ module IDRAC
 
     # Job states that mean a BIOS/config job has finished, one way or another.
     CONFIG_JOB_TERMINAL_STATES = %w[Completed Failed CompletedWithErrors].freeze
+
+    JOBS_PATH = "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs".freeze
+
+    # Every job the iDRAC currently holds, as raw job hashes; [] when the queue cannot be read.
+    # Read-only and best-effort: it never raises, because the queue helpers built on it are
+    # clean-up, and clean-up must not be the reason an operation fails.
+    def job_queue
+      resp = authenticated_request(:get, "#{JOBS_PATH}?$expand=*($levels=1)") { |r| r }
+      return [] unless resp.status.to_i == 200
+      JSON.parse(resp.body)["Members"] || []
+    rescue StandardError => e
+      puts "Could not read the iDRAC job queue (#{e.class}: #{e.message.lines.first.to_s.strip}).".yellow
+      []
+    end
+
+    # The jobs that have NOT finished (anything outside CONFIG_JOB_TERMINAL_STATES), as raw job
+    # hashes. Read-only: deletes nothing. Use it to see WHY a queue is blocked before deciding what
+    # may be done about it -- a Running job finishes on its own (poll it with wait_config_job), a
+    # Scheduled one only runs at the next host boot.
+    def pending_config_jobs
+      job_queue.reject { |j| CONFIG_JOB_TERMINAL_STATES.include?(j["JobState"].to_s) }
+    end
+
+    # Delete only the FINISHED jobs (CONFIG_JOB_TERMINAL_STATES) and return the ids removed ([] when
+    # there was nothing to remove). This is the safe queue hygiene: the iDRAC caps its job queue and
+    # a finished job still holds a slot, so a queue full of finished jobs makes the next config job
+    # fail with 409/LC068 while nothing is actually running. Deleting a finished job destroys
+    # nothing -- that work is over.
+    #
+    # A job that is not in a terminal state is NEVER touched here. Cancelling live work is what
+    # drain_pending_config_jobs! and clear_jobs! are for, and neither of those is hygiene.
+    #
+    # Best-effort: an unreadable queue or a refused delete is logged and skipped, never raised into
+    # the caller, and the ids returned are the ones the iDRAC actually accepted a delete for.
+    def clear_completed_jobs
+      finished = job_queue.select { |j| CONFIG_JOB_TERMINAL_STATES.include?(j["JobState"].to_s) }
+      return [] if finished.empty?
+      puts "Clearing #{finished.size} finished job(s) to free iDRAC job-queue slots: " \
+           "#{finished.map { |j| "#{j['Id']}=#{j['JobState']}" }.join(', ')}".yellow
+      finished.select { |j| delete_finished_job(j["Id"]) }.map { |j| j["Id"] }
+    end
+
+    # DELETE one job, returning whether the iDRAC accepted it. Never raises: see clear_completed_jobs.
+    # Private on purpose -- it does not check the job's state, and choosing WHICH job may be deleted
+    # is the whole point of the methods above.
+    def delete_finished_job(id)
+      resp = authenticated_request(:delete, "#{JOBS_PATH}/#{id}") { |r| r }
+      return true if resp.status.to_i.between?(200, 299)
+      puts "Warning: failed to delete finished job #{id} (HTTP #{resp.status}); leaving it in place.".yellow
+      false
+    rescue StandardError => e
+      puts "Warning: failed to delete finished job #{id} (#{e.class}: #{e.message.lines.first.to_s.strip}).".yellow
+      false
+    end
+    private :delete_finished_job
 
     # Poll a Lifecycle Controller job (e.g. the BIOS config job that a BootSources change schedules)
     # until it reaches a terminal state, and RETURN that state string. Returns nil on timeout rather
