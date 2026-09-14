@@ -1,6 +1,31 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- `clear_completed_jobs` deletes only the jobs that have FINISHED
+  (`CONFIG_JOB_TERMINAL_STATES`: Completed, Failed, CompletedWithErrors) and
+  returns the ids removed. A finished job still holds an iDRAC job-queue slot,
+  so a full queue answers the next config job with 409/LC068 while nothing is
+  actually running; deleting a finished job frees the slot and destroys
+  nothing. It never touches a job that has not finished. This is the safe
+  primitive `radfish` has always declared in `Radfish::Core::Jobs` and no
+  adapter implemented. (radfish-idrac#7)
+- `IDRAC::Error` carries the HTTP `status` and Dell's `message_ids` from
+  `@Message.ExtendedInfo`. `handle_response` already held both and flattened
+  them into prose, so a caller deciding what to do about a failure had to
+  match a substring of a message no contract guarantees. Both default to
+  `nil`/`[]`, the message text is unchanged, and every existing
+  `raise Error, "..."` site keeps working. `ServiceTemporarilyUnavailableError`
+  takes them too and keeps its `retry_delay`. (radfish-idrac#7)
+- `pending_config_jobs` lists the jobs that have NOT finished, read-only, so a
+  caller can see why a queue is blocked before deciding what may be done about
+  it. `job_queue` returns the raw queue and never raises.
+
+### Changed
+- Documented that `clear_jobs!` and `drain_pending_config_jobs!` are NOT queue
+  hygiene: both cancel work that has not finished. Their behaviour is
+  unchanged; use `clear_completed_jobs` to free slots.
+
 ### Fixed
 - Development and CI no longer hold json at 2.x. The `unknown keyword:
   quirks_mode` failure came from activesupport below 8.1, whose JSON encoder
