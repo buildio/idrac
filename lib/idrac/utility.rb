@@ -194,11 +194,28 @@ module IDRAC
     # @param data_selector_values [Array] Array of log types to include (optional)
     # @param wait_timeout [Integer] Maximum time to wait for generation in seconds (default: 600)
     # @return [String, nil] Path to downloaded file or nil if failed
-    def generate_and_download_tsr(output_file: nil, data_selector_values: nil, wait_timeout: 600)
+    def generate_and_download_tsr(output_file: nil, data_selector_values: nil, accept_eula: false, wait_timeout: 600)
       debug "Starting TSR generation and download process...", 1
-      
+
       output_file ||= "supportassist_#{@host}_#{Time.now.strftime('%Y%m%d_%H%M%S')}.zip"
-      
+
+      # Accept the EULA up front when asked -- generate_tsr_logs only errors out otherwise.
+      accept_supportassist_eula if accept_eula
+
+      # Wait out a collection that is still running server-side. The iDRAC allows only one
+      # SupportAssist collection at a time, so generating now would fail with "a SupportAssist job
+      # is already running". Give up after wait_timeout seconds and fail the same way the rest of
+      # this method does (return nil).
+      wait_deadline = Time.now + wait_timeout
+      while supportassist_collection_running?
+        if Time.now > wait_deadline
+          debug "Timed out after #{wait_timeout}s waiting for a running SupportAssist collection to finish", 1, :red
+          return nil
+        end
+        debug "A SupportAssist collection is already running; waiting...", 1, :yellow
+        sleep 15
+      end
+
       # First, generate the TSR
       result = generate_tsr_logs(data_selector_values: data_selector_values)
       
@@ -267,8 +284,9 @@ module IDRAC
           collection_in_progress: false
         }
         
-        # Check if there's an active collection job
-        jobs_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs")
+        # Check if there's an active collection job. The list must be expanded, otherwise each
+        # Members entry is a bare @odata.id with no Name/JobState and the check never fires.
+        jobs_response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)")
         if jobs_response.status == 200
           jobs_data = JSON.parse(jobs_response.body)
           if jobs_data["Members"]
@@ -292,6 +310,25 @@ module IDRAC
     rescue => e
       debug "Error checking SupportAssist status: #{e.message}", 1, :red
       { available: false, error: e.message }
+    end
+
+    # True when a SupportAssist Collection job is still running server-side. Reads the expanded Dell
+    # Jobs list (bare @odata.id members carry no Name/JobState) and treats a job as running when its
+    # Name matches SupportAssist Collection, its JobState is not terminal, and it is below 100%.
+    # Use this to wait out a prior collection before starting a new one (the iDRAC allows only one).
+    def supportassist_collection_running?
+      response = authenticated_request(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs?$expand=*($levels=1)")
+      return false unless response.status == 200
+
+      members = JSON.parse(response.body)["Members"] || []
+      members.any? do |job|
+        job["Name"].to_s =~ /SupportAssist Collection/i &&
+          !IDRAC::Firmware::TERMINAL_JOB_STATES.include?(job["JobState"]) &&
+          job["PercentComplete"].to_i < 100
+      end
+    rescue => e
+      debug "Error checking SupportAssist collection state: #{e.message}", 1, :red
+      false
     end
 
     # Check SupportAssist EULA status

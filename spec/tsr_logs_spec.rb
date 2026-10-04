@@ -167,5 +167,91 @@ RSpec.describe IDRAC::Utility do
       end
     end
 
+    describe 'SupportAssist robustness' do
+      before { allow(client).to receive(:sleep) }
+
+      it 'tsr_status detects a running SupportAssist Collection from the expanded jobs list' do
+        dell_lc_service_response = {
+          "Actions" => {
+            "#DellLCService.SupportAssistCollection" => {
+              "target" => "/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistCollection"
+            }
+          }
+        }
+        jobs_response = {
+          "Members" => [
+            { "Id" => "JID_RUN", "Name" => "SupportAssist Collection", "JobState" => "Running", "PercentComplete" => 20 }
+          ]
+        }
+        stub_request(:get, %r{/redfish/v1/Dell/Managers/iDRAC\.Embedded\.1/DellLCService})
+          .to_return(status: 200, body: dell_lc_service_response.to_json)
+        stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs})
+          .to_return(status: 200, body: jobs_response.to_json)
+
+        status = client.tsr_status
+
+        expect(status[:collection_in_progress]).to be true
+        expect(status[:job_id]).to eq("JID_RUN")
+        expect(status[:job_state]).to eq("Running")
+      end
+
+      it 'supportassist_collection_running? is true only for a non-terminal, sub-100% collection job' do
+        running = { "Members" => [{ "Name" => "SupportAssist Collection", "JobState" => "Running", "PercentComplete" => 30 }] }
+        done    = { "Members" => [{ "Name" => "SupportAssist Collection", "JobState" => "Completed", "PercentComplete" => 100 }] }
+        stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs\?})
+          .to_return({ status: 200, body: running.to_json }, { status: 200, body: done.to_json })
+
+        expect(client.supportassist_collection_running?).to be true
+        expect(client.supportassist_collection_running?).to be false
+      end
+
+      it 'generate_and_download_tsr waits while a collection is running, then proceeds' do
+        running = { "Members" => [{ "Id" => "JID_1", "Name" => "SupportAssist Collection", "JobState" => "Running", "PercentComplete" => 10 }] }
+        clear   = { "Members" => [] }
+        # Expanded-jobs preflight polls: first running, then clear.
+        stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs\?})
+          .to_return({ status: 200, body: running.to_json }, { status: 200, body: clear.to_json })
+
+        stub_request(:post, %r{DellLCService\.SupportAssistGetEULAStatus})
+          .to_return(status: 200, body: { "EULAAccepted" => true }.to_json)
+        stub_request(:post, %r{DellLCService\.SupportAssistCollection})
+          .to_return(status: 202, headers: { 'Location' => '/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/JID_ABC' })
+        job = { "Id" => "JID_ABC", "JobState" => "Completed", "PercentComplete" => 100,
+                "Oem" => { "Dell" => { "OutputLocation" => "/downloads/sa.zip" } } }
+        stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs/JID_ABC})
+          .to_return(status: 200, body: job.to_json)
+        stub_request(:get, %r{/downloads/sa\.zip}).to_return(status: 200, body: "PK\x03\x04payload")
+
+        output_file = "/tmp/tsr_wait_#{Time.now.to_i}.zip"
+        result = client.generate_and_download_tsr(output_file: output_file, data_selector_values: ["HWData"], wait_timeout: 120)
+
+        expect(result).to eq(output_file)
+        expect(File.exist?(output_file)).to be true
+        expect(client).to have_received(:sleep).at_least(:once)
+        File.delete(output_file) if File.exist?(output_file)
+      end
+
+      it 'generate_and_download_tsr accepts the EULA first when accept_eula: true' do
+        # No collection running -> preflight passes immediately.
+        stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs\?})
+          .to_return(status: 200, body: { "Members" => [] }.to_json)
+        stub_request(:post, %r{DellLCService\.SupportAssistGetEULAStatus})
+          .to_return(status: 200, body: { "EULAAccepted" => true }.to_json)
+        stub_request(:post, %r{DellLCService\.SupportAssistCollection})
+          .to_return(status: 202, headers: { 'Location' => '/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/JID_ABC' })
+        job = { "Id" => "JID_ABC", "JobState" => "Completed", "PercentComplete" => 100,
+                "Oem" => { "Dell" => { "OutputLocation" => "/downloads/sa.zip" } } }
+        stub_request(:get, %r{/redfish/v1/Managers/iDRAC\.Embedded\.1/Jobs/JID_ABC})
+          .to_return(status: 200, body: job.to_json)
+        stub_request(:get, %r{/downloads/sa\.zip}).to_return(status: 200, body: "PK\x03\x04payload")
+
+        expect(client).to receive(:accept_supportassist_eula).and_return(true)
+
+        output_file = "/tmp/tsr_eula_#{Time.now.to_i}.zip"
+        client.generate_and_download_tsr(output_file: output_file, accept_eula: true, wait_timeout: 60)
+        File.delete(output_file) if File.exist?(output_file)
+      end
+    end
+
   end
 end
