@@ -480,6 +480,7 @@ module IDRAC
       else
         # Enhanced error handling with ExtendedInfo support
         error_message = "Failed with status #{response.status}"
+        message_ids = []
         
         begin
           error_data = JSON.parse(response.body)
@@ -496,6 +497,7 @@ module IDRAC
               error_message += "\nExtendedInfo:"
               retry_delay = nil
               extended_info.each_with_index do |info, index|
+                message_ids << info['MessageId'] if info['MessageId']
                 error_message += "\n  #{index + 1}. #{info['Message']}" if info['Message']
                 error_message += " (#{info['MessageId']})" if info['MessageId']
                 error_message += " - Resolution: #{info['Resolution']}" if info['Resolution']
@@ -512,7 +514,8 @@ module IDRAC
               
               # If we detected a ServiceTemporarilyUnavailable error, raise a special exception
               if retry_delay
-                raise ServiceTemporarilyUnavailableError.new(error_message, retry_delay)
+                raise ServiceTemporarilyUnavailableError.new(error_message, retry_delay,
+                                                             status: response.status, message_ids: message_ids)
               end
             end
           end
@@ -525,7 +528,9 @@ module IDRAC
           debug "Failed to parse JSON error response: #{e.message}", 1, :yellow if @verbosity && @verbosity > 0
         end
         
-        raise Error, error_message
+        # Keep the status and Dell's MessageIds as data, not only as prose: a caller deciding what to
+        # do about a failure should read a fact, not match a substring.
+        raise Error.new(error_message, status: response.status, message_ids: message_ids)
       end
     end
 
