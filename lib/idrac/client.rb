@@ -81,6 +81,7 @@ module IDRAC
           faraday.response :logger, Logger.new(STDOUT), bodies: @verbosity >= 2 do |logger|
             logger.filter(/(Authorization: Basic )([^,\n]+)/, '\1[FILTERED]')
             logger.filter(/(Password"=>"?)([^,"]+)/, '\1[FILTERED]')
+            logger.filter(/(Password\\?"\s*[:,]\s*(?:\\?"Value\\?"\s*:\s*)?\\?")([^"\\]*)/, '\1[FILTERED]')
           end
         end
       end
@@ -190,7 +191,7 @@ module IDRAC
       headers['Accept'] ||= 'application/json'
       headers['Host'] = @host_header if @host_header
 
-      debug "Request body: #{body}", 2 if body && @verbosity >= 2
+      debug "Request body: #{body.to_s.match?(/password/i) ? '[REDACTED: contains a password]' : body}", 2 if body && @verbosity >= 2
 
       if @direct_mode
         headers['Authorization'] = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"

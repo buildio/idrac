@@ -84,6 +84,34 @@ module IDRAC
       end
     end
 
+    # Set iDRAC-only attributes without touching host power. Names are Redfish-style
+    # ("VNCServer.1.Enable" => "Enabled"). iDRAC9 takes a plain PATCH (no job). iDRAC8 has
+    # no Manager Attributes resource (404), so fall back to an SCP import that targets the
+    # iDRAC only, with NoReboot and HostPowerState pinned to the host's current state.
+    # Returns { status: :success } for the PATCH, or the import job's outcome.
+    def set_idrac_attributes(attributes, timeout: 600)
+      debug "Setting iDRAC attributes: #{attributes.to_h { |k, v| [k, k.to_s.match?(/password/i) ? "[REDACTED]" : v] }}", 1, :blue
+      response = authenticated_request(:patch, "/redfish/v1/Managers/iDRAC.Embedded.1/Attributes",
+                                       body: { "Attributes" => attributes }.to_json) { |r| r }
+      return { status: :success } if response.status.between?(200, 299)
+      handle_response(response) unless response.status == 404
+
+      scp = { "SystemConfiguration" => { "Components" => [make_scp(fqdd: "iDRAC.Embedded.1",
+        attributes: attributes.to_h { |k, v| [k.to_s.sub(/\A([^.]+\.\d+)\./, '\1#'), v] })] } }
+      response = authenticated_request(:post,
+        "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration",
+        body: { "ImportBuffer" => JSON.generate(scp), "ShareParameters" => { "Target" => "IDRAC" },
+                "ShutdownType" => "NoReboot", "HostPowerState" => get_power_state }.to_json)
+      wait_for_scp_import(response.headers["location"], timeout: timeout)
+    end
+
+    def enable_vnc!(password:, port: 5901)
+      set_idrac_attributes("VNCServer.1.Enable" => "Enabled", "VNCServer.1.Port" => port,
+                           "VNCServer.1.Password" => password,
+                           "VNCServer.1.SSLEncryptionBitLength" => "Disabled",
+                           "VNCServer.1.LowerEncryptionBitLength" => "Disabled")
+    end
+
     # Apply a system configuration profile to the iDRAC.
     #
     # Waits for the import JOB to finish and returns the JOB's outcome:
@@ -117,6 +145,8 @@ module IDRAC
         "ImportBuffer" => JSON.generate(scp_to_apply),
         "ShareParameters" => {"Target" => target},
         "ShutdownType" => "Forced",
+        # Warning: reboot: false sends "Off", which POWERS THE HOST OFF after the import.
+        # For iDRAC-only attributes use set_idrac_attributes, which keeps the power state.
         "HostPowerState" => reboot ? "On" : "Off"
       }
       

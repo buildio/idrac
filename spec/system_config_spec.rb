@@ -553,4 +553,49 @@ RSpec.describe "IDRAC::SystemConfig" do
       expect(result[:error]).to match(/no location header/)
     end
   end
-end 
+
+  describe "#set_idrac_attributes" do
+    let(:attrs_path) { "/redfish/v1/Managers/iDRAC.Embedded.1/Attributes" }
+    let(:import_path) { "/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration" }
+    let(:job_id) { "JID_900000000001" }
+    let(:attributes) { { "VNCServer.1.Enable" => "Enabled", "VNCServer.1.Port" => 5901, "VNCServer.1.Password" => "s3cret" } }
+
+    def patch_returns(status)
+      allow(client).to receive(:authenticated_request).with(:patch, attrs_path, body: anything)
+        .and_return(double("Response", status: status, headers: {}, body: "{}"))
+    end
+
+    it "PATCHes the attributes on iDRAC9 and never imports an SCP" do
+      expect(client).to receive(:authenticated_request)
+        .with(:patch, attrs_path, body: { "Attributes" => attributes }.to_json)
+        .and_return(double("Response", status: 200, headers: {}, body: "{}"))
+      expect(client).not_to receive(:authenticated_request).with(:post, import_path, any_args)
+      expect(client).not_to receive(:get_power_state)
+
+      expect(client.set_idrac_attributes(attributes)).to eq(status: :success)
+    end
+
+    it "falls back on iDRAC8 to an iDRAC-only, no-reboot import that keeps the power state" do
+      patch_returns(404)
+      allow(client).to receive(:get_power_state).and_return("On")
+      sent = nil
+      allow(client).to receive(:authenticated_request).with(:post, import_path, body: anything) do |*, body:|
+        sent = JSON.parse(body)
+        double("Response", status: 202, headers: { "location" => "/redfish/v1/TaskService/Tasks/#{job_id}" })
+      end
+      allow(client).to receive(:authenticated_request).with(:get, "/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/#{job_id}")
+        .and_return(double("Response", status: 200, body: { "JobState" => "Completed", "Message" => "Done" }.to_json))
+
+      expect(client.set_idrac_attributes(attributes)[:status]).to eq(:success)
+      expect(sent).to include("ShareParameters" => { "Target" => "IDRAC" }, "ShutdownType" => "NoReboot", "HostPowerState" => "On")
+      names = JSON.parse(sent["ImportBuffer"])["SystemConfiguration"]["Components"].first["Attributes"].map { |a| a["Name"] }
+      expect(names).to eq(["VNCServer.1#Enable", "VNCServer.1#Port", "VNCServer.1#Password"])
+    end
+
+    it "does not print the password in debug output" do
+      patch_returns(200)
+      client.verbosity = 2
+      expect { client.set_idrac_attributes(attributes) }.not_to output(/s3cret/).to_stdout
+    end
+  end
+end
