@@ -43,6 +43,7 @@ module IDRAC
           faraday.response :logger, Logger.new(STDOUT), bodies: @verbosity >= 2 do |logger|
             logger.filter(/(Authorization: Basic )([^,\n]+)/, '\1[FILTERED]')
             logger.filter(/(Password"=>"?)([^,"]+)/, '\1[FILTERED]')
+            logger.filter(/(Password\\?"\s*[:,]\s*(?:\\?"Value\\?"\s*:\s*)?\\?")([^"\\]*)/, '\1[FILTERED]')
           end
         end
       end

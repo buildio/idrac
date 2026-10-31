@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.2] - 2026-11-01
+### Added
+- `set_idrac_attributes(attributes)` sets iDRAC-only attributes (Redfish-style names,
+  e.g. `"VNCServer.1.Enable"`) without touching host power. iDRAC9 uses a PATCH to
+  the Manager Attributes resource (no job). On 404 (iDRAC8) it falls back to an SCP
+  import with Target `IDRAC`, `ShutdownType` `NoReboot`, and `HostPowerState` set to
+  the host's current power state. `enable_vnc!(password:, port: 5901)` builds on it.
+
+### Fixed
+- Debug and Faraday request logging redact password values in JSON bodies.
+
+### Notes
+- `set_system_configuration_profile(reboot: false)` sends `HostPowerState: "Off"`,
+  which powers the host off after the import. Behaviour unchanged; use
+  `set_idrac_attributes` for iDRAC-only changes.
+
 ## [Unreleased]
 ### Fixed
 - Development and CI no longer hold json at 2.x. The `unknown keyword:
