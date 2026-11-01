@@ -106,10 +106,11 @@ module IDRAC
     end
 
     def enable_vnc!(password:, port: 5901)
-      set_idrac_attributes("VNCServer.1.Enable" => "Enabled", "VNCServer.1.Port" => port,
-                           "VNCServer.1.Password" => password,
-                           "VNCServer.1.SSLEncryptionBitLength" => "Disabled",
-                           "VNCServer.1.LowerEncryptionBitLength" => "Disabled")
+      # Braces matter: a bare string-keyed hash binds to the keyword args on Ruby 3.
+      set_idrac_attributes({ "VNCServer.1.Enable" => "Enabled", "VNCServer.1.Port" => port,
+                             "VNCServer.1.Password" => password,
+                             "VNCServer.1.SSLEncryptionBitLength" => "Disabled",
+                             "VNCServer.1.LowerEncryptionBitLength" => "Disabled" })
     end
 
     # Apply a system configuration profile to the iDRAC.

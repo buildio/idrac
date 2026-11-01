@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.3] - 2026-11-01
+
+### Fixed
+- `enable_vnc!` raised `ArgumentError` on Ruby 3: its string-keyed hash bound to `set_idrac_attributes`' keyword args. Pass it in braces; spec calls it unstubbed.
+
 ## [0.11.2] - 2026-11-01
 ### Added
 - `set_idrac_attributes(attributes)` sets iDRAC-only attributes (Redfish-style names,

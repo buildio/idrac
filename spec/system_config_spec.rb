@@ -598,4 +598,18 @@ RSpec.describe "IDRAC::SystemConfig" do
       expect { client.set_idrac_attributes(attributes) }.not_to output(/s3cret/).to_stdout
     end
   end
+
+  describe "#enable_vnc!" do
+    it "PATCHes the five VNC attributes (not stubbed: calls set_idrac_attributes for real)" do
+      sent = nil
+      allow(client).to receive(:authenticated_request).with(:patch, "/redfish/v1/Managers/iDRAC.Embedded.1/Attributes", body: anything) do |*, body:|
+        sent = JSON.parse(body)["Attributes"]
+        double("Response", status: 200, headers: {}, body: "{}")
+      end
+
+      expect(client.enable_vnc!(password: "pw")).to eq(status: :success)
+      expect(sent).to eq("VNCServer.1.Enable" => "Enabled", "VNCServer.1.Port" => 5901, "VNCServer.1.Password" => "pw",
+                         "VNCServer.1.SSLEncryptionBitLength" => "Disabled", "VNCServer.1.LowerEncryptionBitLength" => "Disabled")
+    end
+  end
 end
